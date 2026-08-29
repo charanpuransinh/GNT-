@@ -1,0 +1,56 @@
+name: GNT - Scan, Build & Test (All Teams)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  discover-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        team_path:
+          - STRUCTURE/Team_A_M01-M05
+          - STRUCTURE/Team_B_M06-M10
+          - STRUCTURE/Team_C_M11-M15
+          - STRUCTURE/Team_D_M16-M20
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Backend - check & build
+        run: |
+          if [ -f "${{ matrix.team_path }}/backend/package.json" ]; then
+            cd "${{ matrix.team_path }}/backend"
+            npm install
+            npm run lint --if-present
+            npm run build --if-present
+            npm test --if-present
+          else
+            echo "No backend/package.json yet in ${{ matrix.team_path }} - skipping"
+          fi
+
+      - name: Frontend - check & build
+        run: |
+          if [ -f "${{ matrix.team_path }}/frontend/package.json" ]; then
+            cd "${{ matrix.team_path }}/frontend"
+            npm install
+            npm run lint --if-present
+            npm run build --if-present
+            npm test --if-present
+          else
+            echo "No frontend/package.json yet in ${{ matrix.team_path }} - skipping"
+          fi
+
+      - name: Report missing code (wiring-only teams)
+        run: |
+          echo "### Scan summary for ${{ matrix.team_path }}" >> $GITHUB_STEP_SUMMARY
+          find "${{ matrix.team_path }}" -name "package.json" >> $GITHUB_STEP_SUMMARY || echo "No package.json found" >> $GITHUB_STEP_SUMMARY
