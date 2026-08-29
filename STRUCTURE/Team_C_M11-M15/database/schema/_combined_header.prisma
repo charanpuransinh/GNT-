@@ -1,0 +1,159 @@
+// ============================================================
+// GNT MASTER BLUEPRINT V2 — COMBINED PRISMA SCHEMA (M11-M15)
+// Module Owner: TEAM C | Session 2: Database Schema
+// Usage: Append individual module schemas after this header
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  extensions = [pgcrypto, uuid_ossp]
+}
+
+// ============================================================
+// SHARED ENUMS (Used across M11-M15)
+// ============================================================
+
+enum PaymentDirection {
+  IN
+  OUT
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  PROBATION
+  NOTICE_PERIOD
+  RESIGNED
+  TERMINATED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+  WFH
+  HOLIDAY
+  WEEKLY_OFF
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  DRAFT
+  REVIEWED
+  APPROVED
+  PAID
+}
+
+enum WorkflowTriggerType {
+  MANUAL
+  EVENT
+  SCHEDULE
+  WEBHOOK
+}
+
+enum WorkflowStepType {
+  CONDITION
+  ACTION
+  APPROVAL
+  NOTIFICATION
+  DELAY
+  WEBHOOK
+  SUB_WORKFLOW
+}
+
+enum ExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  WAITING
+}
+
+enum JobActionType {
+  WORKFLOW
+  API_CALL
+  REPORT
+  BACKUP
+  SYNC
+  CUSTOM_SCRIPT
+}
+
+enum ImportStatus {
+  QUEUED
+  VALIDATING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ExportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SyncDirection {
+  BIDIRECTIONAL
+  TO_EXTERNAL
+  FROM_EXTERNAL
+}
+
+enum SyncMode {
+  MANUAL
+  SCHEDULED
+  REALTIME
+}
+
+enum SyncJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ConflictStatus {
+  PENDING
+  RESOLVED
+  AUTO_RESOLVED
+}
+
+// ============================================================
+// MODULE SCHEMAS FOLLOW (See individual files)
+// ============================================================
+// M11: M11_Payment.prisma
+// M12: M12_HR.prisma
+// M13: M13_Automation.prisma
+// M14: M14_ImportExport.prisma
+// M15: M15_Sync.prisma
+// ============================================================

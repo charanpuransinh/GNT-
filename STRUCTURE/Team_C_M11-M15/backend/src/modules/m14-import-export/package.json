@@ -1,0 +1,37 @@
+{
+  "name": "@gnt/m14-import-export",
+  "version": "1.0.0",
+  "description": "GNT M14 Import/Export Module Backend",
+  "main": "dist/routes/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/routes/index.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "queue:import": "ts-node src/jobs/import.worker.ts",
+    "queue:export": "ts-node src/jobs/export.worker.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "csv-parser": "^3.0.0",
+    "express": "^4.18.0",
+    "ioredis": "^5.3.0",
+    "json2csv": "^6.0.0",
+    "multer": "^1.4.0",
+    "pdfkit": "^0.13.0",
+    "xlsx": "^0.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0",
+    "@types/multer": "^1.4.0",
+    "@types/node": "^20.0.0",
+    "@types/pdfkit": "^0.13.0",
+    "prisma": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}

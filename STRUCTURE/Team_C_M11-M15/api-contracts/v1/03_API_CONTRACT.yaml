@@ -1,0 +1,32 @@
+openapi: 3.0.0
+info:
+  title: M13 Automation API
+  version: 2.0.0
+paths:
+  /api/v2/automation/workflows:
+    get: { summary: List workflows, tags: [Workflow] }
+    post: { summary: Create workflow, tags: [Workflow] }
+  /api/v2/automation/workflows/{id}:
+    get: { summary: Get workflow, tags: [Workflow] }
+    put: { summary: Update workflow, tags: [Workflow] }
+    delete: { summary: Delete workflow, tags: [Workflow] }
+  /api/v2/automation/workflows/{id}/execute:
+    post: { summary: Manual execution, tags: [Execution] }
+  /api/v2/automation/workflows/{id}/toggle:
+    post: { summary: Enable/disable, tags: [Workflow] }
+  /api/v2/automation/triggers:
+    get: { summary: List triggers, tags: [Trigger] }
+    post: { summary: Create trigger, tags: [Trigger] }
+  /api/v2/automation/executions:
+    get: { summary: List executions, tags: [Execution] }
+  /api/v2/automation/executions/{id}:
+    get: { summary: Get execution details, tags: [Execution] }
+  /api/v2/automation/executions/{id}/cancel:
+    post: { summary: Cancel running execution, tags: [Execution] }
+  /api/v2/automation/scheduled-jobs:
+    get: { summary: List scheduled jobs, tags: [Scheduler] }
+    post: { summary: Create scheduled job, tags: [Scheduler] }
+  /api/v2/automation/actions/definitions:
+    get: { summary: List available action types, tags: [Action] }
+  /webhooks/automation/{workflowId}:
+    post: { summary: Webhook trigger endpoint, tags: [Trigger], auth: false }

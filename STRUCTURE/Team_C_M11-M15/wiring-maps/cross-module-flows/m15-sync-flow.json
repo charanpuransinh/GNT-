@@ -1,0 +1,11 @@
+{
+  "module": "M15",
+  "name": "Offline Sync Flow",
+  "steps": [
+    {"step": 1, "from": "frontend/SyncStatusPage", "to": "backend/sync.controller", "action": "POST /sync"},
+    {"step": 2, "from": "backend/sync.controller", "to": "backend/sync.service", "action": "syncEntity()"},
+    {"step": 3, "from": "backend/sync.service", "to": "M05-M12", "action": "GET /public/{module}/list"},
+    {"step": 4, "from": "backend/sync.service", "to": "backend/conflict.service", "action": "resolveConflicts()"},
+    {"step": 5, "from": "backend/sync.service", "to": "M14/export.service", "action": "POST /public/m14/export"}
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "module": "M19",
+  "owner": "D4-DELTA",
+  "provides": {
+    "audit.service": { "visibility": "PUBLIC", "methods": ["logAction()", "queryAuditLogs()", "getLoginHistory()"] },
+    "security.internal": { "visibility": "PRIVATE", "methods": ["detectAnomaly()", "getSecurityEvents()"] },
+    "health.service": { "visibility": "PUBLIC", "methods": ["checkSystemHealth()", "checkDatabaseHealth()"] }
+  },
+  "consumes": {
+    "events": [
+      { "event": "user.login.success", "source": "M02" },
+      { "event": "user.login.failed", "source": "M02" },
+      { "event": "sales.invoice.created", "source": "M08" },
+      { "event": "purchase.invoice.approved", "source": "M07" },
+      { "event": "stock.updated", "source": "M06" },
+      { "event": "payment.received", "source": "M11" },
+      { "event": "permission.changed", "source": "M04" },
+      { "event": "gst.return.filed", "source": "M09" },
+      { "event": "employee.salary.processed", "source": "M12" },
+      { "event": "integration.webhook.failed", "source": "M18" }
+    ]
+  },
+  "boundaries": {
+    "legal": ["ANY MODULE -> audit.service.logAction()", "M19 -> read audit_log"],
+    "illegal": ["ANY MODULE -> audit.repository", "ANY MODULE -> audit_log direct", "M19 -> modify/delete audit_log"]
+  }
+}

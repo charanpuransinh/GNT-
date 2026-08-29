@@ -1,0 +1,12 @@
+{
+  "module": "M11",
+  "name": "M11 Payment",
+  "class": "C",
+  "frontend_path": "frontend/src/modules/m11-payment",
+  "backend_path": "backend/src/modules/m11-payment",
+  "database_tables": [],
+  "public_apis": [],
+  "events_published": [],
+  "events_subscribed": [],
+  "dependencies": []
+}

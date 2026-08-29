@@ -1,0 +1,11 @@
+{
+  "module": "M14",
+  "name": "Bulk Import Flow",
+  "steps": [
+    {"step": 1, "from": "frontend/ImportWizardPage", "to": "backend/import.controller", "action": "POST /imports"},
+    {"step": 2, "from": "backend/import.controller", "to": "backend/import.service", "action": "processImport()"},
+    {"step": 3, "from": "backend/import.service", "to": "backend/parser.service", "action": "parseFile()"},
+    {"step": 4, "from": "backend/import.service", "to": "M05/M06/M07/M12", "action": "POST /public/{module}/bulk"},
+    {"step": 5, "from": "backend/import.service", "to": "M13/automation.service", "action": "POST /public/m13/publish-event"}
+  ]
+}

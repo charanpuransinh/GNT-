@@ -1,0 +1,11 @@
+{
+  "module": "M13",
+  "name": "Rule Engine Execution Flow",
+  "steps": [
+    {"step": 1, "from": "event.bus", "to": "backend/automation.handlers", "action": "receive module events"},
+    {"step": 2, "from": "backend/automation.handlers", "to": "backend/trigger-evaluator", "action": "evaluateConditions()"},
+    {"step": 3, "from": "backend/trigger-evaluator", "to": "M07/M08/M09/M10", "action": "GET public data for conditions"},
+    {"step": 4, "from": "backend/trigger-evaluator", "to": "backend/action-executor", "action": "executeActions()"},
+    {"step": 5, "from": "backend/action-executor", "to": "M11/M12/M14/M15", "action": "POST public APIs"}
+  ]
+}

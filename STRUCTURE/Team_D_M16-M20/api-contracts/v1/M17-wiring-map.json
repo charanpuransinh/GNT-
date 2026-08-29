@@ -1,0 +1,114 @@
+{
+  "module": "M17-Reporting",
+  "version": "2.0.0",
+  "owner": "D4-DELTA",
+  "provides": {
+    "public": [
+      {
+        "service": "report.service.ts",
+        "methods": [
+          "generateReport(config)",
+          "exportReport(format, data)",
+          "getExecutiveDashboard()"
+        ],
+        "consumers": ["Frontend pages", "Executive BI widget"]
+      }
+    ]
+  },
+  "consumes": {
+    "readOnly": [
+      {
+        "module": "M06",
+        "service": "inventory.service.ts",
+        "methods": [
+          "getStockSummary(filters)",
+          "getProductList()"
+        ],
+        "purpose": "Inventory reports"
+      },
+      {
+        "module": "M07",
+        "service": "purchase.service.ts",
+        "methods": [
+          "getPurchaseRegister(filters)"
+        ],
+        "purpose": "Purchase reports"
+      },
+      {
+        "module": "M08",
+        "service": "sales.service.ts",
+        "methods": [
+          "getSalesRegister(filters)"
+        ],
+        "purpose": "Sales reports"
+      },
+      {
+        "module": "M09",
+        "service": "gst.service.ts",
+        "methods": [
+          "getGSTTransactions(filters)",
+          "getHSNSummary()"
+        ],
+        "purpose": "GST reports"
+      },
+      {
+        "module": "M10",
+        "service": "accounting.service.ts",
+        "methods": [
+          "getLedgerEntries(filters)",
+          "getTrialBalance()"
+        ],
+        "purpose": "Accounting reports"
+      },
+      {
+        "module": "M12",
+        "service": "hr.service.ts",
+        "methods": [
+          "getAttendanceReport(filters)",
+          "getSalaryRegister(filters)"
+        ],
+        "purpose": "HR reports"
+      }
+    ]
+  },
+  "events": {
+    "subscribes": [
+      {
+        "event": "sales.invoice.created",
+        "handler": "Update sales report cache"
+      },
+      {
+        "event": "purchase.invoice.approved",
+        "handler": "Update purchase report cache"
+      },
+      {
+        "event": "stock.updated",
+        "handler": "Update inventory report cache"
+      },
+      {
+        "event": "payment.received",
+        "handler": "Update outstanding report"
+      },
+      {
+        "event": "employee.salary.processed",
+        "handler": "Update HR report cache"
+      }
+    ]
+  },
+  "boundaries": {
+    "legal": [
+      "M17 → M08 sales.service.getSalesRegister() [READ ONLY]",
+      "M17 → M07 purchase.service.getPurchaseRegister() [READ ONLY]",
+      "M17 → M06 inventory.service.getStockSummary() [READ ONLY]",
+      "M17 → M09 gst.service.getGSTTransactions() [READ ONLY]",
+      "M17 → M10 accounting.service.getLedgerEntries() [READ ONLY]",
+      "M17 → M12 hr.service.getAttendanceReport() [READ ONLY]"
+    ],
+    "illegal": [
+      "M17 → M08 sales.repository.ts",
+      "M17 → sales_invoice table directly",
+      "M17 modifying any transactional data",
+      "M17 creating invoices, payments, stock entries"
+    ]
+  }
+}

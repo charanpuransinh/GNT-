@@ -1,0 +1,61 @@
+name: GNT Orchestrator - Auto Aider Task Runner
+
+# Yeh workflow tab chalta hai jab aap 02_AI_TASKS/00_INBOX/ folder me
+# koi nayi task file push karte hain. Aap ko kuch manually nahi karna padta.
+
+on:
+  push:
+    paths:
+      - '.gnt/02_AI_TASKS/00_INBOX/**'
+
+jobs:
+  run-aider-task:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Aider
+        run: pip install aider-chat
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "gnt-orchestrator-bot"
+          git config --global user.email "orchestrator@gnt.local"
+
+      - name: Find newest task in INBOX and run Aider
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          TASK_FILE=$(git diff --name-only HEAD~1 HEAD -- '.gnt/02_AI_TASKS/00_INBOX/' | head -n 1)
+          if [ -z "$TASK_FILE" ]; then
+            echo "No new task file found. Exiting."
+            exit 0
+          fi
+          echo "Processing task: $TASK_FILE"
+          aider --yes-always --no-check-update \
+            --message "Read the task contract in $TASK_FILE and carry out exactly what it specifies. Follow every rule in .gnt/01_BLUEPRINT/RULES.md and docs/roadmap/. Do not invent architecture not named in those documents. No mock/fake/placeholder data anywhere. When done, append your evidence (what changed, why, files changed, test result) to the bottom of $TASK_FILE under the Evidence section." \
+            --model claude-sonnet-4-6
+
+      - name: Move task file forward to review stage
+        run: |
+          TASK_FILE=$(git diff --name-only HEAD~1 HEAD -- '.gnt/02_AI_TASKS/00_INBOX/' | head -n 1)
+          if [ -n "$TASK_FILE" ]; then
+            FILENAME=$(basename "$TASK_FILE")
+            git mv "$TASK_FILE" ".gnt/02_AI_TASKS/50_TEST/$FILENAME" || true
+          fi
+
+      - name: Commit and push results
+        run: |
+          git add -A
+          git diff --cached --quiet || git commit -m "GNT orchestrator: Aider processed task, moved to 50_TEST"
+          git push

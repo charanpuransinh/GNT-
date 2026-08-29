@@ -1,0 +1,12 @@
+{
+  "module": "M15",
+  "name": "M15 Sync",
+  "class": "C",
+  "frontend_path": "frontend/src/modules/m15-sync",
+  "backend_path": "backend/src/modules/m15-sync",
+  "database_tables": [],
+  "public_apis": [],
+  "events_published": [],
+  "events_subscribed": [],
+  "dependencies": []
+}

@@ -1,0 +1,682 @@
+openapi: 3.0.3
+info:
+  title: GNT M17 Reporting API
+  version: 2.0.0
+  description: Sales, Purchase, Inventory, GST, Accounting, HR reports + Executive BI
+  contact:
+    name: D4-DELTA Team
+
+servers:
+  - url: /api/v1
+
+paths:
+  /reports/generate:
+    post:
+      summary: Generate report
+      operationId: generateReport
+      tags: [Reports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateReportRequest'
+      responses:
+        '200':
+          description: Report generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/sales:
+    get:
+      summary: Get sales report data
+      operationId: getSalesReport
+      tags: [Reports]
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: Sales report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesReportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/purchase:
+    get:
+      summary: Get purchase report data
+      operationId: getPurchaseReport
+      tags: [Reports]
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/SupplierId'
+      responses:
+        '200':
+          description: Purchase report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseReportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/inventory:
+    get:
+      summary: Get inventory report data
+      operationId: getInventoryReport
+      tags: [Reports]
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/WarehouseId'
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Inventory report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryReportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/gst:
+    get:
+      summary: Get GST report data
+      operationId: getGSTReport
+      tags: [Reports]
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/GSTIN'
+      responses:
+        '200':
+          description: GST report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GSTReportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/accounting:
+    get:
+      summary: Get accounting report data
+      operationId: getAccountingReport
+      tags: [Reports]
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/LedgerId'
+      responses:
+        '200':
+          description: Accounting report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountingReportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/hr:
+    get:
+      summary: Get HR report data
+      operationId: getHRReport
+      tags: [Reports]
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/DepartmentId'
+        - $ref: '#/components/parameters/EmployeeId'
+      responses:
+        '200':
+          description: HR report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HRReportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/export:
+    post:
+      summary: Export report as PDF/Excel
+      operationId: exportReport
+      tags: [Reports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportReportRequest'
+      responses:
+        '200':
+          description: Export file URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  schemas:
+    GenerateReportRequest:
+      type: object
+      required: [reportType, filters]
+      properties:
+        reportType:
+          type: string
+          enum: [sales, purchase, inventory, gst, accounting, hr, executive]
+        filters:
+          type: object
+        format:
+          type: string
+          enum: [json, pdf, excel, csv]
+          default: json
+
+    ReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        meta:
+          type: object
+          properties:
+            generatedAt:
+              type: string
+              format: date-time
+            rowCount:
+              type: integer
+
+    SalesReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesReportRow'
+        summary:
+          $ref: '#/components/schemas/SalesSummary'
+
+    SalesReportRow:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        customerName:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        grossAmount:
+          type: number
+        discount:
+          type: number
+        taxableAmount:
+          type: number
+        cgst:
+          type: number
+        sgst:
+          type: number
+        igst:
+          type: number
+        totalAmount:
+          type: number
+        marginPercent:
+          type: number
+
+    SalesSummary:
+      type: object
+      properties:
+        totalInvoices:
+          type: integer
+        totalQuantity:
+          type: number
+        totalGross:
+          type: number
+        totalDiscount:
+          type: number
+        totalTax:
+          type: number
+        totalRevenue:
+          type: number
+        avgMargin:
+          type: number
+
+    PurchaseReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseReportRow'
+
+    PurchaseReportRow:
+      type: object
+      properties:
+        poId:
+          type: string
+        poDate:
+          type: string
+          format: date
+        supplierName:
+          type: string
+        status:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: number
+        rate:
+          type: number
+        amount:
+          type: number
+        receivedQty:
+          type: number
+        pendingQty:
+          type: number
+
+    InventoryReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryReportRow'
+        valuation:
+          $ref: '#/components/schemas/InventoryValuation'
+
+    InventoryReportRow:
+      type: object
+      properties:
+        productId:
+          type: string
+        productName:
+          type: string
+        sku:
+          type: string
+        warehouse:
+          type: string
+        openingStock:
+          type: number
+        inwardQty:
+          type: number
+        outwardQty:
+          type: number
+        closingStock:
+          type: number
+        unitCost:
+          type: number
+        stockValue:
+          type: number
+        reorderLevel:
+          type: number
+        stockStatus:
+          type: string
+
+    InventoryValuation:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+        totalStockValue:
+          type: number
+        lowStockCount:
+          type: integer
+        overStockCount:
+          type: integer
+
+    GSTReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/GSTReportRow'
+        hsnSummary:
+          type: array
+          items:
+            $ref: '#/components/schemas/HSNSummaryRow'
+
+    GSTReportRow:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+        invoiceDate:
+          type: string
+        gstin:
+          type: string
+        taxableValue:
+          type: number
+        cgstAmount:
+          type: number
+        sgstAmount:
+          type: number
+        igstAmount:
+          type: number
+        totalTax:
+          type: number
+        invoiceValue:
+          type: number
+
+    HSNSummaryRow:
+      type: object
+      properties:
+        hsnCode:
+          type: string
+        description:
+          type: string
+        totalQuantity:
+          type: number
+        taxableValue:
+          type: number
+        cgstRate:
+          type: number
+        sgstRate:
+          type: number
+        igstRate:
+          type: number
+        totalTax:
+          type: number
+
+    AccountingReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountingReportRow'
+        cashflow:
+          $ref: '#/components/schemas/CashflowSummary'
+        aging:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgingRow'
+
+    AccountingReportRow:
+      type: object
+      properties:
+        entryId:
+          type: string
+        date:
+          type: string
+        ledgerName:
+          type: string
+        voucherType:
+          type: string
+        voucherNo:
+          type: string
+        debit:
+          type: number
+        credit:
+          type: number
+        narration:
+          type: string
+
+    CashflowSummary:
+      type: object
+      properties:
+        openingBalance:
+          type: number
+        totalInflow:
+          type: number
+        totalOutflow:
+          type: number
+        netFlow:
+          type: number
+        closingBalance:
+          type: number
+
+    AgingRow:
+      type: object
+      properties:
+        partyName:
+          type: string
+        totalOutstanding:
+          type: number
+        days0_30:
+          type: number
+        days31_60:
+          type: number
+        days61_90:
+          type: number
+        days91_plus:
+          type: number
+
+    HRReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        attendance:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceRow'
+        salary:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryRow'
+
+    AttendanceRow:
+      type: object
+      properties:
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        department:
+          type: string
+        month:
+          type: string
+        presentDays:
+          type: integer
+        absentDays:
+          type: integer
+        leaveDays:
+          type: integer
+        halfDays:
+          type: integer
+        overtimeHours:
+          type: number
+
+    SalaryRow:
+      type: object
+      properties:
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        basicSalary:
+          type: number
+        hra:
+          type: number
+        da:
+          type: number
+        otherAllowances:
+          type: number
+        grossSalary:
+          type: number
+        pfDeduction:
+          type: number
+        esiDeduction:
+          type: number
+        tds:
+          type: number
+        otherDeductions:
+          type: number
+        netSalary:
+          type: number
+
+    ExportReportRequest:
+      type: object
+      required: [reportType, format, data]
+      properties:
+        reportType:
+          type: string
+        format:
+          type: string
+          enum: [pdf, excel, csv]
+        data:
+          type: object
+        templateId:
+          type: string
+
+    ExportReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        downloadUrl:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+
+  parameters:
+    DateFrom:
+      name: dateFrom
+      in: query
+      schema:
+        type: string
+        format: date
+    DateTo:
+      name: dateTo
+      in: query
+      schema:
+        type: string
+        format: date
+    CompanyId:
+      name: companyId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProductId:
+      name: productId
+      in: query
+      schema:
+        type: string
+        format: uuid
+    CustomerId:
+      name: customerId
+      in: query
+      schema:
+        type: string
+        format: uuid
+    SupplierId:
+      name: supplierId
+      in: query
+      schema:
+        type: string
+        format: uuid
+    WarehouseId:
+      name: warehouseId
+      in: query
+      schema:
+        type: string
+        format: uuid
+    GSTIN:
+      name: gstin
+      in: query
+      schema:
+        type: string
+    LedgerId:
+      name: ledgerId
+      in: query
+      schema:
+        type: string
+        format: uuid
+    DepartmentId:
+      name: departmentId
+      in: query
+      schema:
+        type: string
+        format: uuid
+    EmployeeId:
+      name: employeeId
+      in: query
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: Unauthorized
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: Forbidden
