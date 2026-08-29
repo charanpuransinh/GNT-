@@ -1,0 +1,121 @@
+openapi: 3.0.3
+info:
+  title: M10 Accounting API
+  version: 1.0.0
+paths:
+  /api/v1/accounting/accounts:
+    post:
+      summary: Create Account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: string }
+                name: { type: string }
+                code: { type: string }
+                type: { type: string, enum: [asset, liability, equity, income, expense] }
+    get:
+      summary: List Accounts
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: type
+          in: query
+          schema: { type: string }
+  /api/v1/accounting/ledger:
+    get:
+      summary: Get Ledger Entries
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: from_date
+          in: query
+          schema: { type: string, format: date }
+        - name: to_date
+          in: query
+          schema: { type: string, format: date }
+  /api/v1/accounting/vouchers:
+    post:
+      summary: Create Voucher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: string }
+                voucher_type: { type: string }
+                voucher_number: { type: string }
+                voucher_date: { type: string, format: date }
+                narration: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      account_id: { type: string }
+                      debit_amount: { type: number }
+                      credit_amount: { type: number }
+                      narration: { type: string }
+    get:
+      summary: List Vouchers
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+  /api/v1/accounting/vouchers/{id}/post:
+    post:
+      summary: Post Voucher (atomic ledger posting)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+  /api/v1/accounting/trial-balance:
+    get:
+      summary: Trial Balance
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: as_of_date
+          in: query
+          schema: { type: string, format: date }
+  /api/v1/accounting/profit-loss:
+    get:
+      summary: Profit & Loss
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: from_date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to_date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+  /api/v1/accounting/balance-sheet:
+    get:
+      summary: Balance Sheet
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: as_of_date
+          in: query
+          required: true
+          schema: { type: string, format: date }

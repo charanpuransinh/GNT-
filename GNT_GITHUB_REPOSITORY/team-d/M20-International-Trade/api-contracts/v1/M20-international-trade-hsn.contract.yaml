@@ -1,0 +1,651 @@
+openapi: 3.0.3
+info:
+  title: GNT M20 — International Trade & HSN APIs
+  version: "2.0.0"
+  description: |
+    Master API contract for M20 International Trade module.
+    Covers export/import shipments, HSN classification, FX, customs duty, and trade documents.
+  contact:
+    name: D4-DELTA Team
+servers:
+  - url: /api/v1
+    description: GNT API Gateway
+
+tags:
+  - name: Trade
+    description: Import / Export shipment operations
+  - name: HSN
+    description: 8-digit HSN code engine
+  - name: FX
+    description: Foreign exchange rate management
+  - name: Customs
+    description: Customs duty calculation & rules
+  - name: Documents
+    description: Trade document generation
+
+paths:
+  /trade/exports:
+    post:
+      tags: [Trade]
+      summary: Create export shipment
+      operationId: createExportShipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTradeShipmentRequest'
+      responses:
+        '201':
+          description: Export shipment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeJobResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /trade/imports:
+    post:
+      tags: [Trade]
+      summary: Create import shipment
+      operationId: createImportShipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTradeShipmentRequest'
+      responses:
+        '201':
+          description: Import shipment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeJobResponse'
+
+  /trade/shipments:
+    get:
+      tags: [Trade]
+      summary: List trade jobs
+      operationId: listTradeJobs
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [import, export]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, submitted, under_review, customs_cleared, completed, cancelled]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of trade jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTradeJobs'
+
+  /trade/shipments/{id}:
+    get:
+      tags: [Trade]
+      summary: Get trade job by ID
+      operationId: getTradeJob
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trade job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeJobResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /hsn/search:
+    get:
+      tags: [HSN]
+      summary: Search 8-digit HSN codes
+      operationId: searchHSN
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search query (code or description)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: HSN search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HSNItem'
+
+  /hsn/{code}:
+    get:
+      tags: [HSN]
+      summary: Get HSN details by 8-digit code
+      operationId: getHSNDetails
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{8}$'
+      responses:
+        '200':
+          description: HSN details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HSNItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /hsn/validate:
+    post:
+      tags: [HSN]
+      summary: Validate HSN classification
+      operationId: validateHSN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HSNValidationRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HSNValidationResponse'
+
+  /fx/rates:
+    get:
+      tags: [FX]
+      summary: Get FX rates
+      operationId: getFXRates
+      parameters:
+        - name: base
+          in: query
+          schema:
+            type: string
+            default: INR
+        - name: target
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: FX rates list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FXRate'
+
+  /fx/convert:
+    post:
+      tags: [FX]
+      summary: Convert currency amount
+      operationId: convertCurrency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FXConvertRequest'
+      responses:
+        '200':
+          description: Converted amount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FXConvertResponse'
+
+  /customs/calculate:
+    post:
+      tags: [Customs]
+      summary: Calculate customs duty
+      operationId: calculateCustomsDuty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomsCalculateRequest'
+      responses:
+        '200':
+          description: Customs duty breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomsDutyBreakdown'
+
+  /customs/rules:
+    get:
+      tags: [Customs]
+      summary: Get customs rules for HSN
+      operationId: getCustomsRules
+      parameters:
+        - name: hsn_code
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{8}$'
+      responses:
+        '200':
+          description: Customs rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomsRule'
+
+  /trade/documents/generate:
+    post:
+      tags: [Documents]
+      summary: Generate trade document
+      operationId: generateTradeDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateDocumentRequest'
+      responses:
+        '201':
+          description: Document generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeDocument'
+
+  /trade/documents/{id}:
+    get:
+      tags: [Documents]
+      summary: View trade document
+      operationId: getTradeDocument
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeDocument'
+
+components:
+  schemas:
+    CreateTradeShipmentRequest:
+      type: object
+      required: [type, reference_no, party_id, product_id, hsn_code, quantity, currency]
+      properties:
+        type:
+          type: string
+          enum: [import, export]
+        reference_no:
+          type: string
+          maxLength: 50
+        party_id:
+          type: string
+        product_id:
+          type: string
+        hsn_code:
+          type: string
+          pattern: '^\d{8}$'
+        quantity:
+          type: number
+          minimum: 0
+        value_fob:
+          type: number
+          minimum: 0
+        value_cif:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          default: USD
+        fx_rate:
+          type: number
+          minimum: 0
+
+    TradeJobResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        type:
+          type: string
+        reference_no:
+          type: string
+        party_id:
+          type: string
+        product_id:
+          type: string
+        hsn_code:
+          type: string
+        quantity:
+          type: number
+        value_fob:
+          type: number
+        value_cif:
+          type: number
+        currency:
+          type: string
+        fx_rate:
+          type: number
+        customs_duty:
+          type: number
+        gst_amount:
+          type: number
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PaginatedTradeJobs:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TradeJobResponse'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+    HSNItem:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        description:
+          type: string
+        chapter:
+          type: string
+        heading:
+          type: string
+        subheading:
+          type: string
+        tariff_item:
+          type: string
+        gst_rate:
+          type: number
+        igst_rate:
+          type: number
+        cess_rate:
+          type: number
+        is_active:
+          type: boolean
+
+    HSNValidationRequest:
+      type: object
+      required: [code, product_description]
+      properties:
+        code:
+          type: string
+          pattern: '^\d{8}$'
+        product_description:
+          type: string
+
+    HSNValidationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        code:
+          type: string
+        message:
+          type: string
+        suggested_codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/HSNItem'
+
+    FXRate:
+      type: object
+      properties:
+        id:
+          type: string
+        base_currency:
+          type: string
+        target_currency:
+          type: string
+        rate:
+          type: number
+        source:
+          type: string
+        effective_date:
+          type: string
+          format: date-time
+
+    FXConvertRequest:
+      type: object
+      required: [amount, from_currency, to_currency]
+      properties:
+        amount:
+          type: number
+          minimum: 0
+        from_currency:
+          type: string
+        to_currency:
+          type: string
+
+    FXConvertResponse:
+      type: object
+      properties:
+        original_amount:
+          type: number
+        converted_amount:
+          type: number
+        rate:
+          type: number
+        from_currency:
+          type: string
+        to_currency:
+          type: string
+
+    CustomsCalculateRequest:
+      type: object
+      required: [hsn_code, assessable_value, currency]
+      properties:
+        hsn_code:
+          type: string
+          pattern: '^\d{8}$'
+        assessable_value:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          default: USD
+        fx_rate:
+          type: number
+
+    CustomsDutyBreakdown:
+      type: object
+      properties:
+        hsn_code:
+          type: string
+        assessable_value_inr:
+          type: number
+        bcd:
+          type: number
+        acd:
+          type: number
+        sad:
+          type: number
+        cvd:
+          type: number
+        anti_dumping:
+          type: number
+        safeguard:
+          type: number
+        igst:
+          type: number
+        cess:
+          type: number
+        total_duty:
+          type: number
+        breakup:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              rate:
+                type: number
+              amount:
+                type: number
+
+    CustomsRule:
+      type: object
+      properties:
+        id:
+          type: string
+        hsn_code:
+          type: string
+        bcd_rate:
+          type: number
+        acd_rate:
+          type: number
+        sad_rate:
+          type: number
+        cvd_rate:
+          type: number
+        anti_dumping_rate:
+          type: number
+        safeguard_duty:
+          type: number
+        effective_from:
+          type: string
+          format: date-time
+        effective_to:
+          type: string
+          format: date-time
+
+    GenerateDocumentRequest:
+      type: object
+      required: [trade_job_id, document_type]
+      properties:
+        trade_job_id:
+          type: string
+        document_type:
+          type: string
+          enum: [boe, shipping_bill, commercial_invoice, packing_list, certificate_of_origin]
+        metadata:
+          type: object
+          additionalProperties: true
+
+    TradeDocument:
+      type: object
+      properties:
+        id:
+          type: string
+        trade_job_id:
+          type: string
+        document_type:
+          type: string
+        content_json:
+          type: object
+        generated_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+        file_url:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: string
+                default: BAD_REQUEST
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              issues:
+                type: array
+                items:
+                  type: object
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: string
+                default: NOT_FOUND

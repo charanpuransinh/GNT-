@@ -1,0 +1,76 @@
+{
+  "module": "M01",
+  "name": "Foundation",
+  "owner": "A4-APPLE",
+  "version": "1.0.0",
+  "status": "IN_DEVELOPMENT",
+  "description": "System base, app shell, global configuration, health checks",
+  "connections": {
+    "outbound": [],
+    "inbound": [
+      {
+        "from": "M02",
+        "contract": "auth.contract.yaml",
+        "description": "M02 uses M01 app shell as layout wrapper",
+        "publicMethod": "AppShellPage"
+      },
+      {
+        "from": "M04",
+        "contract": "M04-company.contract.yaml",
+        "description": "M04 uses M01 error handling patterns and app config",
+        "publicMethod": "appService.getAppConfig"
+      },
+      {
+        "from": "M19",
+        "contract": "M19-production.contract.yaml",
+        "description": "M19 reads health status for monitoring",
+        "publicMethod": "appService.getHealthStatus"
+      }
+    ]
+  },
+  "events": {
+    "published": [],
+    "subscribed": []
+  },
+  "database": {
+    "owned": [],
+    "readOnly": [],
+    "note": "M01 uses environment variables and common config. No owned tables."
+  },
+  "publicServices": [
+    {
+      "name": "appService.getAppConfig",
+      "description": "Returns application configuration with feature flags",
+      "input": "void",
+      "output": "AppConfig",
+      "consumers": ["M02", "M04", "M05"]
+    },
+    {
+      "name": "appService.getHealthStatus",
+      "description": "Returns system health with DB/cache/storage checks",
+      "input": "void",
+      "output": "HealthStatus",
+      "consumers": ["M19", "monitoring-dashboard"]
+    },
+    {
+      "name": "appService.getSystemInfo",
+      "description": "Returns runtime system information",
+      "input": "void",
+      "output": "SystemInfo",
+      "consumers": ["M19"]
+    },
+    {
+      "name": "appService.checkMaintenanceMode",
+      "description": "Returns maintenance mode status",
+      "input": "void",
+      "output": "{ maintenanceMode: boolean; message?: string }",
+      "consumers": ["frontend-app-shell"]
+    }
+  ],
+  "forbidden": [
+    "No business logic",
+    "No financial operations",
+    "No database table ownership",
+    "No direct calls to M06-M20 private services"
+  ]
+}

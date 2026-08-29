@@ -1,0 +1,234 @@
+openapi: 3.0.3
+info:
+  title: GNT M16 — Notification Engine API
+  version: 1.0.0
+  description: |
+    In-App, WhatsApp, SMS, Email notifications + delivery tracking.
+servers:
+  - url: /api/v1
+    description: Base API path
+
+tags:
+  - name: Notifications
+  - name: Delivery
+
+paths:
+  /notifications/send:
+    post:
+      tags: [Notifications]
+      summary: Send a notification (routes to one or more channels)
+      operationId: sendNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendNotificationPayload' }
+      responses:
+        '201':
+          description: Notification queued/sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      notificationId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications for the current user
+      operationId: listNotifications
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, enum: [in_app, whatsapp, sms, email] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, sent, delivered, failed, read] }
+        - name: entityType
+          in: query
+          schema: { type: string }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [low, normal, high, urgent] }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          description: Paginated notification list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+                      total: { type: integer }
+                      page: { type: integer }
+                      limit: { type: integer }
+                      unreadCount: { type: integer }
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      operationId: markAsRead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Notification' }
+
+  /notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get unread count for bell badge
+      operationId: getUnreadCount
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      userId: { type: string, format: uuid }
+                      count: { type: integer }
+
+  /notifications/delivery-log/{id}:
+    get:
+      tags: [Delivery]
+      summary: Get delivery tracking log for a notification
+      operationId: getDeliveryLog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Delivery tracking info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/DeliveryTrackingResponse' }
+
+  /notifications/batch/read:
+    post:
+      tags: [Notifications]
+      summary: Mark all (or a set of) notifications as read
+      operationId: markAllAsRead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarkReadPayload' }
+      responses:
+        '200':
+          description: Batch mark result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      markedCount: { type: integer }
+
+components:
+  schemas:
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        title: { type: string }
+        message: { type: string }
+        type: { type: string, enum: [in_app, whatsapp, sms, email] }
+        entityType:
+          type: string
+          enum: [sales_invoice, purchase_invoice, payment, stock, gst_return, employee_salary, general]
+        entityId: { type: string, nullable: true }
+        priority: { type: string, enum: [low, normal, high, urgent] }
+        status: { type: string, enum: [pending, sent, delivered, failed, read] }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    SendNotificationPayload:
+      type: object
+      required: [userId, companyId, title, message, type]
+      properties:
+        userId: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        title: { type: string }
+        message: { type: string }
+        type: { type: string, enum: [in_app, whatsapp, sms, email] }
+        channels:
+          type: array
+          items: { type: string, enum: [in_app, whatsapp, sms, email] }
+        entityType: { type: string }
+        entityId: { type: string }
+        priority: { type: string, enum: [low, normal, high, urgent], default: normal }
+
+    MarkReadPayload:
+      type: object
+      properties:
+        notificationIds:
+          type: array
+          items: { type: string, format: uuid }
+        markAll: { type: boolean }
+
+    DeliveryLog:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        notificationId: { type: string, format: uuid }
+        channel: { type: string, enum: [in_app, whatsapp, sms, email] }
+        status: { type: string }
+        providerResponse: { type: string, nullable: true }
+        attemptedAt: { type: string, format: date-time }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        failedAt: { type: string, format: date-time, nullable: true }
+        errorMessage: { type: string, nullable: true }
+
+    DeliveryTrackingResponse:
+      type: object
+      properties:
+        notificationId: { type: string, format: uuid }
+        logs:
+          type: array
+          items: { $ref: '#/components/schemas/DeliveryLog' }
+        overallStatus: { type: string, enum: [pending, sent, delivered, failed, read] }

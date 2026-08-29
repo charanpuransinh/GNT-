@@ -1,0 +1,277 @@
+// M08 SALES & BILLING — Prisma Schema
+// Module: m08-sales | Team: B4-BRAVO | Brand: RAKSHA
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── M08 OWNED TABLES ───
+
+model Quotation {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  branchId        String   @map("branch_id")
+  customerId      String   @map("customer_id")
+  quotationNumber String   @unique @map("quotation_number")
+  quotationDate   DateTime @map("quotation_date") @db.Date
+  expiryDate      DateTime @map("expiry_date") @db.Date
+  status          QuotationStatus @default(draft)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  totalTax        Decimal  @map("total_tax") @db.Decimal(15, 4)
+  totalDiscount   Decimal  @map("total_discount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  roundOff        Decimal  @map("round_off") @db.Decimal(10, 4)
+  grandTotal      Decimal  @map("grand_total") @db.Decimal(15, 4)
+  notes           String?
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           QuotationItem[]
+  salesOrders     SalesOrder[]
+  salesInvoices   SalesInvoice[]
+
+  @@map("quotation")
+}
+
+model QuotationItem {
+  id              String   @id @default(uuid())
+  quotationId     String   @map("quotation_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxRate         Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  hsnCode         String?  @map("hsn_code")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@map("quotation_item")
+}
+
+model SalesOrder {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  branchId        String   @map("branch_id")
+  customerId      String   @map("customer_id")
+  quotationId     String?  @map("quotation_id")
+  orderNumber     String   @unique @map("order_number")
+  orderDate       DateTime @map("order_date") @db.Date
+  deliveryDate    DateTime @map("delivery_date") @db.Date
+  status          OrderStatus @default(draft)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  totalTax        Decimal  @map("total_tax") @db.Decimal(15, 4)
+  totalDiscount   Decimal  @map("total_discount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  roundOff        Decimal  @map("round_off") @db.Decimal(10, 4)
+  grandTotal      Decimal  @map("grand_total") @db.Decimal(15, 4)
+  notes           String?
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           SalesOrderItem[]
+  salesInvoices   SalesInvoice[]
+  deliveryChallans DeliveryChallan[]
+  quotation       Quotation? @relation(fields: [quotationId], references: [id])
+
+  @@map("sales_order")
+}
+
+model SalesOrderItem {
+  id              String   @id @default(uuid())
+  salesOrderId    String   @map("sales_order_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxRate         Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  deliveredQty    Decimal  @default(0) @map("delivered_qty") @db.Decimal(15, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  salesOrder      SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@map("sales_order_item")
+}
+
+model SalesInvoice {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  branchId        String   @map("branch_id")
+  customerId      String   @map("customer_id")
+  salesOrderId    String?  @map("sales_order_id")
+  quotationId     String?  @map("quotation_id")
+  invoiceNumber   String   @map("invoice_number")
+  invoiceDate     DateTime @map("invoice_date") @db.Date
+  dueDate         DateTime @map("due_date") @db.Date
+  status          InvoiceStatus @default(draft)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  totalTax        Decimal  @map("total_tax") @db.Decimal(15, 4)
+  totalDiscount   Decimal  @map("total_discount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  roundOff        Decimal  @map("round_off") @db.Decimal(10, 4)
+  grandTotal      Decimal  @map("grand_total") @db.Decimal(15, 4)
+  paymentStatus   PaymentStatus @default(unpaid) @map("payment_status")
+  amountPaid      Decimal  @default(0) @map("amount_paid") @db.Decimal(15, 4)
+  notes           String?
+  termsConditions String?  @map("terms_conditions")
+  createdBy       String?  @map("created_by")
+  approvedBy      String?  @map("approved_by")
+  postedBy        String?  @map("posted_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           SalesInvoiceItem[]
+  salesReturns    SalesReturn[]
+  salesOrder      SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  quotation       Quotation? @relation(fields: [quotationId], references: [id])
+
+  @@unique([companyId, invoiceNumber])
+  @@map("sales_invoice")
+}
+
+model SalesInvoiceItem {
+  id              String   @id @default(uuid())
+  salesInvoiceId  String   @map("sales_invoice_id")
+  productId       String   @map("product_id")
+  batchId         String?  @map("batch_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxRate         Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  hsnCode         String?  @map("hsn_code")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  salesInvoice    SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+
+  @@map("sales_invoice_item")
+}
+
+model SalesReturn {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  salesInvoiceId  String   @map("sales_invoice_id")
+  customerId      String   @map("customer_id")
+  returnNumber    String   @unique @map("return_number")
+  returnDate      DateTime @map("return_date") @db.Date
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  reason          String?
+  status          ReturnStatus @default(draft)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           SalesReturnItem[]
+  salesInvoice    SalesInvoice @relation(fields: [salesInvoiceId], references: [id])
+
+  @@map("sales_return")
+}
+
+model SalesReturnItem {
+  id              String   @id @default(uuid())
+  salesReturnId   String   @map("sales_return_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  salesReturn     SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+
+  @@map("sales_return_item")
+}
+
+model DeliveryChallan {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  salesOrderId    String   @map("sales_order_id")
+  customerId      String   @map("customer_id")
+  challanNumber   String   @unique @map("challan_number")
+  challanDate     DateTime @map("challan_date") @db.Date
+  status          ChallanStatus @default(draft)
+  totalQuantity   Decimal  @map("total_quantity") @db.Decimal(15, 4)
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  items           DeliveryChallanItem[]
+  salesOrder      SalesOrder @relation(fields: [salesOrderId], references: [id])
+
+  @@map("delivery_challan")
+}
+
+model DeliveryChallanItem {
+  id              String   @id @default(uuid())
+  deliveryChallanId String @map("delivery_challan_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  deliveryChallan DeliveryChallan @relation(fields: [deliveryChallanId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_challan_item")
+}
+
+// ─── ENUMS ───
+
+enum QuotationStatus {
+  draft
+  sent
+  accepted
+  rejected
+  converted
+}
+
+enum OrderStatus {
+  draft
+  confirmed
+  partial
+  delivered
+  cancelled
+}
+
+enum InvoiceStatus {
+  draft
+  approved
+  posted
+  paid
+  cancelled
+}
+
+enum PaymentStatus {
+  unpaid
+  partial
+  paid
+}
+
+enum ReturnStatus {
+  draft
+  approved
+  posted
+}
+
+enum ChallanStatus {
+  draft
+  delivered
+  returned
+}

@@ -1,0 +1,946 @@
+// GNT CANONICAL MASTER PRISMA SCHEMA
+// Modules: M01-M04 + M06-M10. M05 is intentionally absent because no M05 source package was supplied.
+generator client { provider = "prisma-client-js" }
+
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+// SOURCE: schema.prisma
+// GNT M06 — Inventory Management Schema
+// Module: मा आदिशक्ति | Brand: RAKSHA | Team: B4-BRAVO
+
+// ─── M06 OWNED TABLES ───
+
+model product_master {
+  id                String   @id @default(uuid()) @db.Uuid
+  company_id        String   @db.Uuid
+  branch_id         String?  @db.Uuid
+  name              String   @db.VarChar(255)
+  code              String?  @db.VarChar(100)
+  barcode           String?  @db.VarChar(100)
+  hsn_code          String?  @db.VarChar(50)
+  category_id       String?  @db.Uuid
+  unit              String?  @db.VarChar(50)
+  alternate_unit    String?  @db.VarChar(50)
+  conversion_rate   Decimal? @db.Decimal(10, 4)
+  sale_price        Decimal? @db.Decimal(15, 4)
+  purchase_price    Decimal? @db.Decimal(15, 4)
+  mrp               Decimal? @db.Decimal(15, 4)
+  gst_rate          Decimal? @db.Decimal(5, 2)
+  cess_rate         Decimal? @db.Decimal(5, 2)
+  is_gst_inclusive  Boolean  @default(false)
+  min_stock         Decimal? @db.Decimal(15, 4) @default("0")
+  max_stock         Decimal? @db.Decimal(15, 4)
+  reorder_level     Decimal? @db.Decimal(15, 4)
+  description       String?  @db.Text
+  image_url         String?  @db.Text
+  is_active         Boolean  @default(true)
+  status            String   @default("active") @db.VarChar(20)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  created_by        String?  @db.Uuid
+  updated_by        String?  @db.Uuid
+
+  category          category_master? @relation(fields: [category_id], references: [id])
+  stock             stock_master[]
+  batches           batch_master[]
+  serials           serial_master[]
+  movements         stock_movement[]
+
+  @@unique([company_id, code])
+  @@unique([company_id, barcode])
+  @@index([company_id])
+  @@index([category_id])
+  @@index([branch_id])
+  @@index([status])
+  @@map("product_master")
+}
+
+model category_master {
+  id          String   @id @default(uuid()) @db.Uuid
+  company_id  String   @db.Uuid
+  name        String   @db.VarChar(255)
+  parent_id   String?  @db.Uuid
+  code        String?  @db.VarChar(100)
+  description String?  @db.Text
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  parent      category_master?  @relation("CategoryTree", fields: [parent_id], references: [id])
+  children    category_master[] @relation("CategoryTree")
+  products    product_master[]
+
+  @@index([company_id])
+  @@index([parent_id])
+  @@map("category_master")
+}
+
+model stock_master {
+  id                 String   @id @default(uuid()) @db.Uuid
+  company_id         String   @db.Uuid
+  branch_id          String?  @db.Uuid
+  product_id         String   @db.Uuid
+  batch_id           String?  @db.Uuid
+  quantity           Decimal  @default("0") @db.Decimal(15, 4)
+  reserved_quantity  Decimal  @default("0") @db.Decimal(15, 4)
+  avg_purchase_price Decimal? @db.Decimal(15, 4)
+  last_purchase_price Decimal? @db.Decimal(15, 4)
+  godown_location    String?  @db.VarChar(255)
+  rack_number        String?  @db.VarChar(50)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  product    product_master  @relation(fields: [product_id], references: [id])
+  batch      batch_master?   @relation(fields: [batch_id], references: [id])
+  movements  stock_movement[]
+
+  @@unique([company_id, branch_id, product_id, batch_id])
+  @@index([company_id])
+  @@index([product_id])
+  @@index([branch_id])
+  @@map("stock_master")
+}
+
+model stock_movement {
+  id             String   @id @default(uuid()) @db.Uuid
+  company_id     String   @db.Uuid
+  product_id     String   @db.Uuid
+  batch_id       String?  @db.Uuid
+  branch_id      String?  @db.Uuid
+  reference_type String?  @db.VarChar(50)
+  reference_id   String?  @db.Uuid
+  movement_type  String   @db.VarChar(20) // 'in', 'out', 'adjustment', 'transfer'
+  quantity       Decimal  @db.Decimal(15, 4)
+  rate           Decimal? @db.Decimal(15, 4)
+  amount         Decimal? @db.Decimal(15, 4)
+  before_qty     Decimal? @db.Decimal(15, 4)
+  after_qty      Decimal? @db.Decimal(15, 4)
+  notes          String?  @db.Text
+  created_by     String?  @db.Uuid
+  created_at     DateTime @default(now())
+
+  product  product_master @relation(fields: [product_id], references: [id])
+  stock    stock_master?  @relation(fields: [stock_id], references: [id])
+  stock_id String?        @db.Uuid
+
+  @@index([company_id])
+  @@index([product_id])
+  @@index([branch_id])
+  @@index([reference_type, reference_id])
+  @@index([created_at])
+  @@map("stock_movement")
+}
+
+model batch_master {
+  id            String   @id @default(uuid()) @db.Uuid
+  company_id    String   @db.Uuid
+  product_id    String   @db.Uuid
+  batch_number  String   @db.VarChar(100)
+  mfg_date      DateTime? @db.Date
+  expiry_date   DateTime? @db.Date
+  quantity      Decimal  @db.Decimal(15, 4)
+  remaining_qty Decimal  @db.Decimal(15, 4)
+  purchase_rate Decimal? @db.Decimal(15, 4)
+  mrp           Decimal? @db.Decimal(15, 4)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  product product_master @relation(fields: [product_id], references: [id])
+  stock   stock_master[]
+  serials serial_master[]
+
+  @@unique([company_id, product_id, batch_number])
+  @@index([company_id])
+  @@index([product_id])
+  @@index([expiry_date])
+  @@map("batch_master")
+}
+
+model serial_master {
+  id             String   @id @default(uuid()) @db.Uuid
+  company_id     String   @db.Uuid
+  product_id     String   @db.Uuid
+  batch_id       String?  @db.Uuid
+  serial_number  String   @db.VarChar(255)
+  status         String   @default("in_stock") @db.VarChar(20) // 'in_stock','sold','returned','damaged'
+  reference_type String?  @db.VarChar(50)
+  reference_id   String?  @db.Uuid
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  product product_master  @relation(fields: [product_id], references: [id])
+  batch   batch_master?   @relation(fields: [batch_id], references: [id])
+
+  @@unique([company_id, product_id, serial_number])
+  @@index([company_id])
+  @@index([product_id])
+  @@index([status])
+  @@map("serial_master")
+}
+
+// SOURCE: m07-purchase.schema.prisma
+// ============================================================================
+// M07 PURCHASE MANAGEMENT — Prisma Schema
+// Module Owner: M07 | Tables: purchase_order, purchase_order_item, 
+//   purchase_invoice, purchase_invoice_item, purchase_return, 
+//   purchase_return_item, grn
+// ============================================================================
+
+model purchase_order {
+  id                String   @id @default(uuid()) @db.Uuid
+  company_id        String   @db.Uuid
+  branch_id         String   @db.Uuid
+  supplier_id       String   @db.Uuid
+  po_number         String   @unique @db.VarChar(100)
+  po_date           DateTime @db.Date
+  delivery_date     DateTime? @db.Date
+  status            PurchaseOrderStatus @default(draft)
+  total_amount      Decimal? @db.Decimal(15, 4)
+  total_tax         Decimal? @db.Decimal(15, 4)
+  total_discount    Decimal? @db.Decimal(15, 4)
+  net_amount        Decimal? @db.Decimal(15, 4)
+  notes             String?  @db.Text
+  terms_conditions  String?  @db.Text
+  created_by        String?  @db.Uuid
+  approved_by       String?  @db.Uuid
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  items             purchase_order_item[]
+  invoices          purchase_invoice[]
+  grns              grn[]
+
+  @@index([company_id])
+  @@index([supplier_id])
+  @@index([status])
+  @@index([po_date])
+}
+
+model purchase_order_item {
+  id                String   @id @default(uuid()) @db.Uuid
+  purchase_order_id String   @db.Uuid
+  product_id        String   @db.Uuid
+  quantity          Decimal  @db.Decimal(15, 4)
+  rate              Decimal  @db.Decimal(15, 4)
+  discount_percent  Decimal? @db.Decimal(5, 2)
+  discount_amount   Decimal? @db.Decimal(15, 4)
+  amount            Decimal? @db.Decimal(15, 4)
+  tax_rate          Decimal? @db.Decimal(5, 2)
+  tax_amount        Decimal? @db.Decimal(15, 4)
+  net_amount        Decimal? @db.Decimal(15, 4)
+  received_qty      Decimal  @default(0) @db.Decimal(15, 4)
+  created_at        DateTime @default(now())
+
+  purchase_order    purchase_order @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+
+  @@index([purchase_order_id])
+  @@index([product_id])
+}
+
+model purchase_invoice {
+  id                String   @id @default(uuid()) @db.Uuid
+  company_id        String   @db.Uuid
+  branch_id         String   @db.Uuid
+  supplier_id       String   @db.Uuid
+  invoice_number    String   @db.VarChar(100)
+  invoice_date      DateTime @db.Date
+  due_date          DateTime? @db.Date
+  po_id             String?  @db.Uuid
+  status            PurchaseInvoiceStatus @default(draft)
+  total_amount      Decimal? @db.Decimal(15, 4)
+  total_tax         Decimal? @db.Decimal(15, 4)
+  total_discount    Decimal? @db.Decimal(15, 4)
+  net_amount        Decimal? @db.Decimal(15, 4)
+  round_off         Decimal? @db.Decimal(10, 4)
+  grand_total       Decimal? @db.Decimal(15, 4)
+  notes             String?  @db.Text
+  ocr_data          Json?
+  ocr_confidence    Decimal? @db.Decimal(5, 2)
+  created_by        String?  @db.Uuid
+  approved_by       String?  @db.Uuid
+  posted_by         String?  @db.Uuid
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  items             purchase_invoice_item[]
+  returns           purchase_return[]
+  purchase_order    purchase_order? @relation(fields: [po_id], references: [id])
+
+  @@unique([company_id, invoice_number, supplier_id])
+  @@index([company_id])
+  @@index([supplier_id])
+  @@index([status])
+  @@index([invoice_date])
+}
+
+model purchase_invoice_item {
+  id                  String   @id @default(uuid()) @db.Uuid
+  purchase_invoice_id String   @db.Uuid
+  product_id          String   @db.Uuid
+  batch_id            String?  @db.Uuid
+  quantity            Decimal  @db.Decimal(15, 4)
+  rate                Decimal  @db.Decimal(15, 4)
+  discount_percent    Decimal? @db.Decimal(5, 2)
+  discount_amount     Decimal? @db.Decimal(15, 4)
+  amount              Decimal? @db.Decimal(15, 4)
+  tax_rate            Decimal? @db.Decimal(5, 2)
+  tax_amount          Decimal? @db.Decimal(15, 4)
+  net_amount          Decimal? @db.Decimal(15, 4)
+  hsn_code            String?  @db.VarChar(50)
+  created_at          DateTime @default(now())
+
+  purchase_invoice    purchase_invoice @relation(fields: [purchase_invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([purchase_invoice_id])
+  @@index([product_id])
+}
+
+model purchase_return {
+  id                  String   @id @default(uuid()) @db.Uuid
+  company_id          String   @db.Uuid
+  purchase_invoice_id String   @db.Uuid
+  supplier_id         String   @db.Uuid
+  return_number       String   @unique @db.VarChar(100)
+  return_date         DateTime @db.Date
+  total_amount        Decimal? @db.Decimal(15, 4)
+  tax_amount          Decimal? @db.Decimal(15, 4)
+  net_amount          Decimal? @db.Decimal(15, 4)
+  reason              String?  @db.Text
+  status              PurchaseReturnStatus @default(draft)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  items               purchase_return_item[]
+  purchase_invoice    purchase_invoice @relation(fields: [purchase_invoice_id], references: [id])
+
+  @@index([company_id])
+  @@index([supplier_id])
+  @@index([status])
+}
+
+model purchase_return_item {
+  id                  String   @id @default(uuid()) @db.Uuid
+  purchase_return_id  String   @db.Uuid
+  product_id          String   @db.Uuid
+  quantity            Decimal  @db.Decimal(15, 4)
+  rate                Decimal  @db.Decimal(15, 4)
+  amount              Decimal? @db.Decimal(15, 4)
+  tax_amount          Decimal? @db.Decimal(15, 4)
+  net_amount          Decimal? @db.Decimal(15, 4)
+  created_at          DateTime @default(now())
+
+  purchase_return     purchase_return @relation(fields: [purchase_return_id], references: [id], onDelete: Cascade)
+
+  @@index([purchase_return_id])
+  @@index([product_id])
+}
+
+model grn {
+  id                String   @id @default(uuid()) @db.Uuid
+  company_id        String   @db.Uuid
+  purchase_order_id String   @db.Uuid
+  grn_number        String?  @db.VarChar(100)
+  grn_date          DateTime @db.Date
+  received_by       String?  @db.Uuid
+  status            GRNStatus @default(partial)
+  created_at        DateTime @default(now())
+
+  purchase_order    purchase_order @relation(fields: [purchase_order_id], references: [id])
+
+  @@index([company_id])
+  @@index([purchase_order_id])
+}
+
+enum PurchaseOrderStatus {
+  draft
+  sent
+  partial
+  received
+  cancelled
+}
+
+enum PurchaseInvoiceStatus {
+  draft
+  approved
+  posted
+  paid
+  cancelled
+}
+
+enum PurchaseReturnStatus {
+  draft
+  approved
+  posted
+}
+
+enum GRNStatus {
+  partial
+  complete
+}
+
+// SOURCE: m08-sales.prisma
+// M08 SALES & BILLING — Prisma Schema
+// Module: m08-sales | Team: B4-BRAVO | Brand: RAKSHA
+
+// ─── M08 OWNED TABLES ───
+
+model Quotation {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  branchId        String   @map("branch_id")
+  customerId      String   @map("customer_id")
+  quotationNumber String   @unique @map("quotation_number")
+  quotationDate   DateTime @map("quotation_date") @db.Date
+  expiryDate      DateTime @map("expiry_date") @db.Date
+  status          QuotationStatus @default(draft)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  totalTax        Decimal  @map("total_tax") @db.Decimal(15, 4)
+  totalDiscount   Decimal  @map("total_discount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  roundOff        Decimal  @map("round_off") @db.Decimal(10, 4)
+  grandTotal      Decimal  @map("grand_total") @db.Decimal(15, 4)
+  notes           String?
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           QuotationItem[]
+  salesOrders     SalesOrder[]
+  salesInvoices   SalesInvoice[]
+
+  @@map("quotation")
+}
+
+model QuotationItem {
+  id              String   @id @default(uuid())
+  quotationId     String   @map("quotation_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxRate         Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  hsnCode         String?  @map("hsn_code")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@map("quotation_item")
+}
+
+model SalesOrder {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  branchId        String   @map("branch_id")
+  customerId      String   @map("customer_id")
+  quotationId     String?  @map("quotation_id")
+  orderNumber     String   @unique @map("order_number")
+  orderDate       DateTime @map("order_date") @db.Date
+  deliveryDate    DateTime @map("delivery_date") @db.Date
+  status          OrderStatus @default(draft)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  totalTax        Decimal  @map("total_tax") @db.Decimal(15, 4)
+  totalDiscount   Decimal  @map("total_discount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  roundOff        Decimal  @map("round_off") @db.Decimal(10, 4)
+  grandTotal      Decimal  @map("grand_total") @db.Decimal(15, 4)
+  notes           String?
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           SalesOrderItem[]
+  salesInvoices   SalesInvoice[]
+  deliveryChallans DeliveryChallan[]
+  quotation       Quotation? @relation(fields: [quotationId], references: [id])
+
+  @@map("sales_order")
+}
+
+model SalesOrderItem {
+  id              String   @id @default(uuid())
+  salesOrderId    String   @map("sales_order_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxRate         Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  deliveredQty    Decimal  @default(0) @map("delivered_qty") @db.Decimal(15, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  salesOrder      SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@map("sales_order_item")
+}
+
+model SalesInvoice {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  branchId        String   @map("branch_id")
+  customerId      String   @map("customer_id")
+  salesOrderId    String?  @map("sales_order_id")
+  quotationId     String?  @map("quotation_id")
+  invoiceNumber   String   @map("invoice_number")
+  invoiceDate     DateTime @map("invoice_date") @db.Date
+  dueDate         DateTime @map("due_date") @db.Date
+  status          InvoiceStatus @default(draft)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  totalTax        Decimal  @map("total_tax") @db.Decimal(15, 4)
+  totalDiscount   Decimal  @map("total_discount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  roundOff        Decimal  @map("round_off") @db.Decimal(10, 4)
+  grandTotal      Decimal  @map("grand_total") @db.Decimal(15, 4)
+  paymentStatus   PaymentStatus @default(unpaid) @map("payment_status")
+  amountPaid      Decimal  @default(0) @map("amount_paid") @db.Decimal(15, 4)
+  notes           String?
+  termsConditions String?  @map("terms_conditions")
+  createdBy       String?  @map("created_by")
+  approvedBy      String?  @map("approved_by")
+  postedBy        String?  @map("posted_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           SalesInvoiceItem[]
+  salesReturns    SalesReturn[]
+  salesOrder      SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  quotation       Quotation? @relation(fields: [quotationId], references: [id])
+
+  @@unique([companyId, invoiceNumber])
+  @@map("sales_invoice")
+}
+
+model SalesInvoiceItem {
+  id              String   @id @default(uuid())
+  salesInvoiceId  String   @map("sales_invoice_id")
+  productId       String   @map("product_id")
+  batchId         String?  @map("batch_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxRate         Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  hsnCode         String?  @map("hsn_code")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  salesInvoice    SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+
+  @@map("sales_invoice_item")
+}
+
+model SalesReturn {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  salesInvoiceId  String   @map("sales_invoice_id")
+  customerId      String   @map("customer_id")
+  returnNumber    String   @unique @map("return_number")
+  returnDate      DateTime @map("return_date") @db.Date
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 4)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  reason          String?
+  status          ReturnStatus @default(draft)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  items           SalesReturnItem[]
+  salesInvoice    SalesInvoice @relation(fields: [salesInvoiceId], references: [id])
+
+  @@map("sales_return")
+}
+
+model SalesReturnItem {
+  id              String   @id @default(uuid())
+  salesReturnId   String   @map("sales_return_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  rate            Decimal  @db.Decimal(15, 4)
+  amount          Decimal  @db.Decimal(15, 4)
+  taxAmount       Decimal  @map("tax_amount") @db.Decimal(15, 4)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  salesReturn     SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+
+  @@map("sales_return_item")
+}
+
+model DeliveryChallan {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  salesOrderId    String   @map("sales_order_id")
+  customerId      String   @map("customer_id")
+  challanNumber   String   @unique @map("challan_number")
+  challanDate     DateTime @map("challan_date") @db.Date
+  status          ChallanStatus @default(draft)
+  totalQuantity   Decimal  @map("total_quantity") @db.Decimal(15, 4)
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  items           DeliveryChallanItem[]
+  salesOrder      SalesOrder @relation(fields: [salesOrderId], references: [id])
+
+  @@map("delivery_challan")
+}
+
+model DeliveryChallanItem {
+  id              String   @id @default(uuid())
+  deliveryChallanId String @map("delivery_challan_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(15, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  deliveryChallan DeliveryChallan @relation(fields: [deliveryChallanId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_challan_item")
+}
+
+// ─── ENUMS ───
+
+enum QuotationStatus {
+  draft
+  sent
+  accepted
+  rejected
+  converted
+}
+
+enum OrderStatus {
+  draft
+  confirmed
+  partial
+  delivered
+  cancelled
+}
+
+enum InvoiceStatus {
+  draft
+  approved
+  posted
+  paid
+  cancelled
+}
+
+enum PaymentStatus {
+  unpaid
+  partial
+  paid
+}
+
+enum ReturnStatus {
+  draft
+  approved
+  posted
+}
+
+enum ChallanStatus {
+  draft
+  delivered
+  returned
+}
+
+// SOURCE: schema__M09M10.prisma
+// M09 GST Tables
+
+model hsn_master {
+  id          String   @id @default(uuid())
+  company_id  String
+  hsn_code    String   @db.VarChar(50)
+  description String?  @db.Text
+  type        String   @db.VarChar(20)
+  gst_rate    Decimal? @db.Decimal(5, 2)
+  cess_rate   Decimal? @db.Decimal(5, 2)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([company_id, hsn_code])
+}
+
+model tax_rate_master {
+  id             String    @id @default(uuid())
+  company_id     String
+  name           String?   @db.VarChar(100)
+  cgst_rate      Decimal?  @db.Decimal(5, 2)
+  sgst_rate      Decimal?  @db.Decimal(5, 2)
+  igst_rate      Decimal?  @db.Decimal(5, 2)
+  effective_from DateTime? @db.Date
+  effective_to   DateTime? @db.Date
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now())
+
+  @@index([company_id, is_active])
+}
+
+model gst_transaction {
+  id               String   @id @default(uuid())
+  company_id       String
+  branch_id        String?
+  reference_type   String   @db.VarChar(50)
+  reference_id     String?
+  transaction_date DateTime @db.Date
+  hsn_code         String?  @db.VarChar(50)
+  taxable_amount   Decimal  @db.Decimal(15, 4)
+  cgst_amount      Decimal  @db.Decimal(15, 4)
+  sgst_amount      Decimal  @db.Decimal(15, 4)
+  igst_amount      Decimal  @db.Decimal(15, 4)
+  cess_amount      Decimal  @db.Decimal(15, 4)
+  total_tax_amount Decimal  @db.Decimal(15, 4)
+  tax_type         String   @db.VarChar(20)
+  gstin            String?  @db.VarChar(20)
+  created_at       DateTime @default(now())
+
+  @@index([company_id, transaction_date])
+  @@index([reference_type, reference_id])
+}
+
+model e_invoice_record {
+  id               String   @id @default(uuid())
+  company_id       String
+  sales_invoice_id String?
+  irn              String?  @unique @db.VarChar(100)
+  ack_no           String?  @db.VarChar(100)
+  ack_date         DateTime?
+  signed_invoice   String?  @db.Text
+  qr_code          String?  @db.Text
+  status           String   @default("pending") @db.VarChar(20)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([company_id, sales_invoice_id])
+  @@index([irn])
+}
+
+model e_way_bill_record {
+  id               String   @id @default(uuid())
+  company_id       String
+  sales_invoice_id String?
+  ewb_no           String?  @unique @db.VarChar(100)
+  ewb_date         DateTime?
+  valid_upto       DateTime?
+  distance_km      Int?
+  vehicle_no       String?  @db.VarChar(50)
+  status           String   @default("pending") @db.VarChar(20)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([company_id, sales_invoice_id])
+}
+
+// M10 Accounting Tables
+
+model account_master {
+  id              String   @id @default(uuid())
+  company_id      String
+  name            String   @db.VarChar(255)
+  code            String   @unique @db.VarChar(100)
+  type            String   @db.VarChar(20)
+  subtype         String?  @db.VarChar(100)
+  parent_id       String?
+  opening_balance Decimal  @default(0) @db.Decimal(15, 4)
+  current_balance Decimal  @default(0) @db.Decimal(15, 4)
+  is_bank_account Boolean  @default(false)
+  bank_name       String?  @db.VarChar(100)
+  bank_account_no String?  @db.VarChar(100)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  parent   account_master? @relation("AccountTree", fields: [parent_id], references: [id])
+  children account_master[] @relation("AccountTree")
+
+  @@index([company_id, type])
+  @@index([company_id, code])
+}
+
+model voucher {
+  id             String   @id @default(uuid())
+  company_id     String
+  branch_id      String?
+  voucher_type   String   @db.VarChar(30)
+  voucher_number String   @unique @db.VarChar(100)
+  voucher_date   DateTime @db.Date
+  total_debit    Decimal  @db.Decimal(15, 4)
+  total_credit   Decimal  @db.Decimal(15, 4)
+  narration      String?  @db.Text
+  status         String   @default("draft") @db.VarChar(20)
+  created_by     String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  items voucher_item[]
+
+  @@index([company_id, voucher_date])
+  @@index([voucher_type, status])
+}
+
+model voucher_item {
+  id            String  @id @default(uuid())
+  voucher_id    String
+  account_id    String
+  party_id      String?
+  debit_amount  Decimal @default(0) @db.Decimal(15, 4)
+  credit_amount Decimal @default(0) @db.Decimal(15, 4)
+  narration     String? @db.Text
+  created_at    DateTime @default(now())
+
+  voucher voucher @relation(fields: [voucher_id], references: [id], onDelete: Cascade)
+
+  @@index([voucher_id, account_id])
+}
+
+model ledger {
+  id               String   @id @default(uuid())
+  company_id       String
+  branch_id        String?
+  voucher_id       String?
+  account_id       String
+  transaction_date DateTime @db.Date
+  narration        String?  @db.Text
+  debit_amount     Decimal  @default(0) @db.Decimal(15, 4)
+  credit_amount    Decimal  @default(0) @db.Decimal(15, 4)
+  reference_type   String?  @db.VarChar(50)
+  reference_id     String?
+  party_id         String?
+  created_by       String?
+  created_at       DateTime @default(now())
+
+  @@index([company_id, account_id, transaction_date])
+  @@index([reference_type, reference_id])
+}
+
+model bank_reconciliation {
+  id               String   @id @default(uuid())
+  company_id       String
+  bank_account_id  String
+  statement_date   DateTime @db.Date
+  statement_balance Decimal @db.Decimal(15, 4)
+  ledger_balance   Decimal  @db.Decimal(15, 4)
+  difference       Decimal  @db.Decimal(15, 4)
+  status           String   @default("pending") @db.VarChar(20)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  items bank_reconciliation_item[]
+
+  @@index([company_id, bank_account_id])
+}
+
+model bank_reconciliation_item {
+  id                      String   @id @default(uuid())
+  bank_reconciliation_id  String
+  ledger_entry_id         String?
+  transaction_date        DateTime @db.Date
+  description             String?  @db.Text
+  amount                  Decimal  @db.Decimal(15, 4)
+  type                    String   @db.VarChar(10)
+  is_matched              Boolean  @default(false)
+  matched_statement_entry_id String?
+  created_at              DateTime @default(now())
+
+  brs bank_reconciliation @relation(fields: [bank_reconciliation_id], references: [id], onDelete: Cascade)
+
+  @@index([bank_reconciliation_id, is_matched])
+}
+
+// SOURCE: M04 SQL / M02 SQL canonical identity models
+model company_master {
+  id String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(200)
+  gstin String? @unique @db.VarChar(15)
+  address String? @db.Text
+  phone String? @db.VarChar(20)
+  email String? @db.VarChar(255)
+  logo_url String? @db.Text
+  primary_color String? @default("#2563EB") @db.VarChar(7)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  @@map("company_master")
+}
+
+model branch_master {
+  id String @id @default(uuid()) @db.Uuid
+  company_id String @db.Uuid
+  name String @db.VarChar(100)
+  code String @db.VarChar(20)
+  address String? @db.Text
+  is_active Boolean @default(true)
+  created_at DateTime @default(now())
+  deleted_at DateTime?
+  @@index([company_id])
+  @@map("branch_master")
+}
+
+model user_master {
+  id String @id @default(uuid()) @db.Uuid
+  company_id String @db.Uuid
+  branch_id String? @db.Uuid
+  name String @db.VarChar(100)
+  email String @db.VarChar(100)
+  username String @db.VarChar(50)
+  password_hash String @db.VarChar(255)
+  pin_hash String? @db.VarChar(255)
+  avatar String? @db.VarChar(255)
+  is_active Boolean @default(true)
+  two_factor_enabled Boolean @default(false)
+  failed_login_attempts Int @default(0)
+  locked_until DateTime?
+  last_login_at DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  deleted_at DateTime?
+  @@unique([company_id, username])
+  @@unique([company_id, email])
+  @@map("user_master")
+}
+
+model role_master {
+  id String @id @default(uuid()) @db.Uuid
+  company_id String @db.Uuid
+  name String @db.VarChar(50)
+  description String? @db.VarChar(200)
+  is_system_role Boolean @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  @@unique([company_id, name])
+  @@map("role_master")
+}
+
+model permission_master {
+  id String @id @default(uuid()) @db.Uuid
+  module String @db.VarChar(10)
+  action String @db.VarChar(20)
+  resource String @db.VarChar(50)
+  description String? @db.VarChar(200)
+  created_at DateTime @default(now())
+  @@unique([module, action, resource])
+  @@map("permission_master")
+}
+
+model user_role {
+  id String @id @default(uuid()) @db.Uuid
+  user_id String @db.Uuid
+  role_id String @db.Uuid
+  assigned_at DateTime @default(now())
+  assigned_by String? @db.Uuid
+  @@unique([user_id, role_id])
+  @@map("user_role")
+}
+
+model role_permission {
+  id String @id @default(uuid()) @db.Uuid
+  role_id String @db.Uuid
+  permission_id String @db.Uuid
+  @@unique([role_id, permission_id])
+  @@map("role_permission")
+}
+

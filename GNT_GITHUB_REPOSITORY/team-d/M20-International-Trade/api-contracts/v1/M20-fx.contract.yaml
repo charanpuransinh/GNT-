@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: GNT M20 — FX Sub-Contract
+  version: "2.0.0"
+  description: Foreign exchange rate APIs for cross-module value calculations.
+servers:
+  - url: /api/v1
+
+tags:
+  - name: FX-Public
+    description: Public FX APIs
+
+paths:
+  /fx/rates:
+    get:
+      tags: [FX-Public]
+      summary: Get FX rates (public)
+      operationId: publicGetFXRates
+      x-consumers: [M06, M08, M09, M10]
+      parameters:
+        - name: base
+          in: query
+          schema:
+            type: string
+            default: INR
+        - name: target
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: FX rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FXPublicRate'
+
+  /fx/convert:
+    post:
+      tags: [FX-Public]
+      summary: Convert currency (public)
+      operationId: publicConvertCurrency
+      x-consumers: [M10, M11]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FXPublicConvertRequest'
+      responses:
+        '200':
+          description: Converted result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FXPublicConvertResponse'
+
+components:
+  schemas:
+    FXPublicRate:
+      type: object
+      properties:
+        base_currency:
+          type: string
+        target_currency:
+          type: string
+        rate:
+          type: number
+        effective_date:
+          type: string
+          format: date-time
+
+    FXPublicConvertRequest:
+      type: object
+      required: [amount, from_currency, to_currency]
+      properties:
+        amount:
+          type: number
+        from_currency:
+          type: string
+        to_currency:
+          type: string
+
+    FXPublicConvertResponse:
+      type: object
+      properties:
+        original_amount:
+          type: number
+        converted_amount:
+          type: number
+        rate:
+          type: number
+        from_currency:
+          type: string
+        to_currency:
+          type: string

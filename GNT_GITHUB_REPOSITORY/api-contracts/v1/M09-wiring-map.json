@@ -1,0 +1,19 @@
+{
+  "module": "M09-GST",
+  "version": "1.0.0",
+  "provides_to": {
+    "M07": { "service": "gst.service.calculateInputTax()", "protocol": "internal-api" },
+    "M08": { "service": "gst.service.calculateTax()", "protocol": "internal-api" },
+    "M10": { "service": "gst_transaction data", "protocol": "event-stream" },
+    "M17": { "service": "GST return data", "protocol": "internal-api" },
+    "M18": { "service": "IRP portal integration", "protocol": "external-http" }
+  },
+  "consumes_from": {
+    "M07/M08": { "data": "Invoice data for GST calculation", "protocol": "event-stream" },
+    "M04": { "data": "Company GSTIN context", "protocol": "internal-api" }
+  },
+  "publishes": [
+    "gst.einvoice.generated",
+    "gst.return.filed"
+  ]
+}

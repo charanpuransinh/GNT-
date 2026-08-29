@@ -1,0 +1,222 @@
+// M11 Payment Module - Payment Transaction Service
+// Business Logic Layer - Cross-module calls via PUBLIC API ONLY
+
+import { PrismaClient } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
+import { PaymentRepository } from '../repositories/payment.repository';
+import { InvoiceRepository } from '../repositories/invoice.repository';
+import { BankAccountRepository } from '../repositories/bankAccount.repository';
+import { LedgerRepository } from '../repositories/ledger.repository';
+import { PaymentMethodRepository } from '../repositories/paymentMethod.repository';
+import { EventBus } from '../events/event.bus';
+import {
+  PaymentFilter, CreatePaymentDto, UpdatePaymentDto,
+  PaymentDashboardStats, PaymentCompletedEvent,
+  ApiError,
+} from '../types';
+import { toDecimal, zeroDecimal } from '../utils/decimal.helper';
+
+export class PaymentService {
+  private paymentRepo: PaymentRepository;
+  private invoiceRepo: InvoiceRepository;
+  private bankRepo: BankAccountRepository;
+  private ledgerRepo: LedgerRepository;
+  private pmRepo: PaymentMethodRepository;
+  private eventBus: EventBus;
+
+  constructor(private prisma: PrismaClient, eventBus: EventBus) {
+    this.paymentRepo = new PaymentRepository(prisma);
+    this.invoiceRepo = new InvoiceRepository(prisma);
+    this.bankRepo = new BankAccountRepository(prisma);
+    this.ledgerRepo = new LedgerRepository(prisma);
+    this.pmRepo = new PaymentMethodRepository(prisma);
+    this.eventBus = eventBus;
+  }
+
+  // ==================== PUBLIC API: Get Payment ====================
+  async getPayment(id: string, tenantId: string) {
+    const payment = await this.paymentRepo.findById(id, tenantId);
+    if (!payment) throw this.notFound('Payment not found');
+    return payment;
+  }
+
+  // ==================== PUBLIC API: List Payments ====================
+  async listPayments(filter: PaymentFilter, tenantId: string) {
+    return this.paymentRepo.findAll(filter, tenantId);
+  }
+
+  // ==================== PUBLIC API: Create Payment ====================
+  async createPayment(dto: CreatePaymentDto, tenantId: string, userId: string) {
+    // Validate payment method
+    const pm = await this.pmRepo.findById(dto.paymentMethodId, tenantId);
+    if (!pm) throw this.badRequest('Invalid payment method');
+    if (!pm.isActive) throw this.badRequest('Payment method is inactive');
+
+    // Validate invoice if provided
+    if (dto.invoiceId) {
+      const invoice = await this.invoiceRepo.findById(dto.invoiceId, tenantId);
+      if (!invoice) throw this.badRequest('Invoice not found');
+      if (invoice.status === 'PAID') throw this.badRequest('Invoice already paid');
+      if (invoice.status === 'CANCELLED') throw this.badRequest('Invoice is cancelled');
+    }
+
+    // Validate bank account if provided
+    if (dto.bankAccountId) {
+      const account = await this.bankRepo.findById(dto.bankAccountId, tenantId);
+      if (!account) throw this.badRequest('Bank account not found');
+    }
+
+    // Create payment within transaction
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const repo = new PaymentRepository(tx as any);
+      return repo.create(dto, tenantId, userId);
+    });
+
+    // Publish event (async - fire and forget)
+    this.eventBus.publish('payment.created', {
+      transactionId: payment.id,
+      tenantId,
+      amount: payment.amount.toString(),
+      currency: payment.currency,
+      paymentMethodId: payment.paymentMethodId,
+      invoiceId: payment.invoiceId || undefined,
+      payerId: payment.payerId || undefined,
+      payerType: payment.payerType || undefined,
+      timestamp: new Date(),
+    });
+
+    return payment;
+  }
+
+  // ==================== PUBLIC API: Process Payment ====================
+  async processPayment(id: string, tenantId: string, userId: string, gatewayRef?: string, gatewayResponse?: Record<string, unknown>) {
+    const payment = await this.paymentRepo.findById(id, tenantId);
+    if (!payment) throw this.notFound('Payment not found');
+    if (payment.status !== 'PENDING') throw this.badRequest('Payment is not pending');
+
+    const amount = payment.amount as Decimal;
+
+    await this.prisma.$transaction(async (tx) => {
+      const pRepo = new PaymentRepository(tx as any);
+      const iRepo = new InvoiceRepository(tx as any);
+      const bRepo = new BankAccountRepository(tx as any);
+      const lRepo = new LedgerRepository(tx as any);
+
+      // Update payment status
+      await pRepo.updateStatus(id, 'COMPLETED', tenantId, userId, gatewayRef, gatewayResponse);
+
+      // Update invoice if linked
+      if (payment.invoiceId) {
+        await iRepo.updatePaidAmount(payment.invoiceId, amount, tenantId, userId);
+      }
+
+      // Update bank account if linked
+      if (payment.bankAccountId) {
+        await bRepo.updateBalance(payment.bankAccountId, amount, tenantId, userId, true);
+      }
+
+      // Create ledger entries (M10 Finance integration)
+      await lRepo.create([
+        {
+          transactionId: id,
+          accountCode: 'CASH_BANK', // Asset account
+          debitAmount: amount,
+          creditAmount: zeroDecimal(),
+          narration: `Payment received - ${payment.description || id}`,
+          entryDate: new Date(),
+        },
+        {
+          transactionId: id,
+          accountCode: 'SALES_REVENUE', // Revenue account
+          debitAmount: zeroDecimal(),
+          creditAmount: amount,
+          narration: `Revenue recognized - ${payment.description || id}`,
+          entryDate: new Date(),
+        },
+      ], tenantId, userId);
+    });
+
+    // Publish completion event
+    const event: PaymentCompletedEvent = {
+      transactionId: id,
+      tenantId,
+      amount: amount.toString(),
+      currency: payment.currency,
+      paymentMethodId: payment.paymentMethodId,
+      invoiceId: payment.invoiceId || undefined,
+      payerId: payment.payerId || undefined,
+      payerType: payment.payerType || undefined,
+      timestamp: new Date(),
+    };
+
+    this.eventBus.publish('payment.completed', event);
+    this.eventBus.publish('invoice.payment_received', { // M06 notification
+      invoiceId: payment.invoiceId,
+      tenantId,
+      amount: amount.toString(),
+      transactionId: id,
+    });
+
+    return this.getPayment(id, tenantId);
+  }
+
+  // ==================== PUBLIC API: Fail Payment ====================
+  async failPayment(id: string, tenantId: string, userId: string, reason: string) {
+    const payment = await this.paymentRepo.findById(id, tenantId);
+    if (!payment) throw this.notFound('Payment not found');
+
+    const updated = await this.paymentRepo.updateStatus(id, 'FAILED', tenantId, userId, undefined, { failureReason: reason });
+
+    this.eventBus.publish('payment.failed', {
+      transactionId: id,
+      tenantId,
+      reason,
+      timestamp: new Date(),
+    });
+
+    return updated;
+  }
+
+  // ==================== PUBLIC API: Cancel Payment ====================
+  async cancelPayment(id: string, tenantId: string, userId: string) {
+    const payment = await this.paymentRepo.findById(id, tenantId);
+    if (!payment) throw this.notFound('Payment not found');
+    if (payment.status === 'COMPLETED') throw this.badRequest('Cannot cancel completed payment');
+
+    return this.paymentRepo.updateStatus(id, 'CANCELLED', tenantId, userId);
+  }
+
+  // ==================== PUBLIC API: Update Payment ====================
+  async updatePayment(id: string, dto: UpdatePaymentDto, tenantId: string, userId: string) {
+    const payment = await this.paymentRepo.findById(id, tenantId);
+    if (!payment) throw this.notFound('Payment not found');
+    return this.paymentRepo.update(id, dto, tenantId, userId);
+  }
+
+  // ==================== PUBLIC API: Delete Payment ====================
+  async deletePayment(id: string, tenantId: string) {
+    const payment = await this.paymentRepo.findById(id, tenantId);
+    if (!payment) throw this.notFound('Payment not found');
+    if (payment.status === 'COMPLETED') throw this.badRequest('Cannot delete completed payment');
+    return this.paymentRepo.delete(id, tenantId);
+  }
+
+  // ==================== PUBLIC API: Dashboard Stats ====================
+  async getDashboardStats(tenantId: string, startDate?: Date, endDate?: Date): Promise<PaymentDashboardStats> {
+    return this.paymentRepo.getDashboardStats(tenantId, startDate, endDate) as Promise<PaymentDashboardStats>;
+  }
+
+  // ==================== PUBLIC API: Get Payment by Invoice ====================
+  async getPaymentsByInvoice(invoiceId: string, tenantId: string) {
+    return this.paymentRepo.findAll({ invoiceId, page: 1, limit: 100 }, tenantId);
+  }
+
+  // ==================== ERROR HELPERS ====================
+  private notFound(message: string): ApiError {
+    return { code: 'NOT_FOUND', message };
+  }
+
+  private badRequest(message: string): ApiError {
+    return { code: 'BAD_REQUEST', message };
+  }
+}

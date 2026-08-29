@@ -1,0 +1,104 @@
+openapi: 3.0.3
+info:
+  title: M09 GST & Compliance API
+  version: 1.0.0
+paths:
+  /api/v1/gst/tax-slabs:
+    post:
+      summary: Create Tax Slab
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: string, format: uuid }
+                name: { type: string }
+                cgst_rate: { type: number }
+                sgst_rate: { type: number }
+                igst_rate: { type: number }
+    get:
+      summary: Get Tax Slabs
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+  /api/v1/gst/calculate:
+    post:
+      summary: Calculate Tax Breakup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      hsn_code: { type: string }
+                      taxable_amount: { type: number }
+                state_code: { type: string }
+                company_state_code: { type: string }
+                company_id: { type: string }
+      responses:
+        200:
+          description: Tax breakup
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taxable_amount: { type: number }
+                  cgst_amount: { type: number }
+                  sgst_amount: { type: number }
+                  igst_amount: { type: number }
+                  cess_amount: { type: number }
+                  total_tax_amount: { type: number }
+  /api/v1/gst/returns/gstr1:
+    get:
+      summary: GSTR-1 Compilation
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: period
+          in: query
+          required: true
+          schema: { type: string, example: "2024-04" }
+  /api/v1/gst/returns/gstr3b:
+    get:
+      summary: GSTR-3B Summary
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: period
+          in: query
+          required: true
+          schema: { type: string }
+  /api/v1/gst/reconcile/gstr2b:
+    post:
+      summary: Reconcile Purchase vs GSTR-2B
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: string }
+                purchase_data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      invoice_no: { type: string }
+                      gstin: { type: string }
+                      tax_amount: { type: number }

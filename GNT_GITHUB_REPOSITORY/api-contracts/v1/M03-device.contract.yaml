@@ -1,0 +1,321 @@
+openapi: 3.0.3
+info:
+  title: GNT M03 Device & Platform API
+  version: 1.0.0
+  description: |
+    Device registration, session management, app updates, deployment settings.
+    Owner: A4-APPLE Team | Module: M03 Device & Platform
+
+servers:
+  - url: /api/v1
+    description: GNT API v1
+
+paths:
+  /device/sessions:
+    get:
+      summary: Get active sessions
+      operationId: getActiveSessions
+      tags:
+        - Device
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of active sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      summary: Terminate all sessions
+      operationId: terminateAllSessions
+      tags:
+        - Device
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All sessions terminated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /device/sessions/{sessionId}:
+    delete:
+      summary: Terminate specific session
+      operationId: terminateSession
+      tags:
+        - Device
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session terminated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /device/register:
+    post:
+      summary: Register a device
+      operationId: registerDevice
+      tags:
+        - Device
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDeviceRequest'
+      responses:
+        '201':
+          description: Device registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+
+  /device/devices:
+    get:
+      summary: Get registered devices
+      operationId: getRegisteredDevices
+      tags:
+        - Device
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of registered devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicesResponse'
+
+  /device/update-check:
+    get:
+      summary: Check for app updates
+      operationId: checkForUpdate
+      tags:
+        - Device
+      parameters:
+        - name: platform
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ios, android, windows, macos, linux, web]
+        - name: version
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d+\.\d+\.\d+$'
+      responses:
+        '200':
+          description: Update information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateInfoResponse'
+
+  /device/settings:
+    get:
+      summary: Get deployment settings
+      operationId: getDeploymentSettings
+      tags:
+        - Device
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Deployment settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentSettingsResponse'
+
+    put:
+      summary: Update deployment settings
+      operationId: updateDeploymentSettings
+      tags:
+        - Device
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentSettings'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentSettingsResponse'
+
+components:
+  schemas:
+    DeviceSession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        deviceId: { type: string, format: uuid }
+        deviceName: { type: string }
+        platform: { type: string, enum: [ios, android, windows, macos, linux, web] }
+        ipAddress: { type: string }
+        location: { type: string }
+        userAgent: { type: string }
+        status: { type: string, enum: [active, idle, expired] }
+        createdAt: { type: string, format: date-time }
+        lastActiveAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+
+    DeviceInfo:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        deviceName: { type: string }
+        model: { type: string }
+        platform: { type: string, enum: [ios, android, windows, macos, linux, web] }
+        osVersion: { type: string }
+        appVersion: { type: string }
+        pushToken: { type: string }
+        isTrusted: { type: boolean }
+        lastSeenAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    UpdateInfo:
+      type: object
+      properties:
+        currentVersion: { type: string }
+        latestVersion: { type: string }
+        hasUpdate: { type: boolean }
+        severity: { type: string, enum: [critical, major, minor, patch] }
+        releaseNotes:
+          type: array
+          items: { type: string }
+        downloadUrl: { type: string, format: uri }
+        forceUpdate: { type: boolean }
+
+    DeploymentSettings:
+      type: object
+      properties:
+        autoUpdate: { type: boolean }
+        updateNotifications: { type: boolean }
+        sessionTimeout: { type: number, minimum: 5, maximum: 120 }
+        forceSingleSession: { type: boolean }
+        offlineSync: { type: boolean }
+        syncInterval: { type: number, minimum: 1, maximum: 60 }
+
+    SessionsResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DeviceSession' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    DevicesResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DeviceInfo' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    DeviceResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/DeviceInfo' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    UpdateInfoResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/UpdateInfo' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    DeploymentSettingsResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/DeploymentSettings' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    SuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: object }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    ResponseMeta:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    RegisterDeviceRequest:
+      type: object
+      properties:
+        deviceName: { type: string, minLength: 1, maxLength: 100 }
+        model: { type: string, maxLength: 100 }
+        platform: { type: string, enum: [ios, android, windows, macos, linux, web] }
+        osVersion: { type: string, maxLength: 50 }
+        appVersion: { type: string, pattern: '^\d+\.\d+\.\d+$' }
+        pushToken: { type: string }
+      required: [deviceName, model, platform, osVersion, appVersion]
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

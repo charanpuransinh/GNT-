@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: M09 E-Invoice & E-Way Bill API
+  version: 1.0.0
+paths:
+  /api/v1/gst/einvoice/generate:
+    post:
+      summary: Generate E-Invoice (IRN + QR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoice_id]
+              properties:
+                invoice_id:
+                  type: string
+                  format: uuid
+      responses:
+        201:
+          description: IRN generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EInvoice'
+  /api/v1/gst/einvoice/cancel:
+    post:
+      summary: Cancel E-Invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [irn, reason]
+              properties:
+                irn:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        200:
+          description: Cancelled
+  /api/v1/gst/ewaybill/generate:
+    post:
+      summary: Generate E-Way Bill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoice_id, transport_details]
+              properties:
+                invoice_id:
+                  type: string
+                  format: uuid
+                transport_details:
+                  type: object
+                  properties:
+                    distance_km:
+                      type: integer
+                    vehicle_no:
+                      type: string
+                    transporter_id:
+                      type: string
+                    transporter_name:
+                      type: string
+      responses:
+        201:
+          description: E-Way Bill generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EWayBill'
+components:
+  schemas:
+    EInvoice:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        irn: { type: string }
+        ack_no: { type: string }
+        ack_date: { type: string, format: date-time }
+        qr_code: { type: string }
+        status: { type: string, enum: [pending, generated, cancelled] }
+    EWayBill:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ewb_no: { type: string }
+        ewb_date: { type: string, format: date-time }
+        valid_upto: { type: string, format: date-time }
+        distance_km: { type: integer }
+        vehicle_no: { type: string }
+        status: { type: string, enum: [pending, generated, cancelled] }

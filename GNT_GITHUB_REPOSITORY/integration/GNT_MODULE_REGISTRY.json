@@ -1,0 +1,8 @@
+{
+  "project": "GARUDA NEXTECH", "release": "1.0.0-release-candidate",
+  "modules": ["M01","M02","M03","M04","M06","M07","M08","M09","M10"],
+  "missing_from_supplied_set": ["M05"],
+  "canonical_dependencies": {"M02":["M01"],"M03":["M02","M04"],"M04":["M02"],"M06":["M04"],"M07":["M04","M06","M09","M10"],"M08":["M05","M06","M09","M10","M11"],"M09":["M04","M07","M08"],"M10":["M04","M06","M07","M08","M09"]},
+  "source_of_truth": {"api":"api-contracts/v1","wiring":"wiring-maps/module-wiring","database":"prisma/schema.prisma + database/migrations"},
+  "rules": ["No direct cross-module DB access", "Public service/event contracts only", "Central transaction engine required for posting operations", "Fail closed on missing production secrets"]
+}

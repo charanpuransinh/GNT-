@@ -1,0 +1,98 @@
+// ============================================================================
+// GNT MASTER BLUEPRINT V2 — M13 AUTOMATION MODULE — DATABASE SCHEMA
+// Module: M13 | Layer: Database (Prisma)
+// ============================================================================
+// Cross-module rule: NO direct table access from other modules.
+// Other modules interact via M13 PUBLIC Service/API/Event interfaces ONLY.
+// ============================================================================
+
+model M13Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  triggers M13Trigger[]
+  actions  M13Action[]
+  jobs     M13Job[]
+
+  @@map("m13_workflows")
+}
+
+model M13Trigger {
+  id          String   @id @default(uuid())
+  workflowId  String
+  type        String   // e.g., "EVENT", "SCHEDULE", "MANUAL"
+  config      Json     // trigger-specific configuration
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workflow M13Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("m13_triggers")
+}
+
+model M13Action {
+  id          String   @id @default(uuid())
+  workflowId  String
+  type        String   // e.g., "SEND_EMAIL", "UPDATE_RECORD", "CALL_API"
+  config      Json     // action-specific configuration
+  orderIndex  Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workflow M13Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("m13_actions")
+}
+
+model M13Job {
+  id          String   @id @default(uuid())
+  workflowId  String
+  status      String   // PENDING, RUNNING, COMPLETED, FAILED, RETRYING
+  payload     Json?
+  result      Json?
+  error       String?
+  retryCount  Int      @default(0)
+  maxRetries  Int      @default(3)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workflow M13Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  logs     M13JobLog[]
+
+  @@map("m13_jobs")
+}
+
+model M13JobLog {
+  id        String   @id @default(uuid())
+  jobId     String
+  level     String   // INFO, WARN, ERROR
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  job M13Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("m13_job_logs")
+}
+
+model M13Schedule {
+  id          String   @id @default(uuid())
+  workflowId  String
+  cronExpr    String
+  timezone    String   @default("UTC")
+  isActive    Boolean  @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("m13_schedules")
+}

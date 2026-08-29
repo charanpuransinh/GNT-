@@ -1,0 +1,16 @@
+-- M01 FOUNDATION — Database Schema Note
+-- Owner: A4-APPLE Team
+-- Status: NO OWNED TABLES
+--
+-- M01 Foundation does not own any database tables.
+-- It reads configuration from:
+--   1. Environment variables
+--   2. Common config store (if implemented)
+--   3. Runtime process info
+--
+-- All other modules (M02-M20) have canonical table ownership.
+-- M01 provides the app shell and health check layer only.
+--
+-- If future versions require config persistence,
+-- a `system_config` table would be owned by M01.
+-- Any such addition requires DESIGN-EXPANSION approval.

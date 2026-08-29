@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="hi" data-theme="gold">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNT — Module Preview | M01–M20</title>
+<style>
+:root{
+  --radius:14px;
+  --sidebar-w:290px;
+  --font:'Segoe UI',Roboto,'Noto Sans Devanagari',system-ui,sans-serif;
+}
+
+/* ===== FIXED DARK BACKGROUND (all dark themes) ===== */
+html[data-theme="gold"],
+html[data-theme="blue"],
+html[data-theme="emerald"],
+html[data-theme="crimson"],
+html[data-theme="purple"]{
+  --bg:#0c0c0e;
+  --panel:#161618;
+  --panel2:#1e1e21;
+  --panel-hover:#252528;
+  --border-base:#2a2a2e;
+  --text:#f0f0f0;
+  --text-secondary:#8a8a90;
+  --text-tertiary:#5a5a60;
+}
+
+/* ===== FIXED LIGHT BACKGROUND ===== */
+html[data-theme="light"]{
+  --bg:#f2f2f5;
+  --panel:#ffffff;
+  --panel2:#f7f7fa;
+  --panel-hover:#ececf0;
+  --border-base:#e0e0e5;
+  --text:#1a1a1e;
+  --text-secondary:#5a5a60;
+  --text-tertiary:#9a9aa0;
+}
+
+/* ===== THEME ACCENTS (Border, Active, Badge, Button colors only) ===== */
+html[data-theme="gold"]{--accent:#d4a017;--accent-soft:#3a2f0d;--accent-glow:rgba(212,160,23,0.18);--accent-ink:#1a1400;}
+html[data-theme="blue"]{--accent:#3b82f6;--accent-soft:#0f1f3a;--accent-glow:rgba(59,130,246,0.18);--accent-ink:#ffffff;}
+html[data-theme="emerald"]{--accent:#10b981;--accent-soft:#0f3a2b;--accent-glow:rgba(16,185,129,0.18);--accent-ink:#032015;}
+html[data-theme="crimson"]{--accent:#ef4444;--accent-soft:#3a1616;--accent-glow:rgba(239,68,68,0.18);--accent-ink:#2a0209;}
+html[data-theme="purple"]{--accent:#8b5cf6;--accent-soft:#2b1f4d;--accent-glow:rgba(139,92,246,0.18);--accent-ink:#160b2e;}
+html[data-theme="light"]{--accent:#2563eb;--accent-soft:#dbe7fd;--accent-glow:rgba(37,99,235,0.12);--accent-ink:#ffffff;}
+
+/* ===== FIXED STATUS COLORS ===== */
+:root{
+  --st-red:#ef4444;--st-red-bg:rgba(239,68,68,0.12);
+  --st-orange:#f59e0b;--st-orange-bg:rgba(245,158,11,0.12);
+  --st-green:#22c55e;--st-green-bg:rgba(34,197,94,0.12);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh;transition:background .25s,color .25s;}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  width:var(--sidebar-w);min-width:var(--sidebar-w);
+  background:var(--panel);border-right:1px solid var(--border-base);
+  display:flex;flex-direction:column;height:100vh;position:sticky;top:0;
+  transition:margin-left .25s ease;
+}
+.brand{padding:22px 18px 16px 18px;border-bottom:1px solid var(--border-base);}
+.brand-row{display:flex;align-items:center;gap:12px;}
+.brand-mark{
+  width:38px;height:38px;border-radius:10px;
+  background:var(--accent);color:var(--accent-ink);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:15px;
+}
+.brand-name{font-size:20px;font-weight:800;letter-spacing:.3px;}
+.brand-sub{font-size:10.5px;color:var(--accent);letter-spacing:1.5px;font-weight:700;margin-top:1px;}
+.brand-tag{font-size:11px;color:var(--text-secondary);margin-top:8px;}
+
+.search-box{
+  margin:16px 16px;display:flex;align-items:center;gap:8px;
+  background:var(--panel2);border:1px solid var(--border-base);
+  border-radius:10px;padding:10px 14px;
+}
+.search-box input{
+  background:transparent;border:none;outline:none;color:var(--text);
+  font-size:13px;width:100%;
+}
+.search-box input::placeholder{color:var(--text-tertiary);}
+
+.nav{flex:1;overflow-y:auto;padding:6px 12px 14px 12px;}
+.nav::-webkit-scrollbar{width:5px;}
+.nav::-webkit-scrollbar-thumb{background:var(--border-base);border-radius:5px;}
+
+.nav-item{
+  display:flex;align-items:center;gap:11px;
+  padding:10px 13px;margin:3px 0;border-radius:10px;
+  color:var(--text-secondary);cursor:pointer;font-size:13.5px;font-weight:600;
+  border:1px solid transparent;user-select:none;transition:all .2s ease;
+}
+.nav-item:hover{background:var(--panel2);color:var(--text);border-color:var(--border-base);}
+.nav-item.active{
+  background:var(--accent);color:var(--accent-ink);border-color:var(--accent);
+  box-shadow:0 4px 20px var(--accent-glow);
+}
+.nav-item .ic{font-size:16px;width:20px;text-align:center;}
+.nav-item .code{margin-left:auto;font-size:10px;font-weight:800;opacity:.7;letter-spacing:.5px;}
+
+.sidebar-foot{
+  padding:16px 18px;border-top:1px solid var(--border-base);
+  font-size:11px;color:var(--text-secondary);line-height:1.7;
+}
+
+/* ---------- TOPBAR ---------- */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;height:100vh;}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 26px;border-bottom:1px solid var(--border-base);
+  background:var(--panel);position:sticky;top:0;z-index:5;gap:14px;
+}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0;}
+.burger{
+  display:none;background:var(--panel2);border:1px solid var(--border-base);
+  color:var(--text);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;
+  transition:all .2s;
+}
+.burger:hover{border-color:var(--accent);color:var(--accent);}
+.crumb{font-size:12px;color:var(--text-secondary);}
+.crumb b{color:var(--text);}
+.page-title{font-size:20px;font-weight:800;margin:2px 0 0 0;}
+.page-purpose{font-size:13px;color:var(--text-secondary);margin-top:3px;}
+
+.theme-picker{display:flex;align-items:center;gap:10px;}
+.swatch{
+  width:24px;height:24px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:all .2s ease;
+}
+.swatch:hover{transform:scale(1.15);}
+.swatch.active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent);}
+.sw-gold{background:#d4a017;}
+.sw-blue{background:#3b82f6;}
+.sw-emerald{background:#10b981;}
+.sw-crimson{background:#ef4444;}
+.sw-purple{background:#8b5cf6;}
+.sw-light{background:linear-gradient(135deg,#ffffff,#d1d1d1);border:1px solid #ccc;}
+
+/* ---------- CONTENT ---------- */
+.content{flex:1;overflow-y:auto;padding:24px 26px 60px 26px;}
+.content::-webkit-scrollbar{width:6px;}
+.content::-webkit-scrollbar-thumb{background:var(--border-base);border-radius:6px;}
+
+/* ---------- BADGES ---------- */
+.badge{
+  display:inline-block;font-size:11px;font-weight:700;
+  padding:4px 12px;border-radius:999px;letter-spacing:.3px;margin-right:8px;
+}
+.badge-accent{background:var(--accent-soft);color:var(--accent);}
+.badge-green{background:var(--st-green-bg);color:var(--st-green);}
+.badge-orange{background:var(--st-orange-bg);color:var(--st-orange);}
+.badge-red{background:var(--st-red-bg);color:var(--st-red);}
+.badge-outline{background:transparent;border:1px solid var(--border-base);color:var(--text-secondary);}
+
+/* ---------- STAT CARDS ---------- */
+.stat-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:16px;margin:18px 0 24px 0;
+}
+.stat-card{
+  background:var(--panel);border:1px solid var(--border-base);border-radius:var(--radius);
+  padding:18px;position:relative;overflow:hidden;transition:all .25s ease;
+}
+.stat-card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 30px rgba(0,0,0,0.15);}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);}
+.stat-card .lbl{font-size:11.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:600;}
+.stat-card .val{font-size:26px;font-weight:800;}
+.stat-card .sub{font-size:11px;color:var(--text-secondary);margin-top:6px;font-weight:500;}
+
+/* ---------- SECTIONS ---------- */
+.section{
+  background:var(--panel);border:1px solid var(--border-base);border-radius:var(--radius);
+  padding:20px 22px;margin-bottom:20px;transition:all .2s ease;
+}
+.section:hover{border-color:var(--accent);}
+.section h3{margin:0 0 14px 0;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+
+/* ---------- PAGE LIST ---------- */
+.page-list{list-style:none;margin:0;padding:0;display:grid;gap:8px;}
+.page-list li{
+  display:flex;align-items:center;gap:10px;
+  background:var(--panel2);border:1px solid var(--border-base);border-radius:10px;
+  padding:12px 14px;font-size:13px;cursor:default;transition:all .2s ease;
+}
+.page-list li:hover{border-color:var(--accent);transform:translateX(3px);}
+.page-list .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.page-list .pname{font-weight:700;}
+.page-list .pdesc{color:var(--text-secondary);font-size:11.5px;margin-left:auto;text-align:right;}
+
+/* ---------- TAGS ---------- */
+.tag-list{display:flex;flex-wrap:wrap;gap:8px;}
+.tag{
+  background:var(--panel2);border:1px solid var(--border-base);
+  padding:6px 12px;border-radius:8px;font-size:12px;color:var(--text);
+  font-weight:600;transition:all .2s ease;
+}
+.tag:hover{transform:translateY(-1px);border-color:var(--accent);}
+.tag.db{border-color:var(--border-base);color:var(--text-secondary);}
+.tag.db:hover{border-color:var(--accent);color:var(--accent);}
+.tag.forbid{border-color:var(--st-red-bg);color:var(--st-red);background:var(--st-red-bg);}
+.tag.uses{border-color:var(--st-green-bg);color:var(--st-green);background:var(--st-green-bg);}
+.tag.info{border-color:var(--st-orange-bg);color:var(--st-orange);background:var(--st-orange-bg);}
+
+/* ---------- FLOW ROW ---------- */
+.flow-row{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--text-secondary);
+}
+.flow-row b{
+  color:var(--text);background:var(--panel2);border:1px solid var(--border-base);
+  padding:5px 11px;border-radius:8px;font-weight:700;transition:all .2s;
+}
+.flow-row b:hover{border-color:var(--accent);color:var(--accent);}
+.arrow{color:var(--accent);font-weight:800;font-size:16px;}
+
+/* ---------- THEME OPTIONS ---------- */
+.theme-swatch-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;}
+.theme-opt{
+  display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;
+  padding:12px;border-radius:12px;border:1px solid transparent;transition:all .2s;
+}
+.theme-opt:hover{border-color:var(--border-base);transform:translateY(-2px);}
+.theme-opt.selected{border-color:var(--accent);background:var(--panel2);box-shadow:0 4px 15px var(--accent-glow);}
+.theme-opt .sw{width:48px;height:48px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);}
+.theme-opt span{font-size:11px;color:var(--text-secondary);font-weight:700;}
+
+/* ---------- QUICK LINKS ---------- */
+.quick-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+.qlink{
+  background:var(--panel2);border:1px solid var(--border-base);padding:10px 16px;
+  border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text);
+  transition:all .2s ease;
+}
+.qlink:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 12px var(--accent-glow);}
+
+/* ---------- BUTTONS ---------- */
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 18px;border-radius:10px;font-size:12.5px;font-weight:700;
+  border:1px solid transparent;cursor:pointer;transition:all .2s ease;
+  font-family:inherit;
+}
+.btn:hover{transform:translateY(-1px);}
+.btn-accent{background:var(--accent);color:var(--accent-ink);box-shadow:0 4px 15px var(--accent-glow);}
+.btn-accent:hover{box-shadow:0 6px 25px var(--accent-glow);}
+.btn-green{background:var(--st-green);color:#fff;}
+.btn-orange{background:var(--st-orange);color:#1a1a00;}
+.btn-red{background:var(--st-red);color:#fff;}
+.btn-ghost{background:transparent;border-color:var(--border-base);color:var(--text-secondary);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ---------- ALERTS ---------- */
+.alert{
+  padding:14px 18px;border-radius:12px;margin-bottom:18px;font-size:12.5px;
+  border:1px solid transparent;line-height:1.6;
+}
+.alert.info{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.alert.success{background:var(--st-green-bg);border-color:var(--st-green);color:var(--st-green);}
+.alert.warning{background:var(--st-orange-bg);border-color:var(--st-orange);color:var(--st-orange);}
+.alert.error{background:var(--st-red-bg);border-color:var(--st-red);color:var(--st-red);}
+
+/* ---------- FOOTER ---------- */
+footer.legal{font-size:11px;color:var(--text-secondary);text-align:center;padding:20px 0 6px 0;}
+
+/* ---------- RESPONSIVE ---------- */
+@media(max-width:880px){
+  .sidebar{position:fixed;left:0;top:0;z-index:20;margin-left:calc(-1 * var(--sidebar-w));box-shadow:0 0 40px rgba(0,0,0,.5);}
+  .sidebar.open{margin-left:0;}
+  .burger{display:inline-flex;align-items:center;justify-content:center;}
+  .page-title{font-size:17px;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:600px){
+  .content{padding:16px;}
+  .topbar{padding:12px 16px;}
+  .stat-grid{grid-template-columns:1fr 1fr;}
+}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:15;backdrop-filter:blur(2px);}
+.overlay.show{display:block;}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="toggleSidebar(false)"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-row">
+      <div class="brand-mark">GNT</div>
+      <div>
+        <div class="brand-name">GNT</div>
+        <div class="brand-sub">GARUDA NEXTECH</div>
+      </div>
+    </div>
+    <div class="brand-tag">RAKSHA · मा आदिशक्ति · v2.0</div>
+  </div>
+
+  <div class="search-box">
+    <span>🔍</span>
+    <input id="navSearch" type="text" placeholder="Search module..." oninput="filterNav()">
+  </div>
+
+  <nav class="nav" id="navList"></nav>
+
+  <div class="sidebar-foot">
+    20 Modules · 78 Screens · 914 Files<br>
+    <span style="color:var(--st-green)">●</span> Modular Monolith Architecture
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="burger" onclick="toggleSidebar()">☰</button>
+      <div>
+        <div class="crumb">GNT <b id="crumbCode"></b></div>
+        <div class="page-title" id="pageTitle">Dashboard</div>
+      </div>
+    </div>
+    <div class="theme-picker">
+      <span style="font-size:11px;color:var(--text-secondary);margin-right:2px;">Theme</span>
+      <div class="swatch sw-gold active" data-t="gold" onclick="setTheme('gold')" title="Gold"></div>
+      <div class="swatch sw-blue" data-t="blue" onclick="setTheme('blue')" title="Blue"></div>
+      <div class="swatch sw-emerald" data-t="emerald" onclick="setTheme('emerald')" title="Emerald"></div>
+      <div class="swatch sw-crimson" data-t="crimson" onclick="setTheme('crimson')" title="Crimson"></div>
+      <div class="swatch sw-purple" data-t="purple" onclick="setTheme('purple')" title="Purple"></div>
+      <div class="swatch sw-light" data-t="light" onclick="setTheme('light')" title="Light"></div>
+    </div>
+  </div>
+
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+const MODULES = [
+  {id:'dashboard',code:'',icon:'🏠',name:'Dashboard',special:'dashboard',purpose:'System-wide overview — sales, purchase, stock, dues & compliance at a glance.'},
+  {id:'core',code:'M01–M03',icon:'⚙️',name:'Core & Security',purpose:'Foundation, Authentication/Authorization, and Device & Session management.',
+    pages:[['AppShellPage','Root layout wrapper'],['ErrorPage','Global error fallback'],['LoginPage','Company + user login'],['OTPVerifyPage','OTP / 2FA verification'],['RoleSelectPage','Workspace / role selection'],['SessionLockPage','Auto-lock + PIN unlock'],['DeviceSessionsPage','Active sessions list'],['AppUpdatePage','Version + update center']],
+    provides:['App config & health check','Authentication (JWT + OTP)','Role/Permission data','Device & session tracking'],
+    uses:['— (base layer, calls nobody)'],db:['user_master','role_master','permission_master','device_registry','active_session'],forbidden:['Business logic','Financial operations']},
+  {id:'company-party',code:'M04–M05',icon:'🏢',name:'Master Data',purpose:'Company profile, branches, financial year, and Customer/Supplier master with ledger & aging.',
+    pages:[['CompanyProfilePage','Company details + branding'],['BranchManagementPage','Branch / Godown list'],['FinancialYearPage','FY list + switch engine'],['RolePermissionPage','CRUD permission grid'],['UserManagementPage','User CRUD + sessions'],['ThemeSettingsPage','Colour picker + presets'],['PartyListPage','Customer / Supplier table'],['PartyEntryDrawer','Add / Edit party'],['PartyDetailHubPage','Ledger + history + aging']],
+    provides:['Company context & FY settings','Invoice number prefixes','Party data, outstanding, credit limit, aging'],
+    uses:['M02 Core (Auth)','M10 Accounting (ledger balance)'],db:['company_master','branch_master','financial_year','party_master','party_ledger_view'],forbidden:['Product data','Transaction data','Direct invoice creation']},
+  {id:'inventory',code:'M06',icon:'📦',name:'Inventory',purpose:'Product, Category, Stock, Batch, Serial, Transfer & Adjustment.',
+    pages:[['ItemListPage','Product grid + stock badges'],['ItemEntryDrawer','Add / Edit product'],['CategoryUnitPage','Category tree + unit conversion'],['StockTransferPage','Godown-to-godown transfer'],['StockAdjustmentPage','Physical verification voucher'],['LowStockAlertPage','Reorder alert center']],
+    provides:['Product data','Stock check','Stock update (via Transaction Engine)'],
+    uses:['M04 Company/Branch context'],db:['product_master','category_master','stock_master','stock_movement','batch_master','serial_master'],forbidden:['Direct stock edit without Transaction Engine','Invoice/payment/ledger entries']},
+  {id:'purchase',code:'M07',icon:'🧾',name:'Purchase',purpose:'Purchase Order, Purchase Invoice, GRN, Return & Supplier Payment.',
+    pages:[['PurchaseEntryPage','Supplier bill entry'],['PurchaseOrderPage','PO creation + approval'],['PurchaseReturnPage','Debit note'],['SupplierPaymentPage','Payment voucher'],['PurchaseHistoryPage','Purchase register']],
+    provides:['Purchase order / invoice / return / payment data'],
+    uses:['M05 Party','M06 Inventory','M09 GST','M10 Accounting','M11 Payment'],db:['purchase_order','purchase_invoice'],forbidden:['Direct stock or ledger writes outside Transaction Engine']},
+  {id:'sales',code:'M08',icon:'💳',name:'Sales & Billing',purpose:'Quotation, Sales Order, Invoice, Return, Receipt, Print/Share.',
+    pages:[['SalesInvoicePage','Ultra-fast billing screen'],['QuotationPage','Price estimate'],['DeliveryChallanPage','Dispatch note'],['SalesReturnPage','Credit note'],['CustomerReceiptPage','Payment receipt'],['InvoicePrintSharePage','Print / Export / WhatsApp']],
+    provides:['Sales invoice, quotation, return, receipt data'],
+    uses:['M05 Customer','M06 Product/Stock','M09 GST','M10 Accounting'],db:['quotation','sales_order','sales_invoice','sales_invoice_item','sales_return','delivery_challan'],forbidden:['Direct stock update','Direct ledger entry','Supplier data']},
+  {id:'gst',code:'M09',icon:'📋',name:'GST & Compliance',purpose:'GST Config, Tax Calculation, Returns, E-Invoice & E-Way Bill.',
+    pages:[['GSTConfigPage','HSN/SAC master + tax slabs'],['GSTCalculationPage','Live tax breakup inspector'],['GSTReturnsPage','GSTR-1 / GSTR-3B compiler'],['GSTR2BReconciliationPage','Purchase vs GSTR-2B matching'],['EWayEInvoicePage','Government portal integration']],
+    provides:['GST calculation, tax rates, return data, e-invoice/e-way bill'],
+    uses:['M04 Company GSTIN','M07/M08 Invoice data'],db:['hsn_master','tax_rate_master','gst_transaction','e_invoice_record','e_way_bill_record'],forbidden:['Direct invoice creation','Stock modification','Ledger entry']},
+  {id:'accounting',code:'M10',icon:'📚',name:'Accounting',purpose:'Ledger, Cash/Bank Book, Journal Voucher, BRS, Final Accounts.',
+    pages:[['CashBankBookPage','Daily cash/bank registers'],['JournalVoucherPage','JV entry for adjustments'],['IncomeExpenseVoucherPage','Direct expense recording'],['LedgerViewerPage','Universal ledger viewer'],['BRSPage','Bank reconciliation'],['FinalAccountsPage','P&L, Balance Sheet, Trial Balance']],
+    provides:['Ledger entries, voucher posting, BRS, final accounts'],
+    uses:['M04 Company','M05 Party','M07/M08 Invoice data'],db:['ledger','voucher','bank_reconciliation','account_master'],forbidden:['Direct stock update','Invoice creation','Payment processing']},
+  {id:'payment-comm',code:'M11',icon:'💬',name:'Payment & Communication',purpose:'Payment Entry, Receipt, Due Tracking, WhatsApp / SMS / Email.',
+    pages:[['PaymentEntryPage','Cash/Bank payment voucher'],['ReceiptEntryPage','Customer receipt'],['DueTrackerPage','Outstanding dashboard'],['CommunicationHubPage','WhatsApp / SMS / Email center']],
+    provides:['Payment, receipt, due-tracking & messaging'],
+    uses:['M05 Party','M10 Accounting'],db:['payment_record'],forbidden:['Direct invoice creation']},
+  {id:'hr',code:'M12',icon:'👥',name:'HR & Payroll',purpose:'Employee Master, Attendance, Leave, Salary, Advance.',
+    pages:[['EmployeeDirectoryPage','Employee profiles'],['AttendanceTrackerPage','Daily attendance grid'],['LeaveOTManagementPage','Leave approval + OT log'],['SalaryProcessingPage','Monthly payroll compiler'],['AdvanceLoanPage','Staff advance + recovery']],
+    provides:['Employee, attendance, leave, salary & advance data'],
+    uses:['M02 Core (auth)','M10 Accounting (salary posting)'],db:['employee_master'],forbidden:['Direct ledger posting outside Transaction Engine']},
+  {id:'automation',code:'M13',icon:'⚡',name:'Automation',purpose:'Scheduled tasks, Payment reminders, Stock alerts, Compliance alerts.',
+    pages:[['SchedulerPage','Automated tasks engine'],['PaymentRemindersPage','Reminder configuration'],['StockAlertWorkflowPage','Alert rules setup'],['NotificationCenterPage','Actionable notification panel']],
+    provides:['Scheduled jobs, reminders, alert workflows, workflow approval engine'],
+    uses:['M05–M09 read access'],db:['— (rule/schedule config only)'],forbidden:['Infinite loops','Duplicate notifications','External action without approval']},
+  {id:'import-export',code:'M14 + M20',icon:'🌐',name:'Import / Export & HSN',purpose:'Bulk data import/export tools plus International Trade & 8-digit HSN engine.',
+    pages:[['DataImportPage','Bulk importer + column mapping'],['PreImportInspectorPage','Validation scan engine'],['DataExportPage','Multi-format exporter'],['ImportHistoryPage','Historical logs + error reports'],['InternationalTradeDashboardPage','Export/Import trade overview'],['ExportShipmentPage','Export shipment entry'],['ImportShipmentPage','Import shipment entry'],['HSNCodeSearchPage','8-digit HSN code lookup'],['HSNClassificationPage','Product → HSN classification'],['ForeignExchangePage','FX rate & conversion'],['CustomsDutyPage','Customs duty calculator'],['TradeDocumentsPage','Trade document generator'],['ExportDocumentPreviewPage','Export doc preview'],['BillOfEntryPage','Bill of Entry (import customs)']],
+    provides:['Excel/CSV import & export','8-digit HSN classification & search','Customs duty, FX conversion, trade documents'],
+    uses:['M06 Inventory (product/HSN link)','M09 GST (tax data)','M10 Accounting (uses existing Ledger — cannot create its own)'],db:['hsn_master (extended)','trade_document','shipment_record'],forbidden:['Creating a separate Ledger Master — must use M10 Accounting ledger']},
+  {id:'sync',code:'M15',icon:'🔄',name:'Data & Sync',purpose:'Sync Monitor, Backup Engine, Restore, Conflict Resolution.',
+    pages:[['SyncMonitorPage','Real-time sync status dashboard'],['BackupEnginePage','1-click backup + cloud schedule'],['RestoreConflictPage','Conflict resolution hub']],
+    provides:['Offline sync, backup/restore, conflict resolution'],
+    uses:['All modules (data layer)'],db:['sync_queue','backup_log'],forbidden:['Silent data overwrite without conflict resolution']},
+  {id:'notification',code:'M16',icon:'🔔',name:'Notifications',purpose:'In-App, WhatsApp, SMS, Email notifications + delivery tracking.',
+    pages:[['NotificationCenterPage','Top-bar dropdown panel']],
+    provides:['Notification dispatch & delivery tracking'],
+    uses:['M11 Communication channel','M13 Automation triggers'],db:['notification_log'],forbidden:['Direct external API calls (must go via M18)']},
+  {id:'reports',code:'M17',icon:'📈',name:'Reports',purpose:'Sales, Purchase, Inventory, GST, Accounting, HR reports.',
+    pages:[['SalesReportsPage','Sales register + margin'],['PurchaseReportsPage','Purchase register + PO status'],['InventoryReportsPage','Stock summary + valuation'],['GSTReportsPage','Tax liability + HSN summary'],['AccountingReportsPage','Daybook + cashflow + aging'],['HRReportsPage','Attendance + salary register']],
+    provides:['Cross-module reporting (read-only)','Owns the global dashboard'],
+    uses:['M05–M12 (read-only public interfaces)'],db:['— (read-only aggregation)'],forbidden:['Writing back to source modules']},
+  {id:'integration',code:'M18',icon:'🔌',name:'Integrations',purpose:'WhatsApp/SMS Gateways, Payment Gateways, GSTN, Webhook monitors.',
+    pages:[['GatewayConfigPage','SMS / WhatsApp / Payment config'],['IntegrationStatusPage','Live connection status'],['APIKeyManagerPage','API key creation + management']],
+    provides:['Sole owner of all external/outbound API communication'],
+    uses:['M02 (contract layer)','M17 Security layer'],db:['integration_config','api_key_store'],forbidden:['Any other module calling an external API directly']},
+  {id:'monitoring',code:'M19',icon:'🖥️',name:'System Monitor',purpose:'Activity logs, Login history, Permission tracker, System health.',
+    pages:[['ActivityLogPage','Timestamped audit trail'],['LoginHistoryPage','IP + device fingerprint log'],['PermissionTrackerPage','Permission change audit']],
+    provides:['System-wide audit trail (read-only)'],
+    uses:['All modules (read-only)'],db:['audit_log'],forbidden:['Modifying business data','Self-modifying the system on error']},
+  {id:'settings',code:'',icon:'🛠️',name:'Settings',special:'settings',purpose:'Theme, company preferences & appearance controls.'},
+];
+
+const navList=document.getElementById('navList');
+function buildNav(){
+  navList.innerHTML=MODULES.map(m=>`
+    <div class="nav-item" data-id="${m.id}" data-search="${(m.name+' '+m.code).toLowerCase()}" onclick="selectModule('${m.id}')">
+      <span class="ic">${m.icon}</span>
+      <span>${m.name}</span>
+      ${m.code?`<span class="code">${m.code}</span>`:''}
+    </div>`).join('');
+}
+function filterNav(){
+  const q=document.getElementById('navSearch').value.toLowerCase();
+  document.querySelectorAll('.nav-item').forEach(el=>{el.style.display=el.dataset.search.includes(q)?'flex':'none';});
+}
+
+function renderModule(m){
+  if(m.special==='dashboard')return renderDashboard();
+  if(m.special==='settings')return renderSettings();
+  const pages=(m.pages||[]).map(p=>`<li><span class="dot"></span><span class="pname">${p[0]}</span><span class="pdesc">${p[1]}</span></li>`).join('');
+  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;"><span class="badge badge-accent">${m.code||'CORE'}</span><span class="badge badge-outline">${(m.pages||[]).length} Screens</span><span class="badge badge-green">${(m.provides||[]).length} Provides</span></div><div class="grid-2" style="margin-top:16px;"><div class="section"><h3><span style="color:var(--accent)">▤</span> Screens / Functions</h3><ul class="page-list">${pages||'<li>No dedicated screens — background/service module.</li>'}</ul></div><div><div class="section"><h3><span style="color:var(--st-green)">✔</span> Provides</h3><div class="tag-list">${(m.provides||[]).map(x=>`<span class="tag">${x}</span>`).join('')}</div></div><div class="section"><h3><span style="color:var(--st-orange)">→</span> Depends On</h3><div class="tag-list">${(m.uses||[]).map(x=>`<span class="tag uses">${x}</span>`).join('')}</div></div><div class="section"><h3><span style="color:var(--text-secondary)">▦</span> Database Tables</h3><div class="tag-list">${(m.db||[]).map(x=>`<span class="tag db">${x}</span>`).join('')}</div></div><div class="section"><h3><span style="color:var(--st-red)">⛔</span> Forbidden</h3><div class="tag-list">${(m.forbidden||[]).map(x=>`<span class="tag forbid">${x}</span>`).join('')}</div></div></div></div>`;
+}
+
+function renderDashboard(){
+  return `<div class="stat-grid"><div class="stat-card"><div class="lbl">Total Modules</div><div class="val">20</div><div class="sub">M01 – M20</div></div><div class="stat-card"><div class="lbl">Total Files</div><div class="val">914</div><div class="sub">Full system</div></div><div class="stat-card"><div class="lbl">Frontend Screens</div><div class="val">78</div><div class="sub">React pages</div></div><div class="stat-card"><div class="lbl">Database Tables</div><div class="val">42</div><div class="sub">Canonical</div></div><div class="stat-card"><div class="lbl">API Endpoints</div><div class="val">200+</div><div class="sub">REST + Events</div></div><div class="stat-card"><div class="lbl">External Integrations</div><div class="val">6</div><div class="sub">GSTN, WhatsApp, SMS, Payment, E-Invoice, E-Way</div></div></div><div class="btn-row"><button class="btn btn-accent">✓ System Healthy</button><button class="btn btn-ghost">⚠ Check Updates</button><button class="btn btn-ghost">📊 View Logs</button><button class="btn btn-ghost">🔧 Configure</button></div><div class="section"><h3><span style="color:var(--accent)">⇄</span> Sample Business Flow — Sales Invoice</h3><div class="flow-row"><b>M08 Sales</b><span class="arrow">→</span><b>M06 Inventory</b><span class="arrow">→</span><b>M09 GST</b><span class="arrow">→</span><b>M10 Accounting</b><span class="arrow">→</span><b>M11 Payment</b><span class="arrow">→</span><b>M17 Reports</b></div></div><div class="section"><h3><span style="color:var(--accent)">⌘</span> Quick Jump</h3><div class="quick-links">${MODULES.filter(m=>!m.special).map(m=>`<div class="qlink" onclick="selectModule('${m.id}')">${m.icon} ${m.name}</div>`).join('')}</div></div><div class="section"><h3><span style="color:var(--accent)">🏛</span> Architecture</h3><div class="tag-list"><span class="tag">Modular Monolith</span><span class="tag">React 18 + TypeScript + Zustand + Tailwind</span><span class="tag">Node.js + Express + Prisma</span><span class="tag db">PostgreSQL 15+</span><span class="tag">JWT RS256 + RBAC + OTP</span><span class="tag">SQLite Offline Sync</span></div></div><div class="alert success"><strong>✓ System Status:</strong> All modules architecturally defined. Build order: M01 → M02 → M03 → M04 → M05 → M06 → M07 → M08 → M09 → M10 → M11 → M12 → M13 → M14 → M15 → M16 → M17 → M18 → M19 → M20</div>`;
+}
+
+function renderSettings(){
+  const themes=[['gold','Gold','sw-gold'],['blue','Blue','sw-blue'],['emerald','Emerald','sw-emerald'],['crimson','Crimson','sw-crimson'],['purple','Purple','sw-purple'],['light','Light','sw-light']];
+  return `<div class="section"><h3><span style="color:var(--accent)">🎨</span> Appearance — choose a theme</h3><div class="theme-swatch-row" id="themeOptRow">${themes.map(t=>`<div class="theme-opt ${document.documentElement.dataset.theme===t[0]?'selected':''}" data-t="${t[0]}" onclick="setTheme('${t[0]}')"><div class="sw ${t[2]}"></div><span>${t[1]}</span></div>`).join('')}</div></div><div class="btn-row"><button class="btn btn-accent">✓ Save Preferences</button><button class="btn btn-ghost">↺ Reset to Default</button><button class="btn btn-ghost">ℹ Help</button></div><div class="section"><h3><span style="color:var(--accent)">ℹ</span> About this preview</h3><div class="tag-list"><span class="tag">GNT Module Preview v2.0</span><span class="tag">Single-file HTML/CSS/JS</span><span class="tag">Reflects GNT Advanced Software Blueprint V2</span></div></div><div class="alert info"><strong>ℹ Theme System:</strong> Background is always neutral (Dark or Light). Theme only changes accent color for borders, active items, badges, and buttons. Status colors (Red/Orange/Green) remain fixed.</div>`;
+}
+
+let currentId='dashboard';
+function selectModule(id){
+  currentId=id;
+  const m=MODULES.find(x=>x.id===id);
+  document.getElementById('pageTitle').textContent=m.name;
+  document.getElementById('crumbCode').textContent=m.code?'/ '+m.code:'';
+  document.querySelector('.page-purpose')&&document.querySelector('.page-purpose').remove();
+  document.getElementById('content').innerHTML=`<div class="page-purpose" style="margin:-6px 0 16px 0;font-size:13px;color:var(--text-secondary);">${m.purpose}</div>`+renderModule(m);
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
+  if(window.innerWidth<=880)toggleSidebar(false);
+  document.getElementById('content').scrollTop=0;
+}
+
+function setTheme(name){
+  document.documentElement.setAttribute('data-theme',name);
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active',s.dataset.t===name));
+  if(currentId==='settings')selectModule('settings');
+}
+
+function toggleSidebar(force){
+  const sb=document.getElementById('sidebar'),ov=document.getElementById('overlay');
+  const open=force!==undefined?force:!sb.classList.contains('open');
+  sb.classList.toggle('open',open);ov.classList.toggle('show',open);
+}
+
+buildNav();
+selectModule('dashboard');
+</script>
+</body>
+</html>

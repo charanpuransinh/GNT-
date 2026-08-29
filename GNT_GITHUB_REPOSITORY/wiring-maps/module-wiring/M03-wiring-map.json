@@ -1,0 +1,96 @@
+{
+  "module": "M03",
+  "name": "Device & Platform",
+  "owner": "A4-APPLE",
+  "version": "1.0.0",
+  "status": "IN_DEVELOPMENT",
+  "description": "Device registration, session tracking, app updates, deployment settings",
+  "connections": {
+    "outbound": [
+      {
+        "to": "M02",
+        "contract": "auth.contract.yaml",
+        "description": "Uses M02 for user authentication context",
+        "publicMethod": "authMiddleware"
+      },
+      {
+        "to": "M04",
+        "contract": "M04-company.contract.yaml",
+        "description": "Reads company context for deployment settings",
+        "publicMethod": "companyService.getCompanyById"
+      }
+    ],
+    "inbound": [
+      {
+        "from": "M02",
+        "contract": "M03-device.contract.yaml",
+        "description": "M02 uses M03 for session management during login/logout",
+        "publicMethod": "deviceService.getActiveSessions"
+      },
+      {
+        "from": "M16",
+        "contract": "M03-device.contract.yaml",
+        "description": "M16 uses M03 for push token management",
+        "publicMethod": "deviceService.registerDevice"
+      }
+    ]
+  },
+  "events": {
+    "published": [
+      {
+        "event": "device.registered",
+        "description": "Published when a new device is registered",
+        "consumers": ["M19"]
+      },
+      {
+        "event": "session.terminated",
+        "description": "Published when a session is terminated",
+        "consumers": ["M19"]
+      }
+    ],
+    "subscribed": []
+  },
+  "database": {
+    "owned": [
+      "device_registry",
+      "active_session"
+    ],
+    "readOnly": []
+  },
+  "publicServices": [
+    {
+      "name": "deviceService.getActiveSessions",
+      "description": "Returns active sessions for a user",
+      "input": "string (userId)",
+      "output": "DeviceSession[]",
+      "consumers": ["M02", "frontend"]
+    },
+    {
+      "name": "deviceService.registerDevice",
+      "description": "Registers or updates a device",
+      "input": "Partial<DeviceInfo>",
+      "output": "DeviceInfo",
+      "consumers": ["frontend", "M16"]
+    },
+    {
+      "name": "deviceService.checkForUpdate",
+      "description": "Checks if app update is available",
+      "input": "platform, currentVersion",
+      "output": "UpdateInfo",
+      "consumers": ["frontend"]
+    },
+    {
+      "name": "deviceService.getDeploymentSettings",
+      "description": "Returns deployment settings for company",
+      "input": "string (companyId)",
+      "output": "DeploymentSettings",
+      "consumers": ["frontend"]
+    }
+  ],
+  "forbidden": [
+    "No business logic",
+    "No financial data",
+    "No direct M06-M20 private service calls",
+    "No invoice/stock/ledger operations"
+  ]
+}

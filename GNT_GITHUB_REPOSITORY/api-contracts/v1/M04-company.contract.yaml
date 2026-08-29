@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: GNT M04 Company Management API
+  version: "1.0.0"
+  description: Public contract for M04 Company Management. Owned by Team A.
+servers:
+  - url: /api/v1/company
+tags:
+  - name: Profile
+  - name: Branches
+  - name: Financial Year
+  - name: Roles
+  - name: Users
+paths:
+  /profile:
+    get:
+      tags: [Profile]
+      summary: Get company profile
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      responses:
+        "200": { description: Company profile }
+    put:
+      tags: [Profile]
+      summary: Update company profile
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyProfile" }
+      responses:
+        "200": { description: Updated }
+  /branches:
+    get:
+      tags: [Branches]
+      summary: List branches
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      responses:
+        "200": { description: Branch list }
+    post:
+      tags: [Branches]
+      summary: Create branch
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BranchCreate" }
+      responses:
+        "201": { description: Created }
+  /branches/{branchId}:
+    delete:
+      tags: [Branches]
+      summary: Delete branch
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/XCompanyId" }
+        - { name: branchId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Deleted }
+  /financial-years:
+    get:
+      tags: [Financial Year]
+      summary: List FYs
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      responses:
+        "200": { description: FY list }
+    post:
+      tags: [Financial Year]
+      summary: Create FY
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinancialYearCreate" }
+      responses:
+        "201": { description: Created }
+  /financial-years/{fyId}/switch:
+    post:
+      tags: [Financial Year]
+      summary: Switch active FY
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/XCompanyId" }
+        - { name: fyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Switched }
+  /roles:
+    get:
+      tags: [Roles]
+      summary: List roles
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      responses:
+        "200": { description: Role list }
+  /roles/{roleId}/permissions:
+    put:
+      tags: [Roles]
+      summary: Update role permissions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/XCompanyId" }
+        - { name: roleId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RolePermissionsUpdate" }
+      responses:
+        "200": { description: Updated }
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      responses:
+        "200": { description: User list }
+    post:
+      tags: [Users]
+      summary: Create user
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/XCompanyId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserCreate" }
+      responses:
+        "201": { description: Created }
+  /users/{userId}/toggle:
+    post:
+      tags: [Users]
+      summary: Toggle user status
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/XCompanyId" }
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Toggled }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    XCompanyId: { name: X-Company-Id, in: header, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    CompanyProfile:
+      type: object
+      properties:
+        name: { type: string, maxLength: 200 }
+        gstin: { type: string }
+        address: { type: string, maxLength: 500 }
+        phone: { type: string, maxLength: 20 }
+        email: { type: string, format: email }
+    BranchCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 100 }
+        address: { type: string }
+    FinancialYearCreate:
+      type: object
+      required: [startDate, endDate, prefix]
+      properties:
+        startDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        endDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        prefix: { type: string, maxLength: 10 }
+    RolePermissionsUpdate:
+      type: object
+      required: [permissions]
+      properties:
+        permissions: { type: array, items: { type: string, format: uuid } }
+    UserCreate:
+      type: object
+      required: [name, email, roleId]
+      properties:
+        name: { type: string, maxLength: 100 }
+        email: { type: string, format: email }
+        roleId: { type: string, format: uuid }

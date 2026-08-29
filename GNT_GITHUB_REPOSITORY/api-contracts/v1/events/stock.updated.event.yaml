@@ -1,0 +1,40 @@
+event:
+  name: stock.updated
+  version: 1.0.0
+  module: M06-Inventory
+  description: Emitted whenever stock quantity changes
+  payload:
+    type: object
+    required: [product_id, before_qty, after_qty]
+    properties:
+      product_id:
+        type: string
+        format: uuid
+        description: Product UUID
+      branch_id:
+        type: string
+        format: uuid
+        nullable: true
+        description: Branch UUID
+      before_qty:
+        type: number
+        description: Quantity before change
+      after_qty:
+        type: number
+        description: Quantity after change
+      reference_type:
+        type: string
+        nullable: true
+        description: Type of reference (purchase_invoice, sales_invoice, etc.)
+      reference_id:
+        type: string
+        format: uuid
+        nullable: true
+        description: Reference document UUID
+      timestamp:
+        type: string
+        format: date-time
+  consumers:
+    - M10-Accounting (stock valuation)
+    - M13-Automation (workflow triggers)
+    - M16-Notification (real-time alerts)

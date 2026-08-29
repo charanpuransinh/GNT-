@@ -1,0 +1,24 @@
+event:
+  name: gst.return.filed
+  version: 1.0.0
+  module: M09-GST
+  description: Filed when GSTR-1 or GSTR-3B is submitted to GST portal
+  payload:
+    type: object
+    required: [return_type, period, filing_date]
+    properties:
+      return_type:
+        type: string
+        enum: [GSTR1, GSTR3B]
+      period:
+        type: string
+        example: "2024-04"
+      filing_date:
+        type: string
+        format: date-time
+      reference_no:
+        type: string
+        description: GST portal acknowledgment number
+  consumers:
+    - M17 (Reporting) — lock period for edits
+    - M04 (Company) — update compliance calendar

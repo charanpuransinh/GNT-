@@ -1,0 +1,12 @@
+{
+  "module": "M12",
+  "name": "M12 Hr",
+  "class": "C",
+  "frontend_path": "frontend/src/modules/m12-hr",
+  "backend_path": "backend/src/modules/m12-hr",
+  "database_tables": [],
+  "public_apis": [],
+  "events_published": [],
+  "events_subscribed": [],
+  "dependencies": []
+}

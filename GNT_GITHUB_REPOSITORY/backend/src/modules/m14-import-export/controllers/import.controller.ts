@@ -1,0 +1,102 @@
+// M14 — Import Controller
+// Lock: LOCK_09_CONTROLLER
+import { Request, Response } from 'express';
+import { ImportService } from '../services/import.service';
+import { TemplateService } from '../services/template.service';
+
+const importService = new ImportService();
+const templateService = new TemplateService();
+
+export class ImportController {
+  async upload(req: Request, res: Response) {
+    try {
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const { module, entityType, templateId, mappingOverride, dryRun } = req.body;
+      const tenantId = (req as any).tenantId;
+      const userId = (req as any).userId;
+
+      let mapping = mappingOverride ? JSON.parse(mappingOverride) : undefined;
+      if (templateId && !mapping) {
+        const tpl = await templateService.getTemplateById(templateId, tenantId);
+        mapping = tpl.columnMapping;
+      }
+
+      const jobId = await importService.createImportJob({
+        fileBuffer: file.buffer,
+        fileType: file.mimetype.includes('csv') ? 'csv' : file.mimetype.includes('sheet') ? 'xlsx' : 'json',
+        module,
+        entityType,
+        templateId,
+        mappingOverride: mapping,
+        tenantId,
+        userId,
+        options: { dryRun: dryRun === 'true' }
+      });
+
+      res.status(202).json({ success: true, jobId, message: 'Import job queued' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async validate(req: Request, res: Response) {
+    try {
+      const { jobId } = req.params;
+      const tenantId = (req as any).tenantId;
+      const result = await importService.validateImport(jobId, tenantId);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async getJob(req: Request, res: Response) {
+    try {
+      const { jobId } = req.params;
+      const tenantId = (req as any).tenantId;
+      const job = await importService.getImportJob(jobId, tenantId);
+      res.json(job);
+    } catch (err: any) {
+      res.status(404).json({ error: err.message });
+    }
+  }
+
+  async listJobs(req: Request, res: Response) {
+    try {
+      const tenantId = (req as any).tenantId;
+      const { module, entityType, status } = req.query;
+      const jobs = await importService.listImportJobs(tenantId, {
+        ...(module && { module: String(module) }),
+        ...(entityType && { entityType: String(entityType) }),
+        ...(status && { status: status as any }),
+      });
+      res.json(jobs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async cancel(req: Request, res: Response) {
+    try {
+      const { jobId } = req.params;
+      const tenantId = (req as any).tenantId;
+      await importService.cancelImportJob(jobId, tenantId);
+      res.json({ success: true, message: 'Job cancelled' });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  async retry(req: Request, res: Response) {
+    try {
+      const { jobId } = req.params;
+      const tenantId = (req as any).tenantId;
+      const newJobId = await importService.retryImportJob(jobId, tenantId);
+      res.json({ success: true, jobId: newJobId, message: 'Job retried' });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+}

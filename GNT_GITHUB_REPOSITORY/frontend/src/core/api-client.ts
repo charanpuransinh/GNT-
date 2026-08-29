@@ -1,0 +1,1 @@
+export async function apiClient<T>(path: string, init: RequestInit = {}): Promise<T> { const res = await fetch(path, { ...init, headers: { 'content-type': 'application/json', ...(init.headers || {}) } }); if (!res.ok) throw new Error(`API request failed: ${res.status}`); return res.json() as Promise<T>; }

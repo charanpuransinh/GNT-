@@ -1,0 +1,406 @@
+openapi: 3.0.3
+info:
+  title: GNT M06 Inventory API
+  version: 1.0.0
+  description: Inventory Management Module API for GARUDA NEXTECH
+servers:
+  - url: /api/v1/inventory
+paths:
+  /products:
+    post:
+      summary: Create Product
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        201:
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+    get:
+      summary: List Products
+      operationId: getProducts
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: category_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: branch_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: low_stock
+          in: query
+          schema: { type: boolean }
+      responses:
+        200:
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProducts'
+
+  /products/{id}:
+    get:
+      summary: Get Product by ID
+      operationId: getProductById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+    put:
+      summary: Update Product
+      operationId: updateProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        200:
+          description: Product updated
+    delete:
+      summary: Soft Delete Product
+      operationId: deleteProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Product deleted
+
+  /products/{id}/stock:
+    get:
+      summary: Get Product Stock
+      operationId: getProductStock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: branch_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Stock records
+
+  /products/bulk-import:
+    post:
+      summary: Bulk Import Products
+      operationId: bulkImportProducts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                products:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ProductInput'
+      responses:
+        201:
+          description: Import result
+
+  /stock:
+    get:
+      summary: Get Stock Records
+      operationId: getStock
+      parameters:
+        - name: branch_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: product_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: batch_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Stock list
+
+  /stock/adjustment:
+    post:
+      summary: Adjust Stock
+      operationId: adjustStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustment'
+      responses:
+        200:
+          description: Stock adjusted
+
+  /stock/transfer:
+    post:
+      summary: Transfer Stock
+      operationId: transferStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockTransfer'
+      responses:
+        200:
+          description: Stock transferred
+
+  /stock/movements:
+    get:
+      summary: Get Stock Movements
+      operationId: getStockMovements
+      parameters:
+        - name: product_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: branch_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: from_date
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to_date
+          in: query
+          schema: { type: string, format: date-time }
+        - name: reference_type
+          in: query
+          schema: { type: string }
+      responses:
+        200:
+          description: Movement list
+
+  /stock/low:
+    get:
+      summary: Get Low Stock Items
+      operationId: getLowStock
+      parameters:
+        - name: branch_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Low stock products
+
+  /stock/check:
+    post:
+      summary: Check Availability (PUBLIC)
+      operationId: checkAvailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityCheck'
+      responses:
+        200:
+          description: Availability result
+
+  /categories:
+    post:
+      summary: Create Category
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        201:
+          description: Category created
+    get:
+      summary: List Categories
+      operationId: getCategories
+      responses:
+        200:
+          description: Category list
+
+  /categories/tree:
+    get:
+      summary: Get Category Tree
+      operationId: getCategoryTree
+      responses:
+        200:
+          description: Nested category tree
+
+  /categories/{id}:
+    put:
+      summary: Update Category
+      operationId: updateCategory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+      responses:
+        200:
+          description: Category updated
+    delete:
+      summary: Delete Category
+      operationId: deleteCategory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Category deleted
+
+components:
+  schemas:
+    ProductInput:
+      type: object
+      required: [name]
+      properties:
+        company_id: { type: string, format: uuid }
+        branch_id: { type: string, format: uuid }
+        name: { type: string, maxLength: 255 }
+        code: { type: string, maxLength: 100 }
+        barcode: { type: string, maxLength: 100 }
+        hsn_code: { type: string, maxLength: 50 }
+        category_id: { type: string, format: uuid }
+        unit: { type: string, maxLength: 50 }
+        alternate_unit: { type: string, maxLength: 50 }
+        conversion_rate: { type: number }
+        sale_price: { type: number }
+        purchase_price: { type: number }
+        mrp: { type: number }
+        gst_rate: { type: number }
+        cess_rate: { type: number }
+        is_gst_inclusive: { type: boolean, default: false }
+        min_stock: { type: number }
+        max_stock: { type: number }
+        reorder_level: { type: number }
+        description: { type: string }
+        image_url: { type: string, format: uri }
+        is_active: { type: boolean, default: true }
+
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    ProductUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        code: { type: string }
+        barcode: { type: string }
+        category_id: { type: string, format: uuid }
+        sale_price: { type: number }
+        purchase_price: { type: number }
+        mrp: { type: number }
+        gst_rate: { type: number }
+        min_stock: { type: number }
+        max_stock: { type: number }
+        reorder_level: { type: number }
+        description: { type: string }
+        image_url: { type: string }
+        is_active: { type: boolean }
+
+    PaginatedProducts:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: array, items: { $ref: '#/components/schemas/Product' } }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        totalPages: { type: integer }
+
+    StockAdjustment:
+      type: object
+      required: [product_id, quantity, reason]
+      properties:
+        product_id: { type: string, format: uuid }
+        branch_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        quantity: { type: number }
+        reason: { type: string }
+        reference: { type: string }
+        rate: { type: number }
+
+    StockTransfer:
+      type: object
+      required: [product_id, from_branch_id, to_branch_id, quantity]
+      properties:
+        product_id: { type: string, format: uuid }
+        from_branch_id: { type: string, format: uuid }
+        to_branch_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        quantity: { type: number }
+        notes: { type: string }
+
+    AvailabilityCheck:
+      type: object
+      required: [product_id, requested_qty]
+      properties:
+        product_id: { type: string, format: uuid }
+        branch_id: { type: string, format: uuid }
+        requested_qty: { type: number }
+
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        company_id: { type: string, format: uuid }
+        name: { type: string, maxLength: 255 }
+        parent_id: { type: string, format: uuid }
+        code: { type: string, maxLength: 100 }
+        description: { type: string }
+        is_active: { type: boolean, default: true }
+
+    CategoryUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        parent_id: { type: string, format: uuid }
+        code: { type: string }
+        description: { type: string }
+        is_active: { type: boolean }

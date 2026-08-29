@@ -1,0 +1,495 @@
+// M11 Payment Module - Prisma Schema
+// GNT MASTER BLUEPRINT V2 - Team C Module M11
+// Lock Artifact: 01_SCHEMA_LOCK
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethodType {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  UPI
+  WALLET
+  CHEQUE
+  NEFT
+  RTGS
+  IMPS
+  INTERNATIONAL_WIRE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PARTIAL_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  WRITTEN_OFF
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReconciliationStatus {
+  PENDING
+  MATCHED
+  PARTIAL_MATCH
+  UNMATCHED
+  RESOLVED
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+  FEE
+  CHARGEBACK
+  TRANSFER
+}
+
+enum BankAccountType {
+  CURRENT
+  SAVINGS
+  OVERDRAFT
+  ESCROW
+}
+
+// ==================== CORE TABLES ====================
+
+model PaymentMethod {
+  id          String            @id @default(cuid())
+  tenantId    String
+  name        String
+  type        PaymentMethodType
+  configJson  Json?             // API keys, credentials, settings
+  isActive    Boolean           @default(true)
+  isDefault   Boolean           @default(false)
+  sortOrder   Int               @default(0)
+  bankAccountId String?        // Link to internal bank account
+
+  // Audit
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   String
+  updatedBy   String
+
+  // Relations
+  transactions PaymentTransaction[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, type])
+  @@index([tenantId, isActive])
+  @@map("payment_methods")
+}
+
+model PaymentTransaction {
+  id              String          @id @default(cuid())
+  tenantId        String
+
+  // Core fields
+  amount          Decimal         @db.Decimal(19, 4)
+  currency        String          @default("INR")
+  status          PaymentStatus   @default(PENDING)
+  type            TransactionType @default(PAYMENT)
+
+  // Links
+  paymentMethodId String
+  invoiceId       String?
+  bankAccountId   String?
+
+  // Payer info
+  payerName       String?
+  payerEmail      String?
+  payerPhone      String?
+  payerId         String?         // Customer/Employee/Vendor ID
+  payerType       String?         // CUSTOMER, EMPLOYEE, VENDOR
+
+  // Gateway/External
+  gatewayRef      String?         // External payment gateway reference
+  gatewayResponse Json?
+
+  // Metadata
+  description     String?
+  metadata        Json?
+
+  // Schedule link
+  scheduleId      String?
+
+  // Audit
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       String
+  updatedBy       String
+
+  // Relations
+  paymentMethod   PaymentMethod   @relation(fields: [paymentMethodId], references: [id])
+  invoice         Invoice?        @relation(fields: [invoiceId], references: [id])
+  bankAccount     BankAccount?    @relation(fields: [bankAccountId], references: [id])
+  schedule        PaymentSchedule? @relation(fields: [scheduleId], references: [id])
+  refunds         Refund[]
+  ledgerEntries   LedgerEntry[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, payerId, payerType])
+  @@index([tenantId, gatewayRef])
+  @@index([tenantId, invoiceId])
+  @@map("payment_transactions")
+}
+
+model PaymentSchedule {
+  id              String    @id @default(cuid())
+  tenantId        String
+
+  name            String
+  description     String?
+
+  // Schedule config
+  frequency       String    // DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY, CUSTOM
+  interval        Int       @default(1)
+  startDate       DateTime
+  endDate         DateTime?
+  nextRunAt       DateTime?
+  lastRunAt       DateTime?
+
+  // Amount config
+  amount          Decimal   @db.Decimal(19, 4)
+  currency        String    @default("INR")
+
+  // Target
+  payerId         String?
+  payerType       String?
+  paymentMethodId String?
+  bankAccountId   String?
+
+  // Status
+  isActive        Boolean   @default(true)
+  runCount        Int       @default(0)
+  maxRuns         Int?      // null = unlimited
+
+  // Audit
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       String
+  updatedBy       String
+
+  // Relations
+  transactions    PaymentTransaction[]
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, nextRunAt])
+  @@map("payment_schedules")
+}
+
+model Invoice {
+  id              String          @id @default(cuid())
+  tenantId        String
+
+  // Invoice identity
+  invoiceNumber   String
+  series          String          @default("INV")
+
+  // Parties
+  customerId      String          // Links to M06 Customer
+  customerName    String
+  customerEmail   String?
+  customerPhone   String?
+  customerGstin   String?
+
+  // Amounts (all in Decimal as String)
+  subTotal        Decimal         @db.Decimal(19, 4)
+  taxAmount       Decimal         @db.Decimal(19, 4) @default(0)
+  discountAmount  Decimal         @db.Decimal(19, 4) @default(0)
+  totalAmount     Decimal         @db.Decimal(19, 4)
+  paidAmount      Decimal         @db.Decimal(19, 4) @default(0)
+  dueAmount       Decimal         @db.Decimal(19, 4)
+
+  // Currency & Tax
+  currency        String          @default("INR")
+  taxRate         Decimal?        @db.Decimal(5, 2)
+
+  // Dates
+  invoiceDate     DateTime
+  dueDate         DateTime
+  paidDate        DateTime?
+
+  // Status
+  status          InvoiceStatus   @default(DRAFT)
+
+  // Metadata
+  notes           String?
+  terms           String?
+  metadata        Json?
+
+  // Audit
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       String
+  updatedBy       String
+
+  // Relations
+  lineItems       InvoiceLineItem[]
+  transactions    PaymentTransaction[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+  @@index([tenantId, dueDate])
+  @@index([tenantId, invoiceDate])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String    @id @default(cuid())
+  tenantId    String
+
+  invoiceId   String
+
+  // Item details
+  productId   String?   // Links to M08 Inventory
+  productName String
+  description String?
+
+  // Pricing
+  quantity    Decimal   @db.Decimal(19, 4)
+  unitPrice     Decimal   @db.Decimal(19, 4)
+  taxRate       Decimal?  @db.Decimal(5, 2)
+  taxAmount     Decimal   @db.Decimal(19, 4) @default(0)
+  discountPercent Decimal?  @db.Decimal(5, 2)
+  discountAmount  Decimal   @db.Decimal(19, 4) @default(0)
+  totalAmount   Decimal   @db.Decimal(19, 4)
+
+  // Audit
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   String
+  updatedBy   String
+
+  // Relations
+  invoice     Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+  @@map("invoice_line_items")
+}
+
+model Refund {
+  id              String          @id @default(cuid())
+  tenantId        String
+
+  // Links
+  transactionId   String
+
+  // Amount
+  amount          Decimal         @db.Decimal(19, 4)
+  currency        String          @default("INR")
+
+  // Status
+  status          RefundStatus    @default(REQUESTED)
+
+  // Reason
+  reason          String
+  reasonCode      String?         // SYSTEM, CUSTOMER_REQUEST, DUPLICATE, FRAUD, etc.
+
+  // Gateway
+  gatewayRef      String?
+  gatewayResponse Json?
+
+  // Audit
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       String
+  updatedBy       String
+  approvedBy      String?
+  approvedAt      DateTime?
+
+  // Relations
+  transaction     PaymentTransaction @relation(fields: [transactionId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, transactionId])
+  @@map("refunds")
+}
+
+model BankAccount {
+  id              String          @id @default(cuid())
+  tenantId        String
+
+  // Bank details
+  accountName     String
+  accountNumber   String
+  ifscCode        String?
+  bankName        String
+  branchName      String?
+
+  // Type
+  accountType     BankAccountType @default(CURRENT)
+
+  // Balance tracking
+  openingBalance  Decimal         @db.Decimal(19, 4) @default(0)
+  currentBalance  Decimal         @db.Decimal(19, 4) @default(0)
+
+  // Status
+  isActive        Boolean         @default(true)
+  isDefault       Boolean         @default(false)
+
+  // Metadata
+  description     String?
+
+  // Audit
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       String
+  updatedBy       String
+
+  // Relations
+  transactions    PaymentTransaction[]
+  reconciliations Reconciliation[]
+
+  @@unique([tenantId, accountNumber])
+  @@index([tenantId, isActive])
+  @@map("bank_accounts")
+}
+
+model Reconciliation {
+  id              String                  @id @default(cuid())
+  tenantId        String
+
+  bankAccountId   String
+
+  // Period
+  startDate       DateTime
+  endDate         DateTime
+
+  // System totals
+  systemCredits   Decimal                 @db.Decimal(19, 4) @default(0)
+  systemDebits    Decimal                 @db.Decimal(19, 4) @default(0)
+  systemBalance   Decimal                 @db.Decimal(19, 4) @default(0)
+
+  // Bank statement totals
+  statementCredits Decimal                @db.Decimal(19, 4) @default(0)
+  statementDebits  Decimal                @db.Decimal(19, 4) @default(0)
+  statementBalance Decimal                @db.Decimal(19, 4) @default(0)
+
+  // Variance
+  variance        Decimal                 @db.Decimal(19, 4) @default(0)
+
+  // Status
+  status          ReconciliationStatus    @default(PENDING)
+
+  // Statement file
+  statementFileUrl String?
+
+  // Audit
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  createdBy       String
+  updatedBy       String
+
+  // Relations
+  bankAccount     BankAccount             @relation(fields: [bankAccountId], references: [id])
+  items           ReconciliationItem[]
+
+  @@index([tenantId, bankAccountId])
+  @@index([tenantId, status])
+  @@map("reconciliations")
+}
+
+model ReconciliationItem {
+  id              String    @id @default(cuid())
+  tenantId        String
+
+  reconciliationId String
+
+  // Transaction ref
+  transactionId   String?
+
+  // Statement line
+  statementDate   DateTime
+  statementDesc   String
+  statementAmount Decimal   @db.Decimal(19, 4)
+  statementType   String    // CREDIT, DEBIT
+
+  // Match status
+  isMatched       Boolean   @default(false)
+  matchConfidence Decimal?  @db.Decimal(3, 2) // 0.00 to 1.00
+
+  // Variance
+  varianceAmount  Decimal?  @db.Decimal(19, 4)
+
+  // Resolution
+  resolutionNotes String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+
+  // Audit
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       String
+  updatedBy       String
+
+  // Relations
+  reconciliation  Reconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, reconciliationId])
+  @@index([tenantId, isMatched])
+  @@map("reconciliation_items")
+}
+
+model LedgerEntry {
+  id              String          @id @default(cuid())
+  tenantId        String
+
+  transactionId   String
+
+  // Accounting
+  accountCode     String          // Chart of accounts code (M10)
+  debitAmount     Decimal         @db.Decimal(19, 4) @default(0)
+  creditAmount    Decimal         @db.Decimal(19, 4) @default(0)
+
+  // Narration
+  narration       String
+
+  // Period
+  entryDate       DateTime
+  fiscalYearId    String?         // Links to M10 Fiscal Year
+
+  // Audit
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       String
+  updatedBy       String
+
+  // Relations
+  transaction     PaymentTransaction @relation(fields: [transactionId], references: [id])
+
+  @@index([tenantId, transactionId])
+  @@index([tenantId, accountCode])
+  @@index([tenantId, entryDate])
+  @@map("ledger_entries")
+}

@@ -1,0 +1,63 @@
+{
+  "module": "M06-Inventory",
+  "version": "1.0.0",
+  "provides": {
+    "public_services": [
+      {
+        "name": "stock.service.checkAvailability",
+        "consumers": ["M07-Purchase", "M08-Sales"],
+        "endpoint": "POST /api/v1/inventory/stock/check",
+        "description": "Check if requested quantity is available"
+      },
+      {
+        "name": "stock.service.deductStock",
+        "consumers": ["M08-Sales"],
+        "endpoint": "INTERNAL",
+        "description": "Deduct stock for sales invoice"
+      },
+      {
+        "name": "stock.service.addStock",
+        "consumers": ["M07-Purchase"],
+        "endpoint": "INTERNAL",
+        "description": "Add stock for purchase invoice"
+      },
+      {
+        "name": "stock.service.getStockByProduct",
+        "consumers": ["M10-Accounting"],
+        "endpoint": "GET /api/v1/inventory/products/:id/stock",
+        "description": "Get stock records for a product"
+      }
+    ],
+    "events": [
+      {
+        "name": "stock.updated",
+        "consumers": ["M10-Accounting", "M13-Automation", "M16-Notification"],
+        "schema": "events/stock.updated.event.yaml"
+      },
+      {
+        "name": "stock.low",
+        "consumers": ["M13-Automation", "M16-Notification"],
+        "schema": "events/stock.low.event.yaml"
+      },
+      {
+        "name": "batch.expiring",
+        "consumers": ["M16-Notification"],
+        "schema": "events/batch.expiring.event.yaml"
+      }
+    ]
+  },
+  "consumes": {
+    "from_modules": [
+      {
+        "name": "M04-Company",
+        "contract": "tenant-context",
+        "description": "Company and branch context via tenant middleware"
+      }
+    ]
+  },
+  "forbidden": [
+    "Direct invoice creation",
+    "Payment processing",
+    "Ledger entries"
+  ]
+}

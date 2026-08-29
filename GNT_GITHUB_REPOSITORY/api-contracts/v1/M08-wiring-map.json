@@ -1,0 +1,104 @@
+{
+  "module": "M08",
+  "name": "Sales & Billing",
+  "version": "1.0.0",
+  "team": "B4-BRAVO",
+  "brand": "RAKSHA",
+  "group": "मा आदिशक्ति",
+  "description": "M08 provides sales transaction processing including quotations, orders, invoices, returns, and delivery challans.",
+  "provides": {
+    "publicServices": [
+      {
+        "service": "sales.service.ts",
+        "methods": ["createInvoice", "getInvoices", "getInvoiceById", "convertOrderToInvoice"],
+        "consumers": ["M09", "M10", "M11", "M16", "M17"]
+      }
+    ],
+    "events": [
+      {
+        "event": "sales.invoice.created",
+        "payload": {
+          "invoiceId": "uuid",
+          "customerId": "uuid",
+          "totalAmount": "decimal",
+          "taxAmount": "decimal",
+          "items": "array",
+          "grandTotal": "decimal",
+          "companyId": "uuid",
+          "branchId": "uuid"
+        },
+        "consumers": ["M16", "M17"]
+      },
+      {
+        "event": "sales.quotation.converted",
+        "payload": {
+          "quotationId": "uuid",
+          "orderId": "uuid",
+          "customerId": "uuid",
+          "companyId": "uuid"
+        },
+        "consumers": ["M17"]
+      },
+      {
+        "event": "sales.return.created",
+        "payload": {
+          "returnId": "uuid",
+          "invoiceId": "uuid",
+          "customerId": "uuid",
+          "netAmount": "decimal",
+          "companyId": "uuid"
+        },
+        "consumers": ["M16", "M17"]
+      }
+    ]
+  },
+  "consumes": {
+    "fromM05": {
+      "module": "Party Master",
+      "services": [
+        { "name": "party.service.getCustomerById", "purpose": "Get customer details for invoice" },
+        { "name": "party.service.checkCreditLimit", "purpose": "Validate credit before posting" }
+      ]
+    },
+    "fromM06": {
+      "module": "Inventory",
+      "services": [
+        { "name": "stock.service.checkAvailability", "purpose": "Check stock before posting", "access": "PUBLIC" },
+        { "name": "stock.service.deductStock", "purpose": "Deduct stock on invoice post", "access": "PUBLIC" },
+        { "name": "stock.service.addBackStock", "purpose": "Add back stock on return post", "access": "PUBLIC" }
+      ]
+    },
+    "fromM09": {
+      "module": "GST",
+      "services": [
+        { "name": "gst.service.calculateTax", "purpose": "Calculate output tax on invoice", "access": "PUBLIC" }
+      ]
+    },
+    "fromM10": {
+      "module": "Accounting",
+      "services": [
+        { "name": "ledger.service.createEntry", "purpose": "Create ledger entry on post", "access": "PUBLIC — via transaction engine" }
+      ]
+    },
+    "fromM11": {
+      "module": "Payment",
+      "services": [
+        { "name": "payment.service.getInvoicePayments", "purpose": "Get payment history", "access": "PUBLIC" },
+        { "name": "payment.service.createDue", "purpose": "Create payment due on post", "access": "PUBLIC" }
+      ],
+      "events": [
+        { "event": "payment.received", "handler": "salesService.handlePaymentReceived" }
+      ]
+    }
+  },
+  "forbidden": [
+    "Direct stock table update",
+    "Direct ledger table update",
+    "Direct supplier data access",
+    "Cross-module DB queries"
+  ],
+  "transactionEngine": {
+    "required": true,
+    "description": "All posting operations MUST go through Central Transaction Engine for atomicity"
+  }
+}

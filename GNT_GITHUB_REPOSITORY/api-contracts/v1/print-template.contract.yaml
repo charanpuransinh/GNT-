@@ -1,0 +1,45 @@
+openapi: 3.0.3
+info:
+  title: M08 Print Template API
+  version: 1.0.0
+paths:
+  /api/v1/sales/invoices/{id}/print:
+    post:
+      summary: Generate print HTML for invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template]
+              properties:
+                template:
+                  type: string
+                  enum: [thermal-2inch, thermal-3inch, a4]
+                  description: Print template format
+      responses:
+        '200':
+          description: HTML output for printing
+          content:
+            text/html:
+              schema: { type: string }
+templates:
+  thermal-2inch:
+    width: 58mm
+    format: thermal receipt
+    useCase: Small POS printers
+  thermal-3inch:
+    width: 80mm
+    format: thermal receipt
+    useCase: Standard POS printers
+  a4:
+    width: 210mm
+    height: 297mm
+    format: laser/inkjet
+    useCase: Formal invoices, tax filing

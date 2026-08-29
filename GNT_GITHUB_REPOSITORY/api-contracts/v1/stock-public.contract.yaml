@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: GNT M06 Public Stock Service Contract
+  version: 1.0.0
+  description: PUBLIC interface for cross-module stock operations
+cpaths:
+  /public/stock/check:
+    post:
+      summary: checkAvailability — Check if stock is available
+      operationId: checkAvailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, requested_qty]
+              properties:
+                product_id: { type: string, format: uuid }
+                branch_id: { type: string, format: uuid }
+                requested_qty: { type: number }
+      responses:
+        200:
+          description: Availability result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available: { type: boolean }
+                  current_qty: { type: number }
+                  requested_qty: { type: number }
+
+  /public/stock/deduct:
+    post:
+      summary: deductStock — Deduct stock for sales/purchase returns
+      operationId: deductStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id: { type: string, format: uuid }
+                quantity: { type: number }
+                branch_id: { type: string, format: uuid }
+                batch_id: { type: string, format: uuid }
+                reference_type: { type: string }
+                reference_id: { type: string, format: uuid }
+      responses:
+        200:
+          description: Stock deducted
+
+  /public/stock/add:
+    post:
+      summary: addStock — Add stock for purchases/sales returns
+      operationId: addStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id: { type: string, format: uuid }
+                quantity: { type: number }
+                branch_id: { type: string, format: uuid }
+                batch_id: { type: string, format: uuid }
+                rate: { type: number }
+                reference_type: { type: string }
+                reference_id: { type: string, format: uuid }
+      responses:
+        200:
+          description: Stock added
+
+  /public/stock/by-product:
+    get:
+      summary: getStockByProduct — Get stock for a product
+      operationId: getStockByProduct
+      parameters:
+        - name: product_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: branch_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Stock records

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "status": "DEFINED_NOT_IMPLEMENTED",
+  "sourceFile": "wiring-maps/cross-module-flows/offline-sync-flow.wiring.json",
+  "module": "GNT",
+  "purpose": "Canonical wiring registry entry",
+  "note": "Business wiring must be bound to the canonical API/event contracts; no guessed endpoints or payloads are introduced."
+}

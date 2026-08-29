@@ -1,0 +1,54 @@
+// ─────────────────────────────────────────────
+// M18 — External Integration Database Schema
+// Owner: D4-DELTA
+// Add these models to your Prisma schema
+// ─────────────────────────────────────────────
+
+model integration_config {
+  id           String   @id @default(uuid())
+  company_id   String   @db.Uuid
+  provider     String   @db.VarChar(100)
+  type         String   @db.VarChar(50) // sms | whatsapp | payment | gstn | e_invoice | e_way_bill
+  config_json  Json     @default("{}")
+  status       String   @default("pending") @db.VarChar(50) // active | inactive | error | pending | degraded
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([company_id, type])
+  @@index([company_id, is_active])
+  @@index([provider])
+  @@map("integration_config")
+}
+
+model api_key_registry {
+  id           String    @id @default(uuid())
+  company_id   String    @db.Uuid
+  name         String    @db.VarChar(100)
+  key_hash     String    @unique @db.VarChar(64) // SHA-256
+  permissions  String[]  @default([])
+  expires_at   DateTime? @db.Timestamptz(6)
+  created_by   String    @db.Uuid
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([company_id])
+  @@index([expires_at])
+  @@map("api_key_registry")
+}
+
+model webhook_log {
+  id             String    @id @default(uuid())
+  provider       String    @db.VarChar(100)
+  payload        Json      @default("{}")
+  headers        Json      @default("{}")
+  status         String    @default("received") @db.VarChar(50) // received | validated | processed | failed | retrying
+  processed_at   DateTime? @db.Timestamptz(6)
+  error_message  String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([provider, created_at])
+  @@index([status])
+  @@index([created_at])
+  @@map("webhook_log")
+}

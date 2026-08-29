@@ -1,0 +1,48 @@
+{
+  "module": "M04",
+  "name": "Company Management",
+  "owner": "Team A (M01-M05)",
+  "public_contracts": {
+    "provides": [
+      "company.profile.get",
+      "company.profile.update",
+      "company.branch.list",
+      "company.branch.create",
+      "company.branch.delete",
+      "company.fy.list",
+      "company.fy.create",
+      "company.fy.switch",
+      "company.role.list",
+      "company.role.permissions.update",
+      "company.user.list",
+      "company.user.create",
+      "company.user.toggle"
+    ],
+    "consumes": [
+      "M02.auth.verify",
+      "M02.permission.check"
+    ]
+  },
+  "events": {
+    "publishes": [
+      "company.profile.updated",
+      "company.branch.created",
+      "company.branch.deleted",
+      "company.fy.switched",
+      "company.user.created"
+    ],
+    "subscribes": []
+  },
+  "cross_module_calls": {
+    "legal": [
+      "M04 -> M02 auth-middleware (public)",
+      "M04 -> M02 permission-check (public)",
+      "M04 -> M19 audit-logger (event)"
+    ],
+    "forbidden": [
+      "M04 -> M05 party.repository",
+      "M04 -> M06 stock.repository",
+      "M04 -> any module DB directly"
+    ]
+  }
+}

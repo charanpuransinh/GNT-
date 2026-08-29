@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<!--
+  M08 SALES & BILLING — Thermal 3-inch (80mm) Print Template
+  Module: m08-sales | Team: B4-BRAVO | Brand: RAKSHA
+-->
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: 80mm auto; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Courier New', 'Consolas', monospace;
+      width: 80mm;
+      margin: 0 auto;
+      padding: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #000;
+    }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .right { text-align: right; }
+    .left { text-align: left; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 2px 4px; vertical-align: top; }
+    .divider { border-top: 1px dashed #000; margin: 4px 0; }
+    .company-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+    .company-info { font-size: 10px; color: #333; margin-bottom: 4px; }
+    .doc-title { font-size: 12px; font-weight: bold; margin: 4px 0; }
+    .party-box { margin: 4px 0; }
+    .party-box h4 { font-size: 11px; margin-bottom: 2px; }
+    .total-row { font-size: 13px; font-weight: bold; }
+    .footer { font-size: 10px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="center bold company-name">{{companyName}}</div>
+  <div class="center company-info">{{companyAddress}}</div>
+  <div class="center company-info">GSTIN: {{companyGstin}}</div>
+  <div class="center doc-title">TAX INVOICE</div>
+  <div class="divider"></div>
+  <table>
+    <tr>
+      <td class="left"><b>Inv#:</b> {{invoiceNumber}}</td>
+      <td class="right"><b>Date:</b> {{invoiceDate}}</td>
+    </tr>
+    <tr>
+      <td class="left"><b>Due:</b> {{dueDate}}</td>
+      <td class="right"></td>
+    </tr>
+  </table>
+  <div class="divider"></div>
+  <div class="party-box">
+    <h4>Bill To:</h4>
+    <div>{{customerName}}</div>
+    <div style="font-size:10px;">{{customerAddress}}</div>
+    <div style="font-size:10px;">GSTIN: {{customerGstin}}</div>
+  </div>
+  <div class="divider"></div>
+  <table>
+    <thead>
+      <tr style="border-bottom:1px solid #000;font-size:11px;">
+        <th style="width:5%">#</th>
+        <th style="width:35%">Item</th>
+        <th style="width:12%">HSN</th>
+        <th style="width:8%">Qty</th>
+        <th style="width:15%">Rate</th>
+        <th style="width:12%">Tax</th>
+        <th style="width:13%">Net</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      <tr>
+        <td class="center">{{sno}}</td>
+        <td class="left">{{description}}</td>
+        <td class="center">{{hsn}}</td>
+        <td class="center">{{qty}}</td>
+        <td class="right">{{rate}}</td>
+        <td class="right">{{taxAmount}}</td>
+        <td class="right">{{netAmount}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <div class="divider"></div>
+  <table>
+    <tr><td>Subtotal</td><td class="right">{{totals.totalAmount}}</td></tr>
+    <tr><td>Discount</td><td class="right">{{totals.totalDiscount}}</td></tr>
+    {{#each totals.taxBreakup}}
+    <tr><td>CGST @ {{rate}}%</td><td class="right">{{cgst}}</td></tr>
+    <tr><td>SGST @ {{rate}}%</td><td class="right">{{sgst}}</td></tr>
+    {{/each}}
+    <tr><td>Round Off</td><td class="right">{{totals.roundOff}}</td></tr>
+    <tr class="total-row"><td>GRAND TOTAL</td><td class="right">₹{{totals.grandTotal}}</td></tr>
+  </table>
+  <div class="divider"></div>
+  <div><b>Payment Mode:</b> {{paymentMode}}</div>
+  <div style="font-size:10px;margin-top:4px;"><b>Terms:</b> {{terms}}</div>
+  <div style="font-size:10px;"><b>Notes:</b> {{notes}}</div>
+  <div class="center footer">Thank you for your business!</div>
+  <div class="center footer">Powered by RAKSHA | GARUDA NEXTECH</div>
+</body>
+</html>

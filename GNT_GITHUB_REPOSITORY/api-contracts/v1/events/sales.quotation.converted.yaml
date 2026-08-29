@@ -1,0 +1,22 @@
+event: sales.quotation.converted
+module: M08
+version: 1.0.0
+schema:
+  type: object
+  required: [quotationId, orderId, customerId, companyId]
+  properties:
+    quotationId:
+      type: string
+      format: uuid
+    orderId:
+      type: string
+      format: uuid
+    customerId:
+      type: string
+      format: uuid
+    companyId:
+      type: string
+      format: uuid
+consumers:
+  - M17 (Reporting)
+publisher: M08 Quotation Service

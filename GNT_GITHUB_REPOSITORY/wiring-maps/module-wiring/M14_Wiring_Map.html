@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>M14 Import/Export — Wiring Map</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
+h2 { text-align:center; color:#38bdf8; margin-bottom:4px; }
+.subtitle { text-align:center; color:#94a3b8; margin-bottom:24px; font-size:13px; }
+.container { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; max-width:1400px; margin:0 auto; }
+.col { min-width:280px; max-width:340px; }
+.col-wide { min-width:360px; max-width:520px; }
+.card { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:16px; }
+.card h3 { margin:0 0 12px 0; font-size:15px; }
+.block { background:#0f172a; border-radius:8px; padding:10px; margin-bottom:8px; }
+.block:last-child { margin-bottom:0; }
+.block-title { font-weight:600; font-size:13px; margin-bottom:4px; }
+.block-body { font-size:12px; color:#cbd5e1; line-height:1.6; }
+.method { display:inline-block; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600; margin-right:6px; }
+.get { background:#22c55e; } .post { background:#3b82f6; } .put { background:#f59e0b; }
+.del { background:#ef4444; } .patch { background:#8b5cf6; }
+.endpoint { font-family:monospace; font-size:12px; color:#e2e8f0; }
+.contract-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+.contract-note { font-size:11px; color:#94a3b8; margin-top:4px; }
+.notes { max-width:1100px; margin:24px auto 0; }
+.notes-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; font-size:12px; color:#94a3b8; line-height:1.7; }
+code { background:#0f172a; padding:2px 6px; border-radius:4px; font-family:monospace; }
+</style>
+</head>
+<body>
+<h2>📤 M14 Import/Export — Wiring Map</h2>
+<p class="subtitle">Frontend ↔ Backend API Contracts Diagram</p>
+
+<div class="container">
+  <div class="col">
+    <div class="card">
+      <h3 style="color:#4ade80;">🖥️ M14 Frontend (React + Zustand)</h3>
+      <div class="block" style="border-left:3px solid #4ade80;">
+        <div class="block-title" style="color:#4ade80;">Pages / Screens</div>
+        <div class="block-body">
+          • Data Import<br>• Data Export<br>• Import History<br>• Pre-Import Inspector<br>• Template Manager
+        </div>
+      </div>
+      <div class="block" style="border-left:3px solid #fbbf24;">
+        <div class="block-title" style="color:#fbbf24;">Stores (Zustand)</div>
+        <div class="block-body">• importExportStore</div>
+      </div>
+      <div class="block" style="border-left:3px solid #a78bfa;">
+        <div class="block-title" style="color:#a78bfa;">Shared Hooks</div>
+        <div class="block-body">• useImportExport.ts</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-wide">
+    <div class="card">
+      <h3 style="color:#38bdf8;">📡 API Contracts (REST)</h3>
+      <div class="block">
+        <div class="contract-row"><span class="method post">POST</span><span class="endpoint">/api/v1/m14/import</span></div>
+        <div class="contract-row"><span class="method post">POST</span><span class="endpoint">/api/v1/m14/import/validate</span></div>
+        <div class="contract-row"><span class="method get">GET</span><span class="endpoint">/api/v1/m14/import/:id/status</span></div>
+        <div class="contract-row"><span class="method get">GET</span><span class="endpoint">/api/v1/m14/import/history</span></div>
+        <div class="contract-note">↳ CSV/Excel/JSON import + validation + preview</div>
+      </div>
+      <div class="block">
+        <div class="contract-row"><span class="method post">POST</span><span class="endpoint">/api/v1/m14/export</span></div>
+        <div class="contract-row"><span class="method get">GET</span><span class="endpoint">/api/v1/m14/export/:id/download</span></div>
+        <div class="contract-row"><span class="method get">GET</span><span class="endpoint">/api/v1/m14/export/formats</span></div>
+        <div class="contract-note">↳ Export to CSV/Excel/PDF/JSON + format selection</div>
+      </div>
+      <div class="block">
+        <div class="contract-row"><span class="method get">GET</span><span class="endpoint">/api/v1/m14/templates</span></div>
+        <div class="contract-row"><span class="method post">POST</span><span class="endpoint">/api/v1/m14/templates</span></div>
+        <div class="contract-row"><span class="method get">GET</span><span class="endpoint">/api/v1/m14/templates/:id/download</span></div>
+        <div class="contract-note">↳ Import templates + field mapping</div>
+      </div>
+      <div class="block">
+        <div class="contract-row"><span class="method get">GET</span><span class="endpoint">/api/v1/m14/fields/:entity</span></div>
+        <div class="contract-note">↳ Available fields per entity for mapping</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <h3 style="color:#f472b6;">⚙️ M14 Backend (Node + Express + Prisma)</h3>
+      <div class="block" style="border-left:3px solid #f472b6;">
+        <div class="block-title" style="color:#f472b6;">Controllers</div>
+        <div class="block-body">• import<br>• export<br>• template</div>
+      </div>
+      <div class="block" style="border-left:3px solid #38bdf8;">
+        <div class="block-title" style="color:#38bdf8;">Services</div>
+        <div class="block-body">• ImportService<br>• ExportService<br>• TemplateService</div>
+      </div>
+      <div class="block" style="border-left:3px solid #a78bfa;">
+        <div class="block-title" style="color:#a78bfa;">Parsers</div>
+        <div class="block-body">• csvParser.ts<br>• excelParser.ts<br>• jsonParser.ts</div>
+      </div>
+      <div class="block" style="border-left:3px solid #fbbf24;">
+        <div class="block-title" style="color:#fbbf24;">Cross-Module Events</div>
+        <div class="block-body">• PUBLISH: m14.import.completed<br>• PUBLISH: m14.export.completed<br>• SUBSCRIBE: m13.schedule.triggered</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notes card">
+  <h4 style="color:#e2e8f0; margin:0 0 10px 0; font-size:14px;">📋 Contract Notes & Lock Rules</h4>
+  <div class="notes-grid">
+    <div>
+      <span style="color:#38bdf8;">🔒 Auth:</span> <code>x-tenant-id</code> + JWT Bearer<br>
+      <span style="color:#38bdf8;">🔒 Validation:</span> Zod schemas + file type check<br>
+      <span style="color:#38bdf8;">🔒 File Limit:</span> Max 50MB per upload<br>
+      <span style="color:#38bdf8;">🔒 Pagination:</span> <code>?page=1&limit=20</code>
+    </div>
+    <div>
+      <span style="color:#f472b6;">🚫 No Direct Access:</span> M14 NEVER accesses other module DBs<br>
+      <span style="color:#f472b6;">✅ Public API Only:</span> Cross-module via Redis<br>
+      <span style="color:#f472b6;">📦 DTOs:</span> <code>{ success, data, meta }</code><br>
+      <span style="color:#f472b6;">📤 Async:</span> Heavy imports run in background queue
+    </div>
+  </div>
+</div>
+</body>
+</html>

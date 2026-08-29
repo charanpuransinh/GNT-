@@ -1,0 +1,48 @@
+{
+  "sources": {
+    "AUDIT": "/mnt/data/A_B_DEEP_PRODUCTION_AUDIT_REPORTS-1.zip",
+    "M01": "/mnt/data/M01_Foundation_FIXED.zip",
+    "M02": "/mnt/data/M02_Core_Architecture_FIXED.zip",
+    "M03": "/mnt/data/M03_Device_Platform_FIXED.zip",
+    "M04": "/mnt/data/M04_Company_Management.zip",
+    "M06": "/mnt/data/GNT_FINAL_BUILD_2/gnt-m06-inventory.zip",
+    "M07": "/mnt/data/GNT_FINAL_BUILD_2/M07-Purchase-Management-Session2.zip",
+    "M08": "/mnt/data/GNT_FINAL_BUILD_2/GNT-M08-SALES-BILLING-COMPLETE.zip",
+    "M09M10": "/mnt/data/GNT_FINAL_BUILD_2/gnt-session4-m09-m10.zip",
+    "TIMB": "/mnt/data/GNT Tim B_PRODUCTION_REPAIRED.zip"
+  },
+  "counts": {
+    "AUDIT": 3,
+    "M01": 66,
+    "M02": 81,
+    "M03": 66,
+    "M04": 70,
+    "M06": 87,
+    "M07": 46,
+    "M08": 64,
+    "M09M10": 141,
+    "TIMB": 7
+  },
+  "conflicts": [
+    [
+      "README.md",
+      "AUDIT",
+      "M01"
+    ],
+    [
+      "README.md",
+      "AUDIT",
+      "M02"
+    ],
+    [
+      "README.md",
+      "AUDIT",
+      "M03"
+    ],
+    [
+      "prisma/schema.prisma",
+      "M06",
+      "M09M10"
+    ]
+  ]
+}

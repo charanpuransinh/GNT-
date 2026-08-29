@@ -1,0 +1,36 @@
+event:
+  name: ledger.entry.created
+  version: 1.0.0
+  module: M10-Accounting
+  description: Fired for every ledger row inserted upon voucher posting
+  payload:
+    type: object
+    required: [ledger_id, account_id, debit, credit, reference_type, reference_id]
+    properties:
+      ledger_id:
+        type: string
+        format: uuid
+      account_id:
+        type: string
+        format: uuid
+      debit:
+        type: number
+        format: decimal
+      credit:
+        type: number
+        format: decimal
+      reference_type:
+        type: string
+        example: "sales_invoice"
+      reference_id:
+        type: string
+        format: uuid
+      party_id:
+        type: string
+        format: uuid
+      transaction_date:
+        type: string
+        format: date
+  consumers:
+    - M17 (Reporting) — real-time financial reports
+    - M11 (Payment) — balance checks

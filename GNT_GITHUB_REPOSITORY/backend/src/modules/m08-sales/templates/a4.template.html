@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!--
+  M08 SALES & BILLING — A4 Laser Print Template
+  Module: m08-sales | Team: B4-BRAVO | Brand: RAKSHA
+-->
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: A4; margin: 15mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+      font-size: 13px;
+      color: #0F172A;
+      line-height: 1.5;
+    }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2563EB; padding-bottom: 12px; margin-bottom: 16px; }
+    .company-info h1 { margin: 0; font-size: 22px; color: #2563EB; font-weight: 700; }
+    .company-info p { margin: 2px 0; color: #64748B; font-size: 12px; }
+    .invoice-meta { text-align: right; }
+    .invoice-meta h2 { margin: 0; font-size: 18px; color: #DC2626; font-weight: 700; }
+    .invoice-meta p { margin: 2px 0; font-size: 12px; }
+    .party-section { display: flex; justify-content: space-between; margin: 16px 0; gap: 16px; }
+    .party-box { flex: 1; border: 1px solid #E2E8F0; padding: 10px; border-radius: 8px; background: #F8FAFC; }
+    .party-box h4 { margin: 0 0 6px 0; color: #2563EB; font-size: 13px; font-weight: 600; }
+    .party-box p { margin: 2px 0; font-size: 12px; color: #334155; }
+    table.items { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; }
+    table.items th { background: #2563EB; color: white; padding: 8px; text-align: center; font-weight: 600; }
+    table.items td { border: 1px solid #E2E8F0; padding: 6px; }
+    .totals-section { display: flex; justify-content: flex-end; margin-top: 16px; }
+    .totals-box { width: 340px; }
+    .totals-box table { width: 100%; font-size: 13px; }
+    .totals-box td { padding: 6px 8px; }
+    .totals-box .grand-total { font-size: 16px; font-weight: bold; color: #2563EB; border-top: 2px solid #2563EB; }
+    .footer { margin-top: 30px; border-top: 1px solid #E2E8F0; padding-top: 12px; font-size: 11px; color: #64748B; }
+    .signature-area { display: flex; justify-content: space-between; margin-top: 50px; }
+    .sign-box { width: 220px; text-align: center; }
+    .sign-line { border-top: 1px solid #0F172A; margin-top: 50px; padding-top: 4px; font-size: 12px; font-weight: 500; }
+    .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; color: rgba(37, 99, 235, 0.05); font-weight: bold; pointer-events: none; z-index: 0; }
+  </style>
+</head>
+<body>
+  <div class="watermark">RAKSHA</div>
+  <div class="header">
+    <div class="company-info">
+      <h1>{{companyName}}</h1>
+      <p>{{companyAddress}}</p>
+      <p><strong>GSTIN:</strong> {{companyGstin}}</p>
+    </div>
+    <div class="invoice-meta">
+      <h2>TAX INVOICE</h2>
+      <p><strong>Invoice #:</strong> {{invoiceNumber}}</p>
+      <p><strong>Date:</strong> {{invoiceDate}}</p>
+      <p><strong>Due Date:</strong> {{dueDate}}</p>
+    </div>
+  </div>
+  <div class="party-section">
+    <div class="party-box">
+      <h4>Bill To</h4>
+      <p><strong>{{customerName}}</strong></p>
+      <p>{{customerAddress}}</p>
+      <p><strong>GSTIN:</strong> {{customerGstin}}</p>
+    </div>
+    <div class="party-box">
+      <h4>Ship To</h4>
+      <p><strong>{{customerName}}</strong></p>
+      <p>{{customerAddress}}</p>
+    </div>
+  </div>
+  <table class="items">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Description</th>
+        <th>HSN</th>
+        <th>Qty</th>
+        <th>Rate</th>
+        <th>Amount</th>
+        <th>Disc</th>
+        <th>Tax%</th>
+        <th>Tax Amt</th>
+        <th>Net Amt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      <tr>
+        <td style="text-align:center;">{{sno}}</td>
+        <td>{{description}}<br/><small style="color:#64748B;">HSN: {{hsn}}</small></td>
+        <td style="text-align:center;">{{hsn}}</td>
+        <td style="text-align:center;">{{qty}}</td>
+        <td style="text-align:right;">₹{{rate}}</td>
+        <td style="text-align:right;">₹{{amount}}</td>
+        <td style="text-align:right;">{{discount}}</td>
+        <td style="text-align:center;">{{taxRate}}%</td>
+        <td style="text-align:right;">₹{{taxAmount}}</td>
+        <td style="text-align:right;">₹{{netAmount}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <div class="totals-section">
+    <div class="totals-box">
+      <table>
+        <tr><td>Subtotal</td><td style="text-align:right;">₹{{totals.totalAmount}}</td></tr>
+        <tr><td>Total Discount</td><td style="text-align:right;">₹{{totals.totalDiscount}}</td></tr>
+        {{#each totals.taxBreakup}}
+        <tr><td>CGST @ {{rate}}%</td><td style="text-align:right;">₹{{cgst}}</td></tr>
+        <tr><td>SGST @ {{rate}}%</td><td style="text-align:right;">₹{{sgst}}</td></tr>
+        {{/each}}
+        <tr><td>Round Off</td><td style="text-align:right;">₹{{totals.roundOff}}</td></tr>
+        <tr class="grand-total"><td>GRAND TOTAL</td><td style="text-align:right;">₹{{totals.grandTotal}}</td></tr>
+        <tr><td colspan="2" style="font-size:11px;color:#64748B;padding-top:8px;">Amount in words: {{amountInWords}}</td></tr>
+      </table>
+    </div>
+  </div>
+  <div style="margin-top:16px;font-size:12px;">
+    <p><strong>Payment Mode:</strong> {{paymentMode}}</p>
+    <p><strong>Terms & Conditions:</strong> {{terms}}</p>
+    <p><strong>Notes:</strong> {{notes}}</p>
+  </div>
+  <div class="signature-area">
+    <div class="sign-box">
+      <div class="sign-line">Customer Signature</div>
+    </div>
+    <div class="sign-box">
+      <div class="sign-line">Authorized Signature</div>
+    </div>
+  </div>
+  <div class="footer">
+    <p>This is a computer-generated invoice and does not require a physical signature.</p>
+    <p style="text-align:center;margin-top:4px;">Powered by RAKSHA | GARUDA NEXTECH (GNT) | मा आदिशक्ति</p>
+  </div>
+</body>
+</html>

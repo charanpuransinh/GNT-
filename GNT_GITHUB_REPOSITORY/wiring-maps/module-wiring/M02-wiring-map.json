@@ -1,0 +1,98 @@
+{
+  "module": "M02",
+  "name": "Core Architecture",
+  "owner": "A4-APPLE",
+  "version": "1.0.0",
+  "status": "IN_DEVELOPMENT",
+  "description": "Authentication, Authorization, User & Role Management",
+  "connections": {
+    "outbound": [],
+    "inbound": [
+      {
+        "from": "ALL_MODULES",
+        "contract": "auth.contract.yaml",
+        "description": "All modules use M02 for authentication/authorization",
+        "publicMethod": "authMiddleware"
+      }
+    ]
+  },
+  "events": {
+    "published": [
+      {
+        "event": "user.login.success",
+        "description": "Published when user logs in successfully",
+        "consumers": ["M19"]
+      },
+      {
+        "event": "user.login.failed",
+        "description": "Published when login fails",
+        "consumers": ["M19"]
+      },
+      {
+        "event": "user.logout",
+        "description": "Published when user logs out",
+        "consumers": ["M19"]
+      }
+    ],
+    "subscribed": []
+  },
+  "database": {
+    "owned": [
+      "user_master",
+      "role_master",
+      "permission_master",
+      "user_role"
+    ],
+    "readOnly": []
+  },
+  "publicServices": [
+    {
+      "name": "authService.login",
+      "description": "Authenticates user and returns tokens",
+      "input": "LoginRequest",
+      "output": "LoginResponse",
+      "consumers": ["frontend-login-page"]
+    },
+    {
+      "name": "authService.verifyOtp",
+      "description": "Verifies OTP and returns final tokens",
+      "input": "OTPVerifyRequest",
+      "output": "OTPVerifyResponse",
+      "consumers": ["frontend-otp-page"]
+    },
+    {
+      "name": "authService.refreshToken",
+      "description": "Generates new access token from refresh token",
+      "input": "string (refreshToken)",
+      "output": "TokenPair",
+      "consumers": ["frontend-session-manager"]
+    },
+    {
+      "name": "authService.getCurrentUser",
+      "description": "Returns current user profile with roles/permissions",
+      "input": "string (userId)",
+      "output": "UserProfile",
+      "consumers": ["ALL_MODULES"]
+    },
+    {
+      "name": "userService.listUsers",
+      "description": "Lists users for a company",
+      "input": "string (companyId)",
+      "output": "User[]",
+      "consumers": ["M04"]
+    },
+    {
+      "name": "roleService.listRoles",
+      "description": "Lists roles for a company",
+      "input": "string (companyId)",
+      "output": "Role[]",
+      "consumers": ["M04"]
+    }
+  ],
+  "forbidden": [
+    "No business logic",
+    "No financial data access",
+    "No direct calls to M06-M20 private services",
+    "No invoice/stock/ledger operations"
+  ]
+}

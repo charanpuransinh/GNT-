@@ -1,0 +1,47 @@
+event: sales.invoice.created
+module: M08
+version: 1.0.0
+schema:
+  type: object
+  required: [invoiceId, customerId, totalAmount, taxAmount, items, grandTotal, companyId, branchId]
+  properties:
+    invoiceId:
+      type: string
+      format: uuid
+      description: UUID of the created sales invoice
+    customerId:
+      type: string
+      format: uuid
+      description: UUID of the customer
+    totalAmount:
+      type: number
+      format: decimal
+      description: Total amount before tax and discount
+    taxAmount:
+      type: number
+      format: decimal
+      description: Total tax amount
+    items:
+      type: array
+      items:
+        type: object
+        required: [productId, quantity, rate, netAmount]
+        properties:
+          productId: { type: string, format: uuid }
+          quantity: { type: number }
+          rate: { type: number }
+          netAmount: { type: number }
+    grandTotal:
+      type: number
+      format: decimal
+      description: Final grand total after round-off
+    companyId:
+      type: string
+      format: uuid
+    branchId:
+      type: string
+      format: uuid
+consumers:
+  - M16 (Notification)
+  - M17 (Reporting)
+publisher: M08 Sales Service

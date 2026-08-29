@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// M07 PURCHASE MANAGEMENT — Prisma Schema
+// Module Owner: M07 | Tables: purchase_order, purchase_order_item, 
+//   purchase_invoice, purchase_invoice_item, purchase_return, 
+//   purchase_return_item, grn
+// ============================================================================
+
+model purchase_order {
+  id                String   @id @default(uuid()) @db.Uuid
+  company_id        String   @db.Uuid
+  branch_id         String   @db.Uuid
+  supplier_id       String   @db.Uuid
+  po_number         String   @unique @db.VarChar(100)
+  po_date           DateTime @db.Date
+  delivery_date     DateTime? @db.Date
+  status            PurchaseOrderStatus @default(draft)
+  total_amount      Decimal? @db.Decimal(15, 4)
+  total_tax         Decimal? @db.Decimal(15, 4)
+  total_discount    Decimal? @db.Decimal(15, 4)
+  net_amount        Decimal? @db.Decimal(15, 4)
+  notes             String?  @db.Text
+  terms_conditions  String?  @db.Text
+  created_by        String?  @db.Uuid
+  approved_by       String?  @db.Uuid
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  items             purchase_order_item[]
+  invoices          purchase_invoice[]
+  grns              grn[]
+
+  @@index([company_id])
+  @@index([supplier_id])
+  @@index([status])
+  @@index([po_date])
+}
+
+model purchase_order_item {
+  id                String   @id @default(uuid()) @db.Uuid
+  purchase_order_id String   @db.Uuid
+  product_id        String   @db.Uuid
+  quantity          Decimal  @db.Decimal(15, 4)
+  rate              Decimal  @db.Decimal(15, 4)
+  discount_percent  Decimal? @db.Decimal(5, 2)
+  discount_amount   Decimal? @db.Decimal(15, 4)
+  amount            Decimal? @db.Decimal(15, 4)
+  tax_rate          Decimal? @db.Decimal(5, 2)
+  tax_amount        Decimal? @db.Decimal(15, 4)
+  net_amount        Decimal? @db.Decimal(15, 4)
+  received_qty      Decimal  @default(0) @db.Decimal(15, 4)
+  created_at        DateTime @default(now())
+
+  purchase_order    purchase_order @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+
+  @@index([purchase_order_id])
+  @@index([product_id])
+}
+
+model purchase_invoice {
+  id                String   @id @default(uuid()) @db.Uuid
+  company_id        String   @db.Uuid
+  branch_id         String   @db.Uuid
+  supplier_id       String   @db.Uuid
+  invoice_number    String   @db.VarChar(100)
+  invoice_date      DateTime @db.Date
+  due_date          DateTime? @db.Date
+  po_id             String?  @db.Uuid
+  status            PurchaseInvoiceStatus @default(draft)
+  total_amount      Decimal? @db.Decimal(15, 4)
+  total_tax         Decimal? @db.Decimal(15, 4)
+  total_discount    Decimal? @db.Decimal(15, 4)
+  net_amount        Decimal? @db.Decimal(15, 4)
+  round_off         Decimal? @db.Decimal(10, 4)
+  grand_total       Decimal? @db.Decimal(15, 4)
+  notes             String?  @db.Text
+  ocr_data          Json?
+  ocr_confidence    Decimal? @db.Decimal(5, 2)
+  created_by        String?  @db.Uuid
+  approved_by       String?  @db.Uuid
+  posted_by         String?  @db.Uuid
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  items             purchase_invoice_item[]
+  returns           purchase_return[]
+  purchase_order    purchase_order? @relation(fields: [po_id], references: [id])
+
+  @@unique([company_id, invoice_number, supplier_id])
+  @@index([company_id])
+  @@index([supplier_id])
+  @@index([status])
+  @@index([invoice_date])
+}
+
+model purchase_invoice_item {
+  id                  String   @id @default(uuid()) @db.Uuid
+  purchase_invoice_id String   @db.Uuid
+  product_id          String   @db.Uuid
+  batch_id            String?  @db.Uuid
+  quantity            Decimal  @db.Decimal(15, 4)
+  rate                Decimal  @db.Decimal(15, 4)
+  discount_percent    Decimal? @db.Decimal(5, 2)
+  discount_amount     Decimal? @db.Decimal(15, 4)
+  amount              Decimal? @db.Decimal(15, 4)
+  tax_rate            Decimal? @db.Decimal(5, 2)
+  tax_amount          Decimal? @db.Decimal(15, 4)
+  net_amount          Decimal? @db.Decimal(15, 4)
+  hsn_code            String?  @db.VarChar(50)
+  created_at          DateTime @default(now())
+
+  purchase_invoice    purchase_invoice @relation(fields: [purchase_invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([purchase_invoice_id])
+  @@index([product_id])
+}
+
+model purchase_return {
+  id                  String   @id @default(uuid()) @db.Uuid
+  company_id          String   @db.Uuid
+  purchase_invoice_id String   @db.Uuid
+  supplier_id         String   @db.Uuid
+  return_number       String   @unique @db.VarChar(100)
+  return_date         DateTime @db.Date
+  total_amount        Decimal? @db.Decimal(15, 4)
+  tax_amount          Decimal? @db.Decimal(15, 4)
+  net_amount          Decimal? @db.Decimal(15, 4)
+  reason              String?  @db.Text
+  status              PurchaseReturnStatus @default(draft)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  items               purchase_return_item[]
+  purchase_invoice    purchase_invoice @relation(fields: [purchase_invoice_id], references: [id])
+
+  @@index([company_id])
+  @@index([supplier_id])
+  @@index([status])
+}
+
+model purchase_return_item {
+  id                  String   @id @default(uuid()) @db.Uuid
+  purchase_return_id  String   @db.Uuid
+  product_id          String   @db.Uuid
+  quantity            Decimal  @db.Decimal(15, 4)
+  rate                Decimal  @db.Decimal(15, 4)
+  amount              Decimal? @db.Decimal(15, 4)
+  tax_amount          Decimal? @db.Decimal(15, 4)
+  net_amount          Decimal? @db.Decimal(15, 4)
+  created_at          DateTime @default(now())
+
+  purchase_return     purchase_return @relation(fields: [purchase_return_id], references: [id], onDelete: Cascade)
+
+  @@index([purchase_return_id])
+  @@index([product_id])
+}
+
+model grn {
+  id                String   @id @default(uuid()) @db.Uuid
+  company_id        String   @db.Uuid
+  purchase_order_id String   @db.Uuid
+  grn_number        String?  @db.VarChar(100)
+  grn_date          DateTime @db.Date
+  received_by       String?  @db.Uuid
+  status            GRNStatus @default(partial)
+  created_at        DateTime @default(now())
+
+  purchase_order    purchase_order @relation(fields: [purchase_order_id], references: [id])
+
+  @@index([company_id])
+  @@index([purchase_order_id])
+}
+
+enum PurchaseOrderStatus {
+  draft
+  sent
+  partial
+  received
+  cancelled
+}
+
+enum PurchaseInvoiceStatus {
+  draft
+  approved
+  posted
+  paid
+  cancelled
+}
+
+enum PurchaseReturnStatus {
+  draft
+  approved
+  posted
+}
+
+enum GRNStatus {
+  partial
+  complete
+}

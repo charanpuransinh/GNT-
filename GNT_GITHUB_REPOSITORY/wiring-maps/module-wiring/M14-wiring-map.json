@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "status": "DEFINED_NOT_IMPLEMENTED",
+  "sourceFile": "wiring-maps/module-wiring/M14-wiring-map.json",
+  "module": "GNT",
+  "purpose": "Canonical wiring registry entry",
+  "note": "Business wiring must be bound to the canonical API/event contracts; no guessed endpoints or payloads are introduced."
+}

@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: GNT Common Auth Contract
+  version: 1.0.0
+  description: Shared authentication contract used by all modules
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT RS256 token. Must include in Authorization header.
+        Format: Bearer <token>
+
+  schemas:
+    JWTPayload:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        roles:
+          type: array
+          items: { type: string }
+        type: { type: string, enum: [access, refresh] }
+        iat: { type: number }
+        exp: { type: number }
+
+    PermissionCheck:
+      type: object
+      properties:
+        module: { type: string }
+        action: { type: string, enum: [create, read, update, delete, approve, export] }
+        resource: { type: string }
+
+    AuthContext:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        roles:
+          type: array
+          items: { type: string }
+        permissions:
+          type: array
+          items: { type: string }

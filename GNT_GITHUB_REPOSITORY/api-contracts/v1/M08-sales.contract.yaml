@@ -1,0 +1,622 @@
+openapi: 3.0.3
+info:
+  title: GNT M08 Sales & Billing API
+  description: |
+    GARUDA NEXTECH (GNT) — M08 Sales & Billing Module API
+    Brand: RAKSHA | Team: B4-BRAVO | Group: मा आदिशक्ति
+  version: 1.0.0
+  contact:
+    name: B4-BRAVO Team
+    email: b4-bravo@raksha.gnt
+
+servers:
+  - url: /api/v1/sales
+    description: M08 Sales Module Base Path
+
+tags:
+  - name: Sales Invoice
+    description: Sales billing operations
+  - name: Quotation
+    description: Quotation CRUD and conversion
+  - name: Sales Order
+    description: Order management
+  - name: Sales Return
+    description: Credit notes and returns
+  - name: Delivery Challan
+    description: Delivery note management
+  - name: Print & Share
+    description: Invoice printing and sharing
+
+paths:
+  # ─── SALES INVOICE ───
+  /invoices:
+    post:
+      tags: [Sales Invoice]
+      summary: Create Sales Invoice (Draft)
+      operationId: createInvoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesInvoiceInput'
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesInvoice'
+        '400':
+          description: Validation error
+    get:
+      tags: [Sales Invoice]
+      summary: List Sales Invoices
+      operationId: getInvoices
+      parameters:
+        - name: customerId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: fromDate
+          in: query
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          schema: { type: string, format: date }
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, approved, posted, paid, cancelled] }
+        - name: paymentStatus
+          in: query
+          schema: { type: string, enum: [unpaid, partial, paid] }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SalesInvoice' } }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+
+  /invoices/{id}:
+    get:
+      tags: [Sales Invoice]
+      summary: Get Invoice by ID
+      operationId: getInvoiceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesInvoiceDetail'
+        '404':
+          description: Invoice not found
+    put:
+      tags: [Sales Invoice]
+      summary: Update Invoice (Draft only)
+      operationId: updateInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesInvoiceInput'
+      responses:
+        '200':
+          description: Invoice updated
+    delete:
+      tags: [Sales Invoice]
+      summary: Delete Invoice (Draft only)
+      operationId: deleteInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Invoice deleted
+
+  /invoices/{id}/approve:
+    post:
+      tags: [Sales Invoice]
+      summary: Approve Invoice
+      operationId: approveInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Invoice approved
+
+  /invoices/{id}/post:
+    post:
+      tags: [Sales Invoice]
+      summary: Post Invoice (Atomic — triggers stock+GST+ledger)
+      operationId: postInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Invoice posted
+        '400':
+          description: Business rule violation (credit limit, stock, etc.)
+
+  /invoices/{id}/print:
+    post:
+      tags: [Print & Share]
+      summary: Generate Print HTML
+      operationId: generatePrint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                template:
+                  type: string
+                  enum: [thermal-2inch, thermal-3inch, a4]
+      responses:
+        '200':
+          description: HTML print output
+          content:
+            text/html:
+              schema: { type: string }
+
+  /invoices/{id}/share:
+    post:
+      tags: [Print & Share]
+      summary: Share Invoice (WhatsApp/Email)
+      operationId: shareInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method: { type: string, enum: [whatsapp, email] }
+                recipient: { type: string }
+                message: { type: string }
+      responses:
+        '200':
+          description: Share queued
+
+  /invoices/{id}/payment:
+    post:
+      tags: [Sales Invoice]
+      summary: Record Payment against Invoice
+      operationId: recordPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoicePaymentInput'
+      responses:
+        '200':
+          description: Payment recorded
+
+  # ─── QUOTATION ───
+  /quotations:
+    post:
+      tags: [Quotation]
+      summary: Create Quotation
+      operationId: createQuotation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotationInput'
+      responses:
+        '201':
+          description: Quotation created
+    get:
+      tags: [Quotation]
+      summary: List Quotations
+      operationId: getQuotations
+      parameters:
+        - name: customerId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, sent, accepted, rejected, converted] }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: List of quotations
+
+  /quotations/{id}:
+    get:
+      tags: [Quotation]
+      summary: Get Quotation by ID
+      operationId: getQuotationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Quotation details
+    put:
+      tags: [Quotation]
+      summary: Update Quotation
+      operationId: updateQuotation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotationInput'
+      responses:
+        '200':
+          description: Quotation updated
+    delete:
+      tags: [Quotation]
+      summary: Delete Quotation
+      operationId: deleteQuotation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Quotation deleted
+
+  /quotations/{id}/send:
+    post:
+      tags: [Quotation]
+      summary: Send Quotation
+      operationId: sendQuotation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Quotation sent
+
+  /quotations/{id}/convert:
+    post:
+      tags: [Quotation]
+      summary: Convert Quotation to Order
+      operationId: convertQuotationToOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Order created from quotation
+
+  # ─── SALES ORDER ───
+  /orders/{id}/convert:
+    post:
+      tags: [Sales Order]
+      summary: Convert Order to Invoice
+      operationId: convertOrderToInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Invoice created from order
+
+  # ─── SALES RETURN ───
+  /returns:
+    post:
+      tags: [Sales Return]
+      summary: Create Sales Return
+      operationId: createReturn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesReturnInput'
+      responses:
+        '201':
+          description: Return created
+    get:
+      tags: [Sales Return]
+      summary: List Returns
+      operationId: getReturns
+      responses:
+        '200':
+          description: List of returns
+
+  /returns/{id}:
+    get:
+      tags: [Sales Return]
+      summary: Get Return by ID
+      operationId: getReturnById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Return details
+
+  /returns/{id}/approve:
+    post:
+      tags: [Sales Return]
+      summary: Approve Return
+      operationId: approveReturn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Return approved
+
+  /returns/{id}/post:
+    post:
+      tags: [Sales Return]
+      summary: Post Return (Atomic reversal)
+      operationId: postReturn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Return posted
+
+  # ─── DELIVERY CHALLAN ───
+  /challans:
+    post:
+      tags: [Delivery Challan]
+      summary: Create Delivery Challan
+      operationId: createChallan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryChallanInput'
+      responses:
+        '201':
+          description: Challan created
+    get:
+      tags: [Delivery Challan]
+      summary: List Challans
+      operationId: getChallans
+      responses:
+        '200':
+          description: List of challans
+
+  /challans/{id}:
+    get:
+      tags: [Delivery Challan]
+      summary: Get Challan by ID
+      operationId: getChallanById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Challan details
+
+components:
+  schemas:
+    # ─── SALES INVOICE ───
+    SalesInvoiceInput:
+      type: object
+      required: [companyId, branchId, customerId, invoiceDate, dueDate, items]
+      properties:
+        companyId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        salesOrderId: { type: string, format: uuid, nullable: true }
+        quotationId: { type: string, format: uuid, nullable: true }
+        invoiceDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        notes: { type: string }
+        termsConditions: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SalesInvoiceItemInput' }
+
+    SalesInvoiceItemInput:
+      type: object
+      required: [productId, quantity, rate]
+      properties:
+        productId: { type: string, format: uuid }
+        batchId: { type: string, format: uuid, nullable: true }
+        quantity: { type: number, minimum: 0.01 }
+        rate: { type: number, minimum: 0 }
+        discountPercent: { type: number, default: 0 }
+        taxRate: { type: number, default: 0 }
+        hsnCode: { type: string }
+
+    SalesInvoice:
+      allOf:
+        - $ref: '#/components/schemas/SalesInvoiceInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            invoiceNumber: { type: string }
+            status: { type: string, enum: [draft, approved, posted, paid, cancelled] }
+            paymentStatus: { type: string, enum: [unpaid, partial, paid] }
+            amountPaid: { type: number }
+            totalAmount: { type: number }
+            totalTax: { type: number }
+            totalDiscount: { type: number }
+            netAmount: { type: number }
+            roundOff: { type: number }
+            grandTotal: { type: number }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    SalesInvoiceDetail:
+      allOf:
+        - $ref: '#/components/schemas/SalesInvoice'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SalesInvoiceItem' }
+
+    SalesInvoiceItem:
+      allOf:
+        - $ref: '#/components/schemas/SalesInvoiceItemInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            amount: { type: number }
+            discountAmount: { type: number }
+            taxAmount: { type: number }
+            netAmount: { type: number }
+            createdAt: { type: string, format: date-time }
+
+    # ─── QUOTATION ───
+    QuotationInput:
+      type: object
+      required: [companyId, branchId, customerId, quotationDate, expiryDate, items]
+      properties:
+        companyId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        quotationDate: { type: string, format: date }
+        expiryDate: { type: string, format: date }
+        notes: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/QuotationItemInput' }
+
+    QuotationItemInput:
+      type: object
+      required: [productId, quantity, rate]
+      properties:
+        productId: { type: string, format: uuid }
+        quantity: { type: number, minimum: 0.01 }
+        rate: { type: number, minimum: 0 }
+        discountPercent: { type: number, default: 0 }
+        taxRate: { type: number, default: 0 }
+        hsnCode: { type: string }
+
+    # ─── SALES RETURN ───
+    SalesReturnInput:
+      type: object
+      required: [companyId, salesInvoiceId, customerId, returnDate, items]
+      properties:
+        companyId: { type: string, format: uuid }
+        salesInvoiceId: { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        returnDate: { type: string, format: date }
+        reason: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SalesReturnItemInput' }
+
+    SalesReturnItemInput:
+      type: object
+      required: [productId, quantity, rate]
+      properties:
+        productId: { type: string, format: uuid }
+        quantity: { type: number, minimum: 0.01 }
+        rate: { type: number, minimum: 0 }
+
+    # ─── DELIVERY CHALLAN ───
+    DeliveryChallanInput:
+      type: object
+      required: [companyId, salesOrderId, customerId, challanDate, items]
+      properties:
+        companyId: { type: string, format: uuid }
+        salesOrderId: { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        challanDate: { type: string, format: date }
+        notes: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            required: [productId, quantity]
+            properties:
+              productId: { type: string, format: uuid }
+              quantity: { type: number, minimum: 0.01 }
+
+    # ─── PAYMENT ───
+    InvoicePaymentInput:
+      type: object
+      required: [amount, paymentMode, paymentDate]
+      properties:
+        amount: { type: number, minimum: 0.01 }
+        paymentMode: { type: string, enum: [cash, bank, upi, card] }
+        referenceNumber: { type: string }
+        paymentDate: { type: string, format: date }
+        notes: { type: string }
+
+    # ─── SHARED ───
+    PaginationMeta:
+      type: object
+      properties:
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        totalPages: { type: integer }

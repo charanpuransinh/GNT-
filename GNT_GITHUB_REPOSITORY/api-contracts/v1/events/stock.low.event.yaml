@@ -1,0 +1,32 @@
+event:
+  name: stock.low
+  version: 1.0.0
+  module: M06-Inventory
+  description: Emitted when stock falls at or below reorder level
+  payload:
+    type: object
+    required: [product_id, current_qty, reorder_level]
+    properties:
+      product_id:
+        type: string
+        format: uuid
+      branch_id:
+        type: string
+        format: uuid
+        nullable: true
+      current_qty:
+        type: number
+        description: Current stock quantity
+      reorder_level:
+        type: number
+        nullable: true
+        description: Configured reorder level
+      product_name:
+        type: string
+        nullable: true
+      timestamp:
+        type: string
+        format: date-time
+  consumers:
+    - M13-Automation (auto-PO draft)
+    - M16-Notification (email/SMS alert)

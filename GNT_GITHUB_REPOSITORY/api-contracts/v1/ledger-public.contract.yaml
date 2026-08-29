@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: M10 Public Ledger Service Interface
+  version: 1.0.0
+  description: |
+    PUBLIC interface exposed by M10 for cross-module consumption.
+    Consumed by M07, M08, M11, M12 via Transaction Engine.
+paths:
+  /internal/ledger/create-entry:
+    post:
+      summary: Create Ledger Entry (Central Transaction Engine)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLedgerEntryRequest'
+      responses:
+        201:
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerEntry'
+  /internal/ledger/account/{accountId}:
+    get:
+      summary: Get Ledger by Account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: from_date
+          in: query
+          schema: { type: string, format: date }
+        - name: to_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        200:
+          description: Ledger entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerEntry'
+  /internal/ledger/trial-balance:
+    get:
+      summary: Trial Balance
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: as_of_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        200:
+          description: Trial balance
+  /internal/ledger/profit-loss:
+    get:
+      summary: Profit & Loss
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: from_date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to_date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        200:
+          description: P&L statement
+  /internal/ledger/balance-sheet:
+    get:
+      summary: Balance Sheet
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: as_of_date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        200:
+          description: Balance sheet
+components:
+  schemas:
+    CreateLedgerEntryRequest:
+      type: object
+      required: [company_id, account_id, transaction_date]
+      properties:
+        company_id: { type: string, format: uuid }
+        branch_id: { type: string, format: uuid }
+        voucher_id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        transaction_date: { type: string, format: date }
+        narration: { type: string }
+        debit_amount: { type: number, default: 0 }
+        credit_amount: { type: number, default: 0 }
+        reference_type: { type: string }
+        reference_id: { type: string, format: uuid }
+        party_id: { type: string, format: uuid }
+    LedgerEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        transaction_date: { type: string, format: date }
+        debit_amount: { type: number }
+        credit_amount: { type: number }
+        balance: { type: number }
+        narration: { type: string }

@@ -1,0 +1,103 @@
+openapi: 3.0.3
+info:
+  title: GNT M20 — Customs Duty Sub-Contract
+  version: "2.0.0"
+  description: Customs duty calculation APIs for M11 payment trigger integration.
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Customs-Public
+    description: Public customs APIs
+
+paths:
+  /customs/calculate:
+    post:
+      tags: [Customs-Public]
+      summary: Calculate customs duty (public)
+      operationId: publicCalculateCustomsDuty
+      x-consumers: [M11]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomsPublicCalculateRequest'
+      responses:
+        '200':
+          description: Duty calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomsPublicBreakdown'
+
+  /customs/rules/{hsn_code}:
+    get:
+      tags: [Customs-Public]
+      summary: Get customs rules by HSN
+      operationId: publicGetCustomsRules
+      x-consumers: [M11]
+      parameters:
+        - name: hsn_code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customs rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomsPublicRule'
+
+components:
+  schemas:
+    CustomsPublicCalculateRequest:
+      type: object
+      required: [hsn_code, assessable_value_inr]
+      properties:
+        hsn_code:
+          type: string
+        assessable_value_inr:
+          type: number
+
+    CustomsPublicBreakdown:
+      type: object
+      properties:
+        total_duty:
+          type: number
+        bcd:
+          type: number
+        acd:
+          type: number
+        sad:
+          type: number
+        cvd:
+          type: number
+        igst:
+          type: number
+        cess:
+          type: number
+        breakup:
+          type: array
+          items:
+            type: object
+
+    CustomsPublicRule:
+      type: object
+      properties:
+        hsn_code:
+          type: string
+        bcd_rate:
+          type: number
+        acd_rate:
+          type: number
+        sad_rate:
+          type: number
+        cvd_rate:
+          type: number
+        effective_from:
+          type: string

@@ -1,0 +1,41 @@
+{
+  "module_id": "M04",
+  "module_name": "Company Management",
+  "owner_team": "A4-APPLE",
+  "files": {
+    "frontend": 16,
+    "backend": 13,
+    "api": 2,
+    "database": 1,
+    "tests": 3
+  },
+  "total_files": 35,
+  "cross_module": {
+    "calls": [
+      {
+        "from": "M04",
+        "to": "M02",
+        "interface": "auth-middleware",
+        "type": "public"
+      },
+      {
+        "from": "M04",
+        "to": "M02",
+        "interface": "permission-check",
+        "type": "public"
+      },
+      {
+        "from": "M04",
+        "to": "M19",
+        "interface": "audit-logger",
+        "type": "event"
+      }
+    ],
+    "forbidden": [
+      "M04 -> M05 repository",
+      "M04 -> M06 repository",
+      "M04 -> any module DB directly"
+    ]
+  },
+  "status": "READY_FOR_LOCK"
+}

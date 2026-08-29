@@ -1,0 +1,152 @@
+{
+  "module": "M14",
+  "name": "Import/Export",
+  "version": "1.0.0",
+  "lockArtifacts": [
+    {
+      "id": "M14-L01",
+      "name": "Prisma Schema",
+      "file": "backend/prisma/schema.prisma",
+      "checksum": "sha256:import_export_schema_v1",
+      "description": "Database schema for ImportJob, ExportJob, ImportTemplate"
+    },
+    {
+      "id": "M14-L02",
+      "name": "Import Service",
+      "file": "backend/src/services/import.service.ts",
+      "checksum": "sha256:import_service_v1",
+      "description": "Core import processing engine with batch validation"
+    },
+    {
+      "id": "M14-L03",
+      "name": "Export Service",
+      "file": "backend/src/services/export.service.ts",
+      "checksum": "sha256:export_service_v1",
+      "description": "Multi-format export generator (CSV, Excel, JSON, PDF)"
+    },
+    {
+      "id": "M14-L04",
+      "name": "Template Service",
+      "file": "backend/src/services/template.service.ts",
+      "checksum": "sha256:template_service_v1",
+      "description": "Import template CRUD with default template support"
+    },
+    {
+      "id": "M14-L05",
+      "name": "Validation Engine",
+      "file": "backend/src/validators/import.validators.ts",
+      "checksum": "sha256:validation_engine_v1",
+      "description": "Field-level validation with transforms and entity rules"
+    },
+    {
+      "id": "M14-L06",
+      "name": "File Parsers",
+      "file": "backend/src/utils/csvParser.ts,excelParser.ts,jsonParser.ts",
+      "checksum": "sha256:file_parsers_v1",
+      "description": "CSV, Excel, JSON file parsing utilities"
+    },
+    {
+      "id": "M14-L07",
+      "name": "Upload Middleware",
+      "file": "backend/src/middleware/upload.middleware.ts",
+      "checksum": "sha256:upload_middleware_v1",
+      "description": "Multer-based file upload with type validation"
+    },
+    {
+      "id": "M14-L08",
+      "name": "Import Controller",
+      "file": "backend/src/controllers/import.controller.ts",
+      "checksum": "sha256:import_controller_v1",
+      "description": "REST API endpoints for import operations"
+    },
+    {
+      "id": "M14-L09",
+      "name": "Export Controller",
+      "file": "backend/src/controllers/export.controller.ts",
+      "checksum": "sha256:export_controller_v1",
+      "description": "REST API endpoints for export operations"
+    },
+    {
+      "id": "M14-L10",
+      "name": "Zustand Store",
+      "file": "frontend/src/store/importExportStore.ts",
+      "checksum": "sha256:zustand_store_v1",
+      "description": "Global state management for import/export flows"
+    },
+    {
+      "id": "M14-L11",
+      "name": "DragDrop Uploader",
+      "file": "frontend/src/components/DragDropUploader.tsx",
+      "checksum": "sha256:dragdrop_uploader_v1",
+      "description": "React Dropzone based file upload component"
+    },
+    {
+      "id": "M14-L12",
+      "name": "Field Mapper",
+      "file": "frontend/src/components/FieldMapper.tsx",
+      "checksum": "sha256:field_mapper_v1",
+      "description": "Interactive column-to-field mapping UI"
+    },
+    {
+      "id": "M14-L13",
+      "name": "Preview Grid",
+      "file": "frontend/src/components/PreviewGrid.tsx",
+      "checksum": "sha256:preview_grid_v1",
+      "description": "Data preview table with row highlighting"
+    },
+    {
+      "id": "M14-L14",
+      "name": "Progress Tracker",
+      "file": "frontend/src/components/ProgressTracker.tsx",
+      "checksum": "sha256:progress_tracker_v1",
+      "description": "Real-time job progress with status indicators"
+    },
+    {
+      "id": "M14-L15",
+      "name": "API Routes",
+      "file": "backend/src/routes/index.ts",
+      "checksum": "sha256:api_routes_v1",
+      "description": "Unified route registration for import/export/template APIs"
+    }
+  ],
+  "dependencies": {
+    "upstream": ["M01", "M02", "M03", "M04", "M05", "M06"],
+    "downstream": ["M15"],
+    "crossModule": {
+      "M11": "Payment entity exports",
+      "M12": "HR employee imports",
+      "M13": "Automation triggered imports"
+    }
+  },
+  "publicAPI": {
+    "endpoints": [
+      "POST /api/m14/imports/upload",
+      "GET /api/m14/imports/preview/:jobId",
+      "POST /api/m14/imports/process/:jobId",
+      "GET /api/m14/imports/status/:jobId",
+      "GET /api/m14/imports/jobs",
+      "POST /api/m14/imports/cancel/:jobId",
+      "POST /api/m14/exports/create",
+      "GET /api/m14/exports/status/:jobId",
+      "GET /api/m14/exports/jobs",
+      "GET /api/m14/exports/download/:jobId",
+      "POST /api/m14/templates",
+      "PUT /api/m14/templates/:id",
+      "DELETE /api/m14/templates/:id",
+      "GET /api/m14/templates",
+      "GET /api/m14/templates/default/:entityType"
+    ],
+    "events": [
+      "import.job.created",
+      "import.job.completed",
+      "import.job.failed",
+      "export.job.created",
+      "export.job.completed",
+      "export.job.failed"
+    ]
+  },
+  "buildOrder": 14,
+  "session": "Session 6",
+  "completedAt": "2026-08-22",
+  "team": "Team C"
+}

@@ -1,0 +1,445 @@
+openapi: 3.0.3
+info:
+  title: GNT M02 Core Architecture API
+  version: 1.0.0
+  description: |
+    Authentication, Authorization, User & Role Management APIs.
+    Owner: A4-APPLE Team | Module: M02 Core Architecture
+
+servers:
+  - url: /api/v1
+    description: GNT API v1
+
+paths:
+  /auth/login:
+    post:
+      summary: User login
+      operationId: login
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/otp-verify:
+    post:
+      summary: Verify OTP
+      operationId: verifyOtp
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyRequest'
+      responses:
+        '200':
+          description: OTP verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPVerifyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      operationId: refreshToken
+      tags:
+        - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New tokens generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPairResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      summary: User logout
+      operationId: logout
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/me:
+    get:
+      summary: Get current user profile
+      operationId: getCurrentUser
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+
+  /auth/users:
+    get:
+      summary: List users
+      operationId: listUsers
+      tags:
+        - User Management
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponse'
+
+    post:
+      summary: Create user
+      operationId: createUser
+      tags:
+        - User Management
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/users/{id}:
+    get:
+      summary: Get user by ID
+      operationId: getUser
+      tags:
+        - User Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update user
+      operationId: updateUser
+      tags:
+        - User Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+
+    delete:
+      summary: Delete (deactivate) user
+      operationId: deleteUser
+      tags:
+        - User Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User deactivated
+
+  /auth/roles:
+    get:
+      summary: List roles
+      operationId: listRoles
+      tags:
+        - Role Management
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of roles
+
+    post:
+      summary: Create role
+      operationId: createRole
+      tags:
+        - Role Management
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+      responses:
+        '201':
+          description: Role created
+
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      properties:
+        username: { type: string, minLength: 3, maxLength: 50 }
+        password: { type: string, minLength: 6, maxLength: 100 }
+        companyCode: { type: string, minLength: 2, maxLength: 20 }
+      required: [username, password, companyCode]
+
+    LoginResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            user: { $ref: '#/components/schemas/UserProfile' }
+            accessToken: { type: string }
+            refreshToken: { type: string }
+            requiresOtp: { type: boolean }
+            roles:
+              type: array
+              items: { $ref: '#/components/schemas/Role' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    OTPVerifyRequest:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        otp: { type: string, pattern: '^\d{6}$' }
+      required: [userId, otp]
+
+    OTPVerifyResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            refreshToken: { type: string }
+            user: { $ref: '#/components/schemas/UserProfile' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    TokenPairResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            refreshToken: { type: string }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        username: { type: string }
+        avatar: { type: string, format: uri }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/Role' }
+        permissions:
+          type: array
+          items: { type: string }
+        companyId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        isActive: { type: boolean }
+        lastLoginAt: { type: string, format: date-time }
+
+    Role:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        permissions:
+          type: array
+          items: { type: string }
+
+    CreateUserRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        email: { type: string, format: email }
+        username: { type: string, minLength: 3, maxLength: 50 }
+        password: { type: string, minLength: 8, maxLength: 100 }
+        companyId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        roleIds:
+          type: array
+          items: { type: string, format: uuid }
+          minItems: 1
+        isActive: { type: boolean, default: true }
+      required: [name, email, username, password, companyId, roleIds]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 100 }
+        branchId: { type: string, format: uuid }
+        roleIds:
+          type: array
+          items: { type: string, format: uuid }
+        isActive: { type: boolean }
+
+    CreateRoleRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 50 }
+        description: { type: string, maxLength: 200 }
+        companyId: { type: string, format: uuid }
+        permissionIds:
+          type: array
+          items: { type: string, format: uuid }
+      required: [name, companyId]
+
+    UsersListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/UserProfile' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    UserProfileResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/UserProfile' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    SuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: object }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    ResponseMeta:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

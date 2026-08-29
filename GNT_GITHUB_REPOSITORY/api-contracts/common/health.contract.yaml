@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: GNT Common Health Contract
+  version: 1.0.0
+  description: Shared health check endpoints used by all modules
+
+paths:
+  /health:
+    get:
+      summary: Global health check
+      operationId: getGlobalHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Global system health
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      overall: { type: string, enum: [healthy, degraded, down] }
+                      modules:
+                        type: object
+                        additionalProperties:
+                          type: string
+                          enum: [healthy, degraded, down]
+                  meta:
+                    type: object
+                    properties:
+                      requestId: { type: string }
+                      timestamp: { type: string, format: date-time }

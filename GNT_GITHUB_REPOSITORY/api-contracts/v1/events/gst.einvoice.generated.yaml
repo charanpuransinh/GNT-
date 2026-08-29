@@ -1,0 +1,31 @@
+event:
+  name: gst.einvoice.generated
+  version: 1.0.0
+  module: M09-GST
+  description: Fired when IRN is successfully generated via IRP portal
+  payload:
+    type: object
+    required: [invoice_id, irn, ack_no, qr_code]
+    properties:
+      invoice_id:
+        type: string
+        format: uuid
+      irn:
+        type: string
+        example: "IRN1234567890ABC"
+      ack_no:
+        type: string
+        example: "ACK9876543210"
+      ack_date:
+        type: string
+        format: date-time
+      qr_code:
+        type: string
+        description: Base64 encoded QR image
+      signed_invoice:
+        type: string
+        description: Signed JSON payload
+  consumers:
+    - M08 (Sales) — update invoice with IRN
+    - M17 (Reporting) — include in GST reports
+    - M18 (External) — archive to IRP

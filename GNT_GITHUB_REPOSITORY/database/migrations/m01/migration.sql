@@ -1,0 +1,16 @@
+-- M01 Foundation Migration
+-- Version: 1.0.0
+-- Created: 2026-08-23
+-- Team: A4-APPLE
+--
+-- No database migrations required for M01.
+-- This module uses environment-based configuration.
+--
+-- If adding system_config table in future:
+-- CREATE TABLE IF NOT EXISTS system_config (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   key VARCHAR(100) NOT NULL UNIQUE,
+--   value TEXT NOT NULL,
+--   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+--   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- );

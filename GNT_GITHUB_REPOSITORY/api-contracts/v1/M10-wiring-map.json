@@ -1,0 +1,19 @@
+{
+  "module": "M10-Accounting",
+  "version": "1.0.0",
+  "provides_to": {
+    "M07": { "service": "ledger.service.createPurchaseEntry()", "protocol": "transaction-engine" },
+    "M08": { "service": "ledger.service.createEntry()", "protocol": "transaction-engine" },
+    "M11": { "service": "ledger.service.createPaymentEntry()", "protocol": "transaction-engine" },
+    "M12": { "service": "ledger.service.createSalaryExpense()", "protocol": "transaction-engine" },
+    "M17": { "service": "ledger data for financial reports", "protocol": "internal-api" }
+  },
+  "consumes_from": {
+    "M07/M08/M11/M12": { "data": "Transaction events", "protocol": "event-stream" },
+    "M04": { "data": "Company/branch context, financial year", "protocol": "internal-api" }
+  },
+  "publishes": [
+    "ledger.entry.created",
+    "voucher.posted"
+  ]
+}

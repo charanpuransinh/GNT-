@@ -1,0 +1,29 @@
+event:
+  name: voucher.posted
+  version: 1.0.0
+  module: M10-Accounting
+  description: Fired when a voucher transitions from draft to posted
+  payload:
+    type: object
+    required: [voucher_id, voucher_type, total_debit, total_credit]
+    properties:
+      voucher_id:
+        type: string
+        format: uuid
+      voucher_type:
+        type: string
+        enum: [journal, cash_payment, cash_receipt, bank_payment, bank_receipt, contra]
+      total_debit:
+        type: number
+        format: decimal
+      total_credit:
+        type: number
+        format: decimal
+      voucher_number:
+        type: string
+      voucher_date:
+        type: string
+        format: date
+  consumers:
+    - M17 (Reporting) — audit trail
+    - M09 (GST) — detect tax-related vouchers

@@ -1,0 +1,202 @@
+// M09 GST Tables
+
+model hsn_master {
+  id          String   @id @default(uuid())
+  company_id  String
+  hsn_code    String   @db.VarChar(50)
+  description String?  @db.Text
+  type        String   @db.VarChar(20)
+  gst_rate    Decimal? @db.Decimal(5, 2)
+  cess_rate   Decimal? @db.Decimal(5, 2)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([company_id, hsn_code])
+}
+
+model tax_rate_master {
+  id             String    @id @default(uuid())
+  company_id     String
+  name           String?   @db.VarChar(100)
+  cgst_rate      Decimal?  @db.Decimal(5, 2)
+  sgst_rate      Decimal?  @db.Decimal(5, 2)
+  igst_rate      Decimal?  @db.Decimal(5, 2)
+  effective_from DateTime? @db.Date
+  effective_to   DateTime? @db.Date
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now())
+
+  @@index([company_id, is_active])
+}
+
+model gst_transaction {
+  id               String   @id @default(uuid())
+  company_id       String
+  branch_id        String?
+  reference_type   String   @db.VarChar(50)
+  reference_id     String?
+  transaction_date DateTime @db.Date
+  hsn_code         String?  @db.VarChar(50)
+  taxable_amount   Decimal  @db.Decimal(15, 4)
+  cgst_amount      Decimal  @db.Decimal(15, 4)
+  sgst_amount      Decimal  @db.Decimal(15, 4)
+  igst_amount      Decimal  @db.Decimal(15, 4)
+  cess_amount      Decimal  @db.Decimal(15, 4)
+  total_tax_amount Decimal  @db.Decimal(15, 4)
+  tax_type         String   @db.VarChar(20)
+  gstin            String?  @db.VarChar(20)
+  created_at       DateTime @default(now())
+
+  @@index([company_id, transaction_date])
+  @@index([reference_type, reference_id])
+}
+
+model e_invoice_record {
+  id               String   @id @default(uuid())
+  company_id       String
+  sales_invoice_id String?
+  irn              String?  @unique @db.VarChar(100)
+  ack_no           String?  @db.VarChar(100)
+  ack_date         DateTime?
+  signed_invoice   String?  @db.Text
+  qr_code          String?  @db.Text
+  status           String   @default("pending") @db.VarChar(20)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([company_id, sales_invoice_id])
+  @@index([irn])
+}
+
+model e_way_bill_record {
+  id               String   @id @default(uuid())
+  company_id       String
+  sales_invoice_id String?
+  ewb_no           String?  @unique @db.VarChar(100)
+  ewb_date         DateTime?
+  valid_upto       DateTime?
+  distance_km      Int?
+  vehicle_no       String?  @db.VarChar(50)
+  status           String   @default("pending") @db.VarChar(20)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([company_id, sales_invoice_id])
+}
+
+// M10 Accounting Tables
+
+model account_master {
+  id              String   @id @default(uuid())
+  company_id      String
+  name            String   @db.VarChar(255)
+  code            String   @unique @db.VarChar(100)
+  type            String   @db.VarChar(20)
+  subtype         String?  @db.VarChar(100)
+  parent_id       String?
+  opening_balance Decimal  @default(0) @db.Decimal(15, 4)
+  current_balance Decimal  @default(0) @db.Decimal(15, 4)
+  is_bank_account Boolean  @default(false)
+  bank_name       String?  @db.VarChar(100)
+  bank_account_no String?  @db.VarChar(100)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  parent   account_master? @relation("AccountTree", fields: [parent_id], references: [id])
+  children account_master[] @relation("AccountTree")
+
+  @@index([company_id, type])
+  @@index([company_id, code])
+}
+
+model voucher {
+  id             String   @id @default(uuid())
+  company_id     String
+  branch_id      String?
+  voucher_type   String   @db.VarChar(30)
+  voucher_number String   @unique @db.VarChar(100)
+  voucher_date   DateTime @db.Date
+  total_debit    Decimal  @db.Decimal(15, 4)
+  total_credit   Decimal  @db.Decimal(15, 4)
+  narration      String?  @db.Text
+  status         String   @default("draft") @db.VarChar(20)
+  created_by     String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  items voucher_item[]
+
+  @@index([company_id, voucher_date])
+  @@index([voucher_type, status])
+}
+
+model voucher_item {
+  id            String  @id @default(uuid())
+  voucher_id    String
+  account_id    String
+  party_id      String?
+  debit_amount  Decimal @default(0) @db.Decimal(15, 4)
+  credit_amount Decimal @default(0) @db.Decimal(15, 4)
+  narration     String? @db.Text
+  created_at    DateTime @default(now())
+
+  voucher voucher @relation(fields: [voucher_id], references: [id], onDelete: Cascade)
+
+  @@index([voucher_id, account_id])
+}
+
+model ledger {
+  id               String   @id @default(uuid())
+  company_id       String
+  branch_id        String?
+  voucher_id       String?
+  account_id       String
+  transaction_date DateTime @db.Date
+  narration        String?  @db.Text
+  debit_amount     Decimal  @default(0) @db.Decimal(15, 4)
+  credit_amount    Decimal  @default(0) @db.Decimal(15, 4)
+  reference_type   String?  @db.VarChar(50)
+  reference_id     String?
+  party_id         String?
+  created_by       String?
+  created_at       DateTime @default(now())
+
+  @@index([company_id, account_id, transaction_date])
+  @@index([reference_type, reference_id])
+}
+
+model bank_reconciliation {
+  id               String   @id @default(uuid())
+  company_id       String
+  bank_account_id  String
+  statement_date   DateTime @db.Date
+  statement_balance Decimal @db.Decimal(15, 4)
+  ledger_balance   Decimal  @db.Decimal(15, 4)
+  difference       Decimal  @db.Decimal(15, 4)
+  status           String   @default("pending") @db.VarChar(20)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  items bank_reconciliation_item[]
+
+  @@index([company_id, bank_account_id])
+}
+
+model bank_reconciliation_item {
+  id                      String   @id @default(uuid())
+  bank_reconciliation_id  String
+  ledger_entry_id         String?
+  transaction_date        DateTime @db.Date
+  description             String?  @db.Text
+  amount                  Decimal  @db.Decimal(15, 4)
+  type                    String   @db.VarChar(10)
+  is_matched              Boolean  @default(false)
+  matched_statement_entry_id String?
+  created_at              DateTime @default(now())
+
+  brs bank_reconciliation @relation(fields: [bank_reconciliation_id], references: [id], onDelete: Cascade)
+
+  @@index([bank_reconciliation_id, is_matched])
+}

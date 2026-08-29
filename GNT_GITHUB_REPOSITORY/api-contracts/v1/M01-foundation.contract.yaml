@@ -1,0 +1,213 @@
+openapi: 3.0.3
+info:
+  title: GNT M01 Foundation API
+  version: 1.0.0
+  description: |
+    App configuration, health checks, system info and maintenance status.
+    Owner: A4-APPLE Team | Module: M01 Foundation
+
+servers:
+  - url: /api/v1
+    description: GNT API v1
+
+paths:
+  /foundation/config:
+    get:
+      summary: Get application configuration
+      operationId: getAppConfig
+      tags:
+        - Foundation
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Application configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppConfigResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /foundation/health:
+    get:
+      summary: System health check
+      operationId: getHealthStatus
+      tags:
+        - Foundation
+      responses:
+        '200':
+          description: System is healthy or degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatusResponse'
+        '503':
+          description: System is down
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatusResponse'
+
+  /foundation/system-info:
+    get:
+      summary: Get system information
+      operationId: getSystemInfo
+      tags:
+        - Foundation
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: System information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /foundation/maintenance:
+    get:
+      summary: Check maintenance mode status
+      operationId: checkMaintenance
+      tags:
+        - Foundation
+      responses:
+        '200':
+          description: Maintenance status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceStatusResponse'
+
+components:
+  schemas:
+    AppConfigResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/AppConfig' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    AppConfig:
+      type: object
+      properties:
+        appName: { type: string, example: 'GARUDA NEXTECH' }
+        version: { type: string, example: '2.0.0' }
+        environment:
+          type: string
+          enum: [development, staging, production]
+        features:
+          type: object
+          additionalProperties: { type: boolean }
+          example:
+            offlineMode: true
+            multiBranch: true
+            gstEnabled: true
+            barcodeScan: true
+        maintenanceMode: { type: boolean }
+        companyName: { type: string }
+        branding:
+          type: object
+          properties:
+            logoUrl: { type: string, format: uri }
+            primaryColor: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+            favicon: { type: string, format: uri }
+      required: [appName, version, environment, features, maintenanceMode]
+
+    HealthStatusResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/HealthStatus' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        timestamp: { type: string, format: date-time }
+        uptime: { type: number, description: 'Seconds since startup' }
+        version: { type: string }
+        checks:
+          type: object
+          properties:
+            database: { type: boolean }
+            cache: { type: boolean }
+            storage: { type: boolean }
+      required: [status, timestamp, uptime, version, checks]
+
+    SystemInfoResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/SystemInfo' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    SystemInfo:
+      type: object
+      properties:
+        platform: { type: string, example: 'linux' }
+        nodeVersion: { type: string, example: 'v20.11.0' }
+        memoryUsage:
+          type: object
+          properties:
+            used: { type: number, description: 'MB used' }
+            total: { type: number, description: 'MB total' }
+            percentage: { type: number }
+        cpuLoad: { type: number }
+        activeConnections: { type: number }
+
+    MaintenanceStatusResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            maintenanceMode: { type: boolean }
+            message: { type: string }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+    ResponseMeta:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: 'GNT-ERR-5001' }
+            message: { type: string }
+            details: { type: object }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - Invalid or missing JWT token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT RS256 token obtained from M02 authentication

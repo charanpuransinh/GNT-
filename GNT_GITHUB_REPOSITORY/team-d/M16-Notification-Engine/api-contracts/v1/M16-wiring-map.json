@@ -1,0 +1,82 @@
+{
+  "module": "M16",
+  "name": "Notification Engine",
+  "version": "1.0",
+  "provides": {
+    "notification.service.ts": {
+      "sendNotification": {
+        "consumer": ["M05", "M08", "M09", "M11", "M13"],
+        "method": "sendNotification(payload)",
+        "channel": "event_dispatch",
+        "description": "PUBLIC API — only file external modules may import from M16"
+      },
+      "getNotifications": {
+        "consumer": "Frontend",
+        "method": "getNotifications(filter)",
+        "channel": "notification_center",
+        "description": "Frontend inbox list"
+      },
+      "markAsRead": {
+        "consumer": "Frontend",
+        "method": "markAsRead(payload, userId, companyId)",
+        "channel": "notification_center",
+        "description": "Mark single/all notifications as read"
+      },
+      "getUnreadCount": {
+        "consumer": "Frontend",
+        "method": "getUnreadCount(userId, companyId)",
+        "channel": "notification_bell",
+        "description": "Navbar bell badge count"
+      },
+      "trackDelivery": {
+        "consumer": ["Frontend", "M19"],
+        "method": "trackDelivery(notificationId)",
+        "channel": "delivery_log",
+        "description": "Per-channel delivery status"
+      }
+    }
+  },
+  "consumes": {
+    "internal": [
+      {
+        "module": "M18",
+        "purpose": "Actual WhatsApp/SMS delivery via gateway.service.ts (sendWhatsApp, sendSMS)",
+        "channel": "notification"
+      },
+      {
+        "module": "M02",
+        "purpose": "User context for notification targeting",
+        "channel": "auth_context"
+      }
+    ]
+  },
+  "events": {
+    "consumed": [
+      { "event": "sales.invoice.created", "publisher": "M08", "description": "Trigger sales notification" },
+      { "event": "purchase.invoice.created", "publisher": "M07", "description": "Trigger purchase notification" },
+      { "event": "payment.due.reminder", "publisher": "M13", "description": "Trigger payment reminder notification" },
+      { "event": "stock.low.alert", "publisher": "M13", "description": "Trigger stock alert notification" },
+      { "event": "gst.return.due", "publisher": "M09", "description": "Trigger GST compliance notification" },
+      { "event": "employee.salary.processed", "publisher": "M12", "description": "Trigger salary notification" }
+    ],
+    "published": [
+      { "event": "notification.sent", "consumers": ["M19 monitoring"], "description": "Notification dispatched" },
+      { "event": "notification.delivery.failed", "consumers": ["M19 monitoring"], "description": "Delivery failure alert" }
+    ]
+  },
+  "hard_boundaries": {
+    "legal": [
+      "M05/M08/M09/M11/M13 → M16 notification.service.sendNotification()",
+      "Frontend → M16 notification.service (list/read/unread-count/delivery-log)"
+    ],
+    "illegal": [
+      "Any module → M16 notification.repository.ts directly",
+      "M16 → Direct business logic in M05/M08/M09/M11/M13",
+      "M16 → Direct external gateway calls (must go through M18)"
+    ]
+  },
+  "database_ownership": {
+    "notification_master": "M16",
+    "notification_delivery_log": "M16"
+  }
+}

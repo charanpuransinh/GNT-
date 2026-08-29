@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "backend/src/*"
+      ]
+    },
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": [
+    "backend/src/**/*.ts",
+    "backend/src/**/*.tsx",
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.tsx"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/tests/**",
+    "backend/src/modules/m13-automation/ActionRegistry.ts",
+    "backend/src/modules/m13-automation/SendEmailAction.ts",
+    "backend/src/modules/m13-automation/WorkflowEngine.ts",
+    "backend/src/modules/m13-automation/controllers/WebhookController.ts",
+    "backend/src/modules/m13-automation/controllers/WorkflowController.ts",
+    "backend/src/modules/m13-automation/events/EventSubscriber.ts",
+    "backend/src/modules/m13-automation/routes/index.ts",
+    "backend/src/modules/m13-automation/services/SchedulerService.ts",
+    "source-archives",
+    "source-archives/**",
+    "team-d",
+    "team-d/**"
+  ]
+}

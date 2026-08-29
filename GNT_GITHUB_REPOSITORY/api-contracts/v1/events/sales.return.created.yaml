@@ -1,0 +1,26 @@
+event: sales.return.created
+module: M08
+version: 1.0.0
+schema:
+  type: object
+  required: [returnId, invoiceId, customerId, netAmount, companyId]
+  properties:
+    returnId:
+      type: string
+      format: uuid
+    invoiceId:
+      type: string
+      format: uuid
+    customerId:
+      type: string
+      format: uuid
+    netAmount:
+      type: number
+      format: decimal
+    companyId:
+      type: string
+      format: uuid
+consumers:
+  - M16 (Notification)
+  - M17 (Reporting)
+publisher: M08 Return Service
