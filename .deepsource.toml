@@ -1,0 +1,27 @@
+version = 1
+
+# Python files ko scan karne ke liye
+[[analyzers]]
+name = "python"
+enabled = true
+
+  [analyzers.meta]
+  runtime_version = "3.x.x"
+
+# JavaScript aur TypeScript (backend + frontend) scan karne ke liye
+[[analyzers]]
+name = "javascript"
+enabled = true
+
+  [analyzers.meta]
+  environment = ["nodejs"]
+
+# Secrets (token/password) scan karne ke liye
+[[analyzers]]
+name = "secrets"
+enabled = true
+
+# Test coverage dekhne ke liye
+[[analyzers]]
+name = "test-coverage"
+enabled = true

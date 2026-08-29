@@ -1,0 +1,31 @@
+language: "en"
+early_access: true
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: true
+
+  # Poore repository ka context dekh kar review kare,
+  # taaki pata chale kaunsi file kisko call kar rahi hai
+  path_instructions:
+    - path: "**/*.ts"
+      instructions: "Check that every API call in this file matches an actual existing endpoint in the backend. Flag any broken wiring between frontend and backend."
+    - path: "**/*.py"
+      instructions: "Check Python files for bugs, security issues, and unused/missing imports."
+    - path: "**/*.html"
+      instructions: "Check HTML files for broken links, missing tags, and structural issues."
+
+  tools:
+    ast-grep:
+      packages:
+        - "javascript"
+        - "typescript"
+        - "python"
+
+chat:
+  auto_reply: true
