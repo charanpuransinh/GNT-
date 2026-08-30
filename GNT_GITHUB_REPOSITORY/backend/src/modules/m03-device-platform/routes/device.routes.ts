@@ -8,8 +8,12 @@ import {
   deploymentSettingsSchema,
   checkUpdateQuerySchema,
 } from '../validators/device.schema';
+import { apiRateLimiter } from '@/common/middleware/rate-limit';
 
 const router = Router();
+
+// Apply rate limiting to device routes
+router.use(apiRateLimiter);
 
 // Session management
 router.get('/sessions', authMiddleware, deviceController.getActiveSessions);
