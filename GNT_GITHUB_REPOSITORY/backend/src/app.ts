@@ -55,7 +55,7 @@ app.use('/api/v1/exports', exportRoutes);
 // M15 — Sync
 app.use('/api/v1/sync', syncRouter);
 
-// M18 ��� External Integration
+// M18 — External Integration
 const integrationService = new IntegrationService();
 const webhookService = new WebhookService();
 const integrationController = new IntegrationController(integrationService);
