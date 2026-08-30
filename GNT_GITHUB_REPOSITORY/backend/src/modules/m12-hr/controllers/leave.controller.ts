@@ -9,6 +9,7 @@ export class LeaveController {
 
   async apply(req: Request, res: Response) {
     try {
+      // accept sensitive filters in POST body only
       const leave = await this.service.apply(req.body);
       await this.events.publish('LEAVE_APPLIED', { leaveId: leave.id, employeeId: leave.employeeId, days: leave.days });
       res.status(201).json({ success: true, data: leave });
@@ -20,7 +21,7 @@ export class LeaveController {
   async approve(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { approvedBy, rejectionReason } = req.body;
+      const { approvedBy, rejectionReason } = req.body; // moved from query to body
       const leave = await this.service.approve(id, approvedBy, rejectionReason);
       await this.events.publish('LEAVE_APPROVED', { leaveId: leave.id, employeeId: leave.employeeId });
       res.json({ success: true, data: leave });
@@ -32,7 +33,7 @@ export class LeaveController {
   async reject(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { approvedBy, rejectionReason } = req.body;
+      const { approvedBy, rejectionReason } = req.body; // moved from query to body
       const leave = await this.service.reject(id, approvedBy, rejectionReason);
       await this.events.publish('LEAVE_REJECTED', { leaveId: leave.id, employeeId: leave.employeeId, reason: rejectionReason });
       res.json({ success: true, data: leave });
@@ -61,7 +62,7 @@ export class LeaveController {
 
   async getPendingApprovals(req: Request, res: Response) {
     try {
-      const leaves = await this.service.getPendingApprovals(req.query.approverId as string);
+      const leaves = await this.service.getPendingApprovals(req.body.approverId as string); // moved to body
       res.json({ success: true, data: leaves });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
