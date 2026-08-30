@@ -1,4 +1,49 @@
-import fs from 'node:fs'; import path from 'node:path';
-const root=path.resolve('.'); const roots=[path.join(root,'backend/src'),path.join(root,'frontend/src')]; let bad=0;
-function resolve(base,spec){const p=path.resolve(base,spec); for(const c of [p,p+'.ts',p+'.tsx',p+'.js',p+'.jsx',path.join(p,'index.ts'),path.join(p,'index.tsx')]) if(fs.existsSync(c)) return true; return false;}
-function walk(d){for(const n of fs.readdirSync(d)){const p=path.join(d,n); const st=fs.statSync(p); if(st.isDirectory()) walk(p); else if(/\.(ts|tsx)$/.test(n)){const s=fs.readFileSync(p,'utf8'); for(const m of s.matchAll(/(?:from|import\()\s*['"]([^'"]+)['"]/g)){const spec=m[1]; if(spec.startsWith('.')&&!resolve(path.dirname(p),spec)){bad++; console.error(`UNRESOLVED ${path.relative(root,p)} -> ${spec}`)}}}}} roots.forEach(walk); if(bad){console.error(`Import failures: ${bad}`);process.exit(1)} console.log('Relative import PASS');
+import fs from 'node:fs';
+import path from 'node:path';
+
+const root = path.resolve('.');
+const roots = [path.join(root, 'backend/src'), path.join(root, 'frontend/src')];
+let bad = 0;
+
+function resolve(base, spec) {
+  const p = path.resolve(base, spec);
+  for (const c of [
+    p,
+    p + '.ts',
+    p + '.tsx',
+    p + '.js',
+    p + '.jsx',
+    path.join(p, 'index.ts'),
+    path.join(p, 'index.tsx'),
+  ]) {
+    if (fs.existsSync(c)) return true;
+  }
+  return false;
+}
+
+function walk(d) {
+  for (const n of fs.readdirSync(d)) {
+    const p = path.join(d, n);
+    const st = fs.statSync(p);
+    if (st.isDirectory()) {
+      walk(p);
+    } else if (/\.(ts|tsx)$/.test(n)) {
+      const s = fs.readFileSync(p, 'utf8');
+      for (const m of s.matchAll(/(?:from|import\()\s*['"]([^'"]+)['"]/g)) {
+        const spec = m[1];
+        if (spec.startsWith('.') && !resolve(path.dirname(p), spec)) {
+          bad++;
+          console.error(`UNRESOLVED ${path.relative(root, p)} -> ${spec}`);
+        }
+      }
+    }
+  }
+}
+
+roots.forEach(walk);
+
+if (bad) {
+  console.error(`Import failures: ${bad}`);
+  process.exit(1);
+}
+console.log('Relative import PASS');
