@@ -5,8 +5,8 @@
  * ╚═══════════════════════════════════════════════════════════════╝
  */
 
-export { default as importRoutes } from './routes/importRoutes';
-export { default as exportRoutes } from './routes/exportRoutes';
+export { default as importRoutes } from './routes/import.routes';
+export { default as exportRoutes } from './routes/export.routes';
 export * from './types/importExport.types';
 export * from './services/importService';
 export * from './services/exportService';
