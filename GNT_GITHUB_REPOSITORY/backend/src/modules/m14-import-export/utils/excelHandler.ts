@@ -1,14 +1,16 @@
 /**
- * ╔═══════════════════════════════════════════════════════════════╗
+ * ╔═══════════════════════════════════════════════════════════════════╗
  * ║  M14 IMPORT/EXPORT — EXCEL HANDLER                           ║
  * ║  Lock Artifact #13 — Export File Generation (CSV/Excel/JSON) ║
- * ╚═══════════════════════════════════════════════════════════════╝
+ * ╚═══════════════════════════════════════════════════════════════════╝
  */
 
 import { stringify } from 'csv-stringify/sync';
+import { stringify as stringifyStream } from 'csv-stringify';
 import xlsx from 'xlsx';
 import PDFDocument from 'pdfkit';
 import { once } from 'events';
+import { Readable } from 'stream';
 
 // ── Generate CSV ──
 export const generateCSV = (data: Record<string, any>[], fields: string[]): Buffer => {
@@ -79,7 +81,7 @@ export const generatePDF = async (
 };
 
 // ── Stream CSV (for large datasets) ──
-export const streamCSV = (data: Record<string, any>[], fields: string[]): ReadableStream => {
+export const streamCSV = (data: Record<string, any>[], fields: string[]): Readable => {
   const filtered = fields.length > 0
     ? data.map(row => {
         const obj: Record<string, any> = {};
@@ -88,12 +90,14 @@ export const streamCSV = (data: Record<string, any>[], fields: string[]): Readab
       })
     : data;
 
-  // In production: use csv-stringify stream mode
-  const csv = stringify(filtered, { header: true });
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(Buffer.from(csv));
-      controller.close();
-    },
-  });
+  // Use csv-stringify stream mode for proper streaming of large datasets
+  const csvStream = stringifyStream({ header: true });
+  
+  // Write data to stream
+  for (const row of filtered) {
+    csvStream.write(row);
+  }
+  csvStream.end();
+
+  return csvStream as Readable;
 };

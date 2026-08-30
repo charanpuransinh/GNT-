@@ -24,10 +24,15 @@ const stockInternal = new StockInternalService();
 
 export class StockService {
   // ─── PUBLIC API: checkAvailability ───
-  async checkAvailability(input: AvailabilityCheckInput): Promise<AvailabilityResult> {
+  async checkAvailability(input: AvailabilityCheckInput, companyId?: string): Promise<AvailabilityResult> {
+    // TODO: company_id should be injected via middleware/context in real app
+    if (!companyId) {
+      throw new Error('Company context is required for stock availability check');
+    }
+
     const currentQty = await stockRepo.getTotalQuantity(
       input.product_id,
-      '', // company_id injected via middleware in real app
+      companyId,
       input.branch_id
     );
 
@@ -208,7 +213,7 @@ export class StockService {
       batch_id: input.batch_id || null,
       branch_id: input.branch_id || null,
       reference_type: 'stock_adjustment',
-      movement_type: input.quantity >= 0 ? 'adjustment' : 'adjustment',
+      movement_type: input.quantity >= 0 ? 'addition' : 'reduction',
       quantity: Math.abs(input.quantity),
       rate: input.rate || null,
       before_qty: beforeQty,
