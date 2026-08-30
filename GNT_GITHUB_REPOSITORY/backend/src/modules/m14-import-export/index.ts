@@ -5,6 +5,10 @@
  * ╚═══════════════════════════════════════════════════════════════╝
  */
 
+import { Router } from 'express';
+import importRoutesList from './routes/import.routes';
+import exportRoutesList from './routes/export.routes';
+
 export { default as importRoutes } from './routes/import.routes';
 export { default as exportRoutes } from './routes/export.routes';
 export * from './types/importExport.types';
