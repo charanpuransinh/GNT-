@@ -9,8 +9,9 @@ export class AttendanceController {
       const { employeeId, location, notes } = req.body;
       const record = await this.service.checkIn(employeeId, { location, notes });
       res.status(201).json({ success: true, data: record });
-    } catch (error: any) {
-      res.status(400).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to check in';
+      res.status(400).json({ success: false, error: message });
     }
   }
 
@@ -19,8 +20,9 @@ export class AttendanceController {
       const { employeeId, notes } = req.body;
       const record = await this.service.checkOut(employeeId, notes);
       res.json({ success: true, data: record });
-    } catch (error: any) {
-      res.status(400).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to check out';
+      res.status(400).json({ success: false, error: message });
     }
   }
 
@@ -33,8 +35,9 @@ export class AttendanceController {
         endDate: endDate ? new Date(endDate as string) : undefined
       });
       res.json({ success: true, data: records });
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch attendance';
+      res.status(500).json({ success: false, error: message });
     }
   }
 
@@ -43,8 +46,9 @@ export class AttendanceController {
       const { month, year, departmentId } = req.body; // moved to body
       const report = await this.service.getMonthlyReport(Number(month), Number(year), departmentId as string);
       res.json({ success: true, data: report });
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to generate monthly report';
+      res.status(500).json({ success: false, error: message });
     }
   }
 
@@ -52,8 +56,9 @@ export class AttendanceController {
     try {
       const result = await this.service.bulkUpload(req.body.records);
       res.json({ success: true, data: result });
-    } catch (error: any) {
-      res.status(400).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to upload attendance records';
+      res.status(400).json({ success: false, error: message });
     }
   }
 }

@@ -18,8 +18,9 @@ export class PayrollController {
         });
       }
       res.status(201).json({ success: true, data: payrolls });
-    } catch (error: any) {
-      res.status(400).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to generate payrolls';
+      res.status(400).json({ success: false, error: message });
     }
   }
 
@@ -27,8 +28,9 @@ export class PayrollController {
     try {
       const payrolls = await this.service.getByEmployee(req.params.employeeId);
       res.json({ success: true, data: payrolls });
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch payrolls';
+      res.status(500).json({ success: false, error: message });
     }
   }
 
@@ -40,8 +42,9 @@ export class PayrollController {
         paymentRef: payroll.paymentRef, targetModule: 'M11'
       });
       res.json({ success: true, data: payroll });
-    } catch (error: any) {
-      res.status(400).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to process payment';
+      res.status(400).json({ success: false, error: message });
     }
   }
 
@@ -50,8 +53,9 @@ export class PayrollController {
       const { month, year } = req.body; // moved to body
       const summary = await this.service.getMonthlySummary(Number(month), Number(year));
       res.json({ success: true, data: summary });
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch payroll summary';
+      res.status(500).json({ success: false, error: message });
     }
   }
 }
