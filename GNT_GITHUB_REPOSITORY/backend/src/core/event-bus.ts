@@ -1,1 +1,1 @@
-export { EventBus, eventBus } from '../common/events/event-bus';
+export { EventBus, eventBus } from '../common/events/event-bus.js';
