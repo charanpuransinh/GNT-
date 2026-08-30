@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { authController } from '../controllers/auth.controller';
 import { userController } from '../controllers/user.controller';
 import { roleController } from '../controllers/role.controller';
-import { authMiddleware } from '@/common/middleware/auth-middleware';
-import { validationMiddleware } from '@/common/middleware/validation-middleware';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { validationMiddleware } from '../middleware/validation.middleware';
 import {
   loginSchema,
   otpVerifySchema,
