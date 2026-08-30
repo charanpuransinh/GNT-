@@ -9,6 +9,7 @@ export class PayrollController {
 
   async generate(req: Request, res: Response) {
     try {
+      // accept month/year/employeeIds in POST body (sensitive filters moved to body)
       const { month, year, employeeIds } = req.body;
       const payrolls = await this.service.generate(month, year, employeeIds);
       for (const payroll of payrolls) {
@@ -47,7 +48,7 @@ export class PayrollController {
 
   async getMonthlySummary(req: Request, res: Response) {
     try {
-      const { month, year } = req.query;
+      const { month, year } = req.body || req.query; // accept month/year via POST body
       const summary = await this.service.getMonthlySummary(Number(month), Number(year));
       res.json({ success: true, data: summary });
     } catch (error: any) {
