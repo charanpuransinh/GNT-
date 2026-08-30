@@ -13,6 +13,7 @@ import { companyProfileSchema, branchCreateSchema, financialYearSchema, rolePerm
 import { prisma } from "../../../common/config/prisma";
 import { EventBus } from "../../../common/events/event-bus";
 import { AuditLogger } from "../../../common/logging/audit-logger";
+import { apiRateLimiter } from '../../../common/middleware/rate-limit';
 
 const router = Router();
 const companyRepo = new CompanyRepository(prisma);
@@ -27,6 +28,7 @@ const controller = new CompanyController(companyService, branchService);
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 router.use(requestTracer);
+router.use(apiRateLimiter);
 
 router.get("/profile", (req, res, next) => controller.getProfile(req, res, next));
 router.put("/profile", validationMiddleware(companyProfileSchema), (req, res, next) => controller.updateProfile(req, res, next));
