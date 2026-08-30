@@ -1,7 +1,7 @@
 {
   "name": "gnt-class-c",
   "version": "2.0.0",
-  "description": "GNT Class C Modules (M11-M15) \u2014 Payment, HR, Automation, Import/Export, Sync",
+  "description": "GNT Class C Modules (M11-M15) — Payment, HR, Automation, Import/Export, Sync",
   "private": true,
   "workspaces": [
     "frontend",
@@ -63,7 +63,6 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-dropzone": "^14.3.8",
-    "react-flow": "^11.11.4",
     "react-hook-form": "^7.62.0",
     "react-router-dom": "^7.8.2",
     "redis": "^5.8.1",
