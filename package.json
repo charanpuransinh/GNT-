@@ -1,0 +1,48 @@
+{
+  "name": "gnt-garuda-nextech",
+  "version": "2.0.0",
+  "description": "GARUDA NEXTECH (GNT) - RAKSHA - Advanced Software Blueprint V2.0 - Enterprise ERP System",
+  "private": true,
+  "license": "UNLICENSED",
+  "workspaces": [
+    "STRUCTURE/Team_A_M01-M05/*",
+    "STRUCTURE/Team_B_M06-M10/*",
+    "STRUCTURE/Team_C_M11-M15/*",
+    "STRUCTURE/Team_D_M16-M20/*"
+  ],
+  "scripts": {
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "biome format --write .",
+    "format:check": "biome check .",
+    "knip": "knip",
+    "audit": "npm audit --audit-level=high",
+    "dev": "echo \"हर team folder में जाकर अलग से 'npm run dev' चलाएँ\"",
+    "build": "echo \"हर team folder में जाकर अलग से 'npm run build' चलाएँ\"",
+    "test": "echo \"हर team folder में जाकर अलग से 'npm test' चलाएँ\""
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5",
+    "@prisma/client": "^5.20.0",
+    "jsonwebtoken": "^9.0.2",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "@typescript-eslint/parser": "^8.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "eslint": "^8.57.1",
+    "@biomejs/biome": "^1.9.4",
+    "knip": "^5.30.5",
+    "prisma": "^5.20.0",
+    "tailwindcss": "^3.4.13",
+    "@types/node": "^22.7.4",
+    "@types/express": "^4.17.21"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

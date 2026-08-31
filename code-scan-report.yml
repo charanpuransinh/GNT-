@@ -1,0 +1,178 @@
+name: GNT Code Scan Report
+
+# ============================================================
+# यह वर्कफ़्लो हर push और pull request पर अपने आप चलता है।
+# STRUCTURE/ के अंदर जितने भी Team folder हैं (Team_A_M01-M05,
+# Team_B_M06-M10, Team_C_M11-M15, Team_D_M16-M20) — उन सबको
+# स्कैन करता है, लेकिन सिर्फ उन्हीं में जहाँ package.json मौजूद है
+# (यानी असली रनेबल कोड है, सिर्फ .md/JSON contract नहीं)।
+#
+# हर folder के लिए यह बताता है:
+#  1. ESLint  -> कोड में सिंटैक्स/लॉजिकल एरर कहाँ हैं
+#  2. Knip    -> कौन सी फाइलें, exports, और npm पैकेज बेकार/अनयूज्ड हैं
+#
+# नतीजा दो जगह मिलेगा:
+#  - GitHub Actions के "Summary" टैब में सीधे पढ़ने वाली रिपोर्ट
+#  - "Artifacts" में पूरी JSON रिपोर्ट (डाउनलोड करने के लिए)
+# ============================================================
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch: {} # "Run workflow" बटन से मैन्युअल भी चला सकते हैं
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo checkout करो
+        uses: actions/checkout@v4
+
+      - name: Node.js सेटअप करो
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: सभी टीम फोल्डर्स को स्कैन करो
+        run: |
+          set -e
+          mkdir -p scan-reports
+          SUMMARY_FILE=scan-reports/summary.md
+
+          echo "# 📊 GNT Code Scan Report" >> "$SUMMARY_FILE"
+          echo "_Run: $(date -u '+%Y-%m-%d %H:%M UTC')_" >> "$SUMMARY_FILE"
+          echo "" >> "$SUMMARY_FILE"
+
+          FOUND_ANY=0
+
+          # पूरे रिपो में जितने भी package.json हैं (node_modules छोड़कर) उन सबको ढूंढो
+          while IFS= read -r pkg; do
+            DIR=$(dirname "$pkg")
+            NAME=$(echo "$DIR" | sed 's|^\./||')
+            FOUND_ANY=1
+
+            echo "## 📁 $NAME" >> "$SUMMARY_FILE"
+            echo "" >> "$SUMMARY_FILE"
+
+            pushd "$DIR" > /dev/null
+
+            echo "### निर्भरताएँ इंस्टॉल हो रही हैं..."
+            npm install --no-audit --no-fund --silent || echo "⚠️ npm install में समस्या आई" >> "../../$SUMMARY_FILE"
+
+            # ---------------- ESLint ----------------
+            echo "### 🐞 ESLint (एरर/बग स्कैन)" >> "../../$SUMMARY_FILE"
+            if [ -f ".eslintrc.json" ] || [ -f ".eslintrc.js" ] || [ -f ".eslintrc.cjs" ] || [ -f "eslint.config.js" ] || [ -f "eslint.config.mjs" ]; then
+              npx --yes eslint . --ext .js,.jsx,.ts,.tsx \
+                -f json -o "../../scan-reports/${NAME//\//_}-eslint.json" || true
+              ERR_COUNT=$(node -e "try{const d=require('../../scan-reports/${NAME//\//_}-eslint.json');let e=0,w=0;d.forEach(f=>{e+=f.errorCount;w+=f.warningCount});console.log(e+' errors, '+w+' warnings')}catch(e){console.log('रिपोर्ट नहीं बनी')}")
+              echo "- नतीजा: **$ERR_COUNT**" >> "../../$SUMMARY_FILE"
+            else
+              echo "- ⚠️ ESLint config नहीं मिला (.eslintrc.json डालना होगा), स्किप किया" >> "../../$SUMMARY_FILE"
+            fi
+            echo "" >> "../../$SUMMARY_FILE"
+
+            # ---------------- Biome (फॉर्मेटिंग चेक: quotes, spacing, semicolons) ----------------
+            echo "### 🎨 Biome (फॉर्मेटिंग चेक)" >> "../../$SUMMARY_FILE"
+            if [ -f "biome.json" ] || [ -f "biome.jsonc" ]; then
+              npx --yes @biomejs/biome check . --reporter=json > "../../scan-reports/${NAME//\//_}-biome.json" 2>/dev/null || true
+              BIOME_COUNT=$(node -e "try{const d=require('../../scan-reports/${NAME//\//_}-biome.json');console.log((d.summary && (d.summary.errors+d.summary.warnings)) || 'देखें JSON')}catch(e){console.log('रिपोर्ट नहीं बनी')}")
+              echo "- नतीजा: **$BIOME_COUNT issues**" >> "../../$SUMMARY_FILE"
+            else
+              echo "- ⚠️ biome.json नहीं मिला, स्किप किया" >> "../../$SUMMARY_FILE"
+            fi
+            echo "" >> "../../$SUMMARY_FILE"
+
+            # ---------------- Knip (dead files/exports/packages) ----------------
+            echo "### 🗑️ Knip (बेकार फाइलें, अनयूज्ड exports और पैकेज)" >> "../../$SUMMARY_FILE"
+            npx --yes knip --reporter json > "../../scan-reports/${NAME//\//_}-knip.json" 2>/dev/null || true
+            node -e "
+              try {
+                const d = require('../../scan-reports/${NAME//\//_}-knip.json');
+                const files = (d.files || []).length;
+                const exports = (d.issues || []).reduce((a,i)=>a+((i.exports||[]).length),0);
+                const deps = (d.issues || []).reduce((a,i)=>a+((i.dependencies||[]).length),0);
+                console.log('- बेकार/अनयूज्ड फाइलें: **' + files + '**');
+                console.log('- अनयूज्ड exports: **' + exports + '**');
+                console.log('- अनयूज्ड npm पैकेज: **' + deps + '**');
+              } catch(e) {
+                console.log('- रिपोर्ट नहीं बनी (knip.json config चाहिए हो सकता है)');
+              }
+            " >> "../../$SUMMARY_FILE"
+            echo "" >> "../../$SUMMARY_FILE"
+            echo "---" >> "../../$SUMMARY_FILE"
+            echo "" >> "../../$SUMMARY_FILE"
+
+            popd > /dev/null
+          done < <(find . -name "package.json" -not -path "*/node_modules/*")
+
+          if [ "$FOUND_ANY" -eq 0 ]; then
+            echo "कहीं भी package.json नहीं मिला — अभी किसी भी Team folder में runnable कोड नहीं है।" >> "$SUMMARY_FILE"
+          fi
+
+          cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: पूरी रिपोर्ट Artifact के रूप में सेव करो
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnt-code-scan-report
+          path: scan-reports/
+          retention-days: 30
+
+  # ============================================================
+  # सिक्योरिटी स्कैन — अलग job, ताकि ERP के sensitive डेटा
+  # (GST, Payment, Auth) से जुड़ी सिक्योरिटी खामियाँ भी पकड़ में आएँ
+  # ============================================================
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Repo checkout करो
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Gitleaks को पूरी Git history चाहिए होती है
+
+      - name: Node.js सेटअप करो
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: npm audit (vulnerable packages ढूंढो)
+        run: |
+          mkdir -p scan-reports
+          echo "## 🛡️ Security Report" > scan-reports/security-summary.md
+          while IFS= read -r pkg; do
+            DIR=$(dirname "$pkg")
+            NAME=$(echo "$DIR" | sed 's|^\./||')
+            echo "### 📁 $NAME - npm audit" >> scan-reports/security-summary.md
+            pushd "$DIR" > /dev/null
+            npm install --no-audit --no-fund --silent || true
+            npm audit --audit-level=high >> "../../scan-reports/security-summary.md" 2>&1 || true
+            popd > /dev/null
+          done < <(find . -name "package.json" -not -path "*/node_modules/*")
+          cat scan-reports/security-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Gitleaks (लीक हुए passwords/API keys ढूंढो)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: CodeQL Init (SQL injection, XSS, auth bypass जैसी खामियाँ)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: CodeQL Analyze
+        uses: github/codeql-action/analyze@v3
+
+      - name: Security रिपोर्ट Artifact में सेव करो
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnt-security-report
+          path: scan-reports/security-summary.md
+          retention-days: 30

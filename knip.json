@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/index.{ts,tsx,js}",
+    "src/main.{ts,tsx,js}",
+    "src/**/index.{ts,tsx,js}"
+  ],
+  "project": ["src/**/*.{ts,tsx,js,jsx}"],
+  "ignore": [
+    "**/*.test.{ts,tsx,js}",
+    "**/*.spec.{ts,tsx,js}",
+    "dist/**",
+    "build/**",
+    "node_modules/**"
+  ],
+  "ignoreDependencies": [],
+  "rules": {
+    "files": "warn",
+    "exports": "warn",
+    "types": "warn",
+    "duplicates": "warn",
+    "dependencies": "error",
+    "unlisted": "warn"
+  }
+}
