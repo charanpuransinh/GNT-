@@ -1,8 +1,13 @@
 // GNT CANONICAL MASTER PRISMA SCHEMA
 // Modules: M01-M04 + M06-M10. M05 is intentionally absent because no M05 source package was supplied.
-generator client { provider = "prisma-client-js" }
+generator client {
+  provider = "prisma-client-js"
+}
 
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 // SOURCE: schema.prisma
 // GNT M06 — Inventory Management Schema
