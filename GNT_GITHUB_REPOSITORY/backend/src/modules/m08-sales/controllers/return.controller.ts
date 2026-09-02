@@ -25,7 +25,7 @@ export class ReturnController {
   // ─── GET RETURNS ───
   async getReturns(req: Request, res: Response): Promise<void> {
     try {
-      const query = returnQuerySchema.parse({ ...req.query, companyId: req.headers['x-company-id'] });
+      const query = returnQuerySchema.parse({ ...req.query, companyId: req.tenant.companyId });
       const result = await returnService.getReturns(query);
       res.status(200).json({ success: true, data: result.data, meta: { total: result.total, page: query.page, limit: query.limit } });
     } catch (error: any) {
@@ -37,7 +37,7 @@ export class ReturnController {
   async getReturnById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       const salesReturn = await returnService.getReturnById(id, companyId);
       if (!salesReturn) {
         res.status(404).json({ success: false, error: 'Return not found' });
@@ -53,7 +53,7 @@ export class ReturnController {
   async approveReturn(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       const salesReturn = await returnService.approveReturn(id, companyId);
       res.status(200).json({ success: true, data: salesReturn });
     } catch (error: any) {
@@ -65,7 +65,7 @@ export class ReturnController {
   async postReturn(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       const salesReturn = await returnService.postReturn(id, companyId);
       res.status(200).json({ success: true, data: salesReturn });
     } catch (error: any) {

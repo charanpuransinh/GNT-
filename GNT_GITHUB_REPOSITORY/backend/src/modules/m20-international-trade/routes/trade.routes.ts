@@ -37,7 +37,7 @@ router.get('/hsn/chapters/:chapter/headings', hsnCtrl.getHeadings);
 // ── FX ──
 router.get('/fx/rates', async (req, res, next) => {
   try {
-    const companyId = req.headers['x-company-id'] as string;
+    const companyId = req.tenant.companyId as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
     const base = (req.query.base as string) || 'INR';
     const target = req.query.target as string;
@@ -55,7 +55,7 @@ router.get('/fx/rates', async (req, res, next) => {
 
 router.post('/fx/convert', async (req, res, next) => {
   try {
-    const companyId = req.headers['x-company-id'] as string;
+    const companyId = req.tenant.companyId as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
     const { amount, from_currency, to_currency } = req.body;
     const result = await fxService.convertAmount(companyId, amount, from_currency, to_currency);
@@ -72,7 +72,7 @@ router.get('/customs/rules', customsCtrl.getRules);
 // ── Documents ──
 router.post('/documents/generate', async (req, res, next) => {
   try {
-    const companyId = req.headers['x-company-id'] as string;
+    const companyId = req.tenant.companyId as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
     const parsed = GenerateDocumentSchema.parse(req.body);
     const doc = await docService.generateDocument(companyId, parsed);
@@ -84,7 +84,7 @@ router.post('/documents/generate', async (req, res, next) => {
 
 router.get('/documents/:id', async (req, res, next) => {
   try {
-    const companyId = req.headers['x-company-id'] as string;
+    const companyId = req.tenant.companyId as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
     const doc = await docService.getDocument(req.params.id, companyId);
     if (!doc) throw new AppError('NOT_FOUND', 'Document not found', 404);
@@ -96,7 +96,7 @@ router.get('/documents/:id', async (req, res, next) => {
 
 router.get('/shipments/:tradeJobId/documents', async (req, res, next) => {
   try {
-    const companyId = req.headers['x-company-id'] as string;
+    const companyId = req.tenant.companyId as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
     const docs = await docService.listDocuments(req.params.tradeJobId, companyId);
     res.status(200).json(docs);
@@ -107,7 +107,7 @@ router.get('/shipments/:tradeJobId/documents', async (req, res, next) => {
 
 router.patch('/documents/:id/status', async (req, res, next) => {
   try {
-    const companyId = req.headers['x-company-id'] as string;
+    const companyId = req.tenant.companyId as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
     const { status } = req.body;
     if (!status) throw new AppError('VALIDATION_ERROR', 'status is required', 400);

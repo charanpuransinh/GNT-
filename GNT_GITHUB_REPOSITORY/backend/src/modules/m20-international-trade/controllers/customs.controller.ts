@@ -21,7 +21,7 @@ export class CustomsController {
   // POST /api/v1/customs/calculate
   calculate = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const parsed = CustomsCalculateSchema.parse(req.body);
@@ -41,7 +41,7 @@ export class CustomsController {
   // GET /api/v1/customs/rules
   getRules = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const hsnCode = req.query.hsn_code as string;

@@ -15,6 +15,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { requestTracer } from './common/middleware/request-tracer';
 import { auditContextMiddleware } from './common/middleware/audit-context';
+import { authMiddleware } from './common/middleware/auth-middleware';
+import { tenantMiddleware } from './common/middleware/tenant-middleware';
 import { MODULE_MOUNTS, type ModuleMount } from './module-registry';
 
 export const app = express();
@@ -30,6 +32,24 @@ app.use('/api/v1/integrations/webhook', express.raw({ type: '*/*', limit: '2mb' 
 app.use(express.json({ limit: '10mb' }));
 app.use(requestTracer);
 app.use(auditContextMiddleware);
+
+// ─── टास्क #009: /api/v1/* पर एक ही जगह auth+tenant (41 फाइलों में नहीं) ───
+// छूट सिर्फ़ ये (सूची इससे बाहर कुछ नहीं):
+const PUBLIC_PREFIXES = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/forgot-password',
+  '/api/v1/auth/otp',
+  '/api/v1/integrations/webhook',
+];
+const isPublicPath = (p: string): boolean =>
+  PUBLIC_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`) || p.startsWith(`${pre}?`));
+
+app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
+  if (isPublicPath(req.originalUrl)) return next();
+  return authMiddleware(req, res, next);
+});
+app.use('/api/v1', tenantMiddleware);
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 

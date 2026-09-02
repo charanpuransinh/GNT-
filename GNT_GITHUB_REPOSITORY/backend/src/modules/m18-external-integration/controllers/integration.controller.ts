@@ -83,7 +83,7 @@ export class IntegrationController {
 
   async getGatewayStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const companyId = req.query.company_id as string;
+      const companyId = req.tenant.companyId;
       const type = req.query.type as string | undefined;
       if (!companyId) {
         res.status(400).json({ success: false, message: 'company_id required' });
@@ -108,7 +108,7 @@ export class IntegrationController {
 
   async listApiKeys(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const companyId = req.query.company_id as string;
+      const companyId = req.tenant.companyId;
       if (!companyId) {
         res.status(400).json({ success: false, message: 'company_id required' });
         return;

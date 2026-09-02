@@ -25,7 +25,7 @@ export class TradeController {
   // POST /api/v1/trade/exports
   createExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const parsed = CreateTradeShipmentSchema.parse(req.body);
@@ -39,7 +39,7 @@ export class TradeController {
   // POST /api/v1/trade/imports
   createImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const parsed = CreateTradeShipmentSchema.parse(req.body);
@@ -53,7 +53,7 @@ export class TradeController {
   // GET /api/v1/trade/shipments
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const parsed = ListTradeJobsQuerySchema.parse(req.query);
@@ -67,7 +67,7 @@ export class TradeController {
   // GET /api/v1/trade/shipments/:id
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const job = await this.service.getTradeJob(String(req.params.id), companyId);
@@ -80,7 +80,7 @@ export class TradeController {
   // PATCH /api/v1/trade/shipments/:id
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const parsed = UpdateTradeShipmentSchema.parse(req.body);
@@ -94,7 +94,7 @@ export class TradeController {
   // DELETE /api/v1/trade/shipments/:id
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.headers['x-company-id'] as string;
+      const companyId = req.tenant.companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       await this.service.deleteTradeJob(String(req.params.id), companyId);
