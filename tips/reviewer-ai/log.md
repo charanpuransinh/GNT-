@@ -1172,3 +1172,74 @@ curl http://localhost:3000/healthz
 - **अधूरा:** कुछ नहीं — आपका verify + मुहर बाक़ी (वो आपका काम)
 - **रुकावट:** कोई नहीं
 - **अगला:** #008 (M11/M12/M14/M15 schema merge, ~530 errors) — अभी शुरू कर रहा हूँ
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #008 पूरा: M11/M12/M14/M15 के models canonical schema में
+तारीख: 2026-09-03 (रात, ~01:15)
+
+### क्या हुआ (आपके task के नाम-मेल फैसलों के हिसाब से ही)
+1. `prisma/schema.prisma` में **30 models जोड़े** — side फाइलों से ज्यों-के-त्यों, `@@map` सहित:
+   - M11 (10): PaymentMethod, PaymentTransaction, PaymentAllocation, PaymentSchedule,
+     PaymentInstallment, Refund, PaymentLedgerEntry, PaymentReconciliation, BankAccount,
+     + नया **PaymentReconciliationItem** (`@@map("payment_reconciliation_item")`, फील्ड कोड के
+     असली इस्तेमाल से — reconciliation.repository.ts)
+   - M12 (13): Employee, Department, Designation, EmployeeDocument, Shift, Attendance,
+     LeaveType, Leave, Holiday, Payroll, PayrollTemplate + नए **LeaveBalance** और **HREventLog**
+   - M14 (7): ImportJob, ImportMapping, ImportErrorLog, ExportJob, ExportTemplate,
+     DataTransform, FileUpload
+   - M15 (10): SyncConfig, SyncEntityConfig, SyncJob, SyncEntityLog, SyncConflict,
+     ExternalIntegration, SyncState + नए **SyncQueueItem**, **BackupJob**, **RestoreJob**
+2. **Renames सिर्फ़ task की तालिका वाले:**
+   - `prisma.ledgerEntry` → `prisma.paymentLedgerEntry` (+ type `LedgerEntry`→`PaymentLedgerEntry`)
+   - `prisma.reconciliation` → `prisma.paymentReconciliation`
+     (+ types `Reconciliation`/`ReconciliationItem`/`Prisma.ReconciliationWhereInput` → PaymentReconciliation*)
+   - `prisma.reconciliationItem` → `prisma.paymentReconciliationItem`
+   - `prisma.importTemplate` → `prisma.importMapping` (M14)
+
+### गिनती (exact)
+```
+npx prisma validate → valid 🚀
+tsc backend: 742 → 624
+  m11-payment:        203 → 200
+  m12-hr:              60 →  55
+  m14-import-export:  145 → 101
+  m15-sync:           197 → 131
+चारों के बाहर: 137 = 137 (कहीं कुछ नहीं टूटा — diff करके देखा)
+```
+
+### ⛔ जो आपके फैसले के हिसाब से नहीं छुए (छोड़े + गिने)
+- **M11 `prisma.invoice`** — नया model नहीं बनाया: invoice.repository.ts (21) +
+  invoice.controller.ts (20) = **41 errors** वहीं पड़े हैं (इंतज़ार: M07/M08 का invoice कौन सा)
+- **M15 `webhookEndpoint`/`webhookDelivery`** — नहीं बने: webhook.service.ts में **20 errors**
+  (इंतज़ार: M18 के webhook_log/integration_config से विलय का फैसला)
+- **M13 बिल्कुल नहीं छुआ** ✅
+
+### बचे हुए errors की जड़ें (अगले task के लिए तैयार नक्शा)
+- **145 errors:** `req.params/query` का `string | string[]` — Express 5 typing; सब modules में फैला
+- **48 errors:** controllers में `req.tenantId` (असल में `req.tenant.companyId` चाहिए — #009 वाला बदलाव
+  M11/M14/M15 तक पहुँचा ही नहीं था; इन controllers में अभी भी x-company-id वाली pattern ज़िंदा है)
+- **field-shape mismatch:** कोड बुलाता है debitAmount/creditAmount/narration/entryDate (ledger),
+  startDate/endDate/statementFileUrl (reconciliation), invoice include (paymentTransaction),
+  transactions include (bankAccount), branchName (bankAccount) — पर side-file के models में दूसरे
+  नाम हैं। आपने कहा था "जो बचे उन्हें log में गिनकर लिख देना" — यही वो सूची है।
+- **enum imports गायब:** `PaymentStatus`, `TransactionType`, `RefundStatus`, `BankAccountType`
+  (side-file में status String है, enum नहीं — कोड import कर रहा है)
+
+### side-file की एक खामी मैंने पूरी की (दर्ज है)
+M15_Sync.prisma में `SyncJob.syncConfig` का back-relation (`SyncConfig.jobs`) side-file में था ही
+नहीं — prisma validate ने P1012 से रोका। PaymentReconciliation.items की तरह minimal जोड़ा।
+
+### नए models के फील्ड — code की असली माँग से (task के field-list से हल्के फर्क — दर्ज)
+- **LeaveBalance:** कोड `employeeId_year` compound unique + `annual/sick/casual/unpaid/used` बुलाता है;
+  task की सूची के `leave_type_id/entitled/balance` **optional** रखे (कोड उन्हें नहीं देता — required
+  रखता तो create ही टूट जाता)
+- **HREventLog:** कोड `eventType/payload/module/processed` बुलाता है — वही रखे + employeeId? optional
+- **SyncQueueItem/BackupJob/RestoreJob:** फील्ड sync-queue.service.ts / backup.service.ts के
+  असली create/update से लिए (tenantId/syncJobId/retryCount/maxRetries/processedAt वगैरह)
+
+### सत्र नोट
+- **पूरा:** #008 (schema merge + renames + validate + generate + गिनती) ✅
+- **अधूरा:** कुछ नहीं — बचे हुए 624 errors अगले tasks (#016 के बाद वाले) के हैं
+- **रुकावट:** कोई नहीं (invoice/webhook वाले फैसले आपके — log में दर्ज, वहीं रुका जैसा आपने कहा था)
+- **अगला:** #016 (M06–M10 हरा + mount, 62 errors) — अभी शुरू कर रहा हूँ
