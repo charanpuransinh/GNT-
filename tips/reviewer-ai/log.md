@@ -239,3 +239,74 @@ error dumps भर जाते और फोल्डर बनाने का
 पिछली Entry में guide का जो टकराव ठीक किया था, वो एक बार का काम नहीं था — यह दूसरी बार है
 जब guides में लिखा नियम असल काम से मेल नहीं खा रहा था। आगे कोई नया नियम बने तो
 **उसी वक्त दोनों guides + चालू task फाइल तीनों में लिखूंगा**, बाद में नहीं।
+
+---
+
+## Entry 7 — पूरे सिस्टम की Wiring/Blueprint AUDIT पूरी हुई
+तारीख: 2026-09-02
+
+पूरन सिंह के निर्देश पर पूरे repo की wiring audit की। DeepSeek समानांतर में टास्क #003 चला रहा था,
+इसलिए audit **पूरी तरह read-only** रखी — एक भी कोड फाइल नहीं छुई, कोई git operation नहीं किया
+जो उसके काम में दखल दे।
+
+**पूरी रिपोर्ट: `tips/reviewer-ai/AUDIT-01-wiring-blueprint.md` (13 findings — 4×P0, 5×P1, 4×P2)**
+
+### सार — जो मैंने अब तक गलत समझा था
+मैं अब तक 1490 tsc errors को "असली समस्या" मान रहा था। **वो लक्षण हैं, बीमारी नहीं।**
+असली बात: **सिस्टम कभी wired ही नहीं हुआ।**
+
+चार P0 (नापे हुए, अंदाज़ा नहीं):
+1. **कोई `app.listen` पूरे backend में नहीं** — server कभी शुरू ही नहीं हो सकता (`grep` → 0 results)
+2. **20 में से 8 modules `app.ts` में mount नहीं** — M06/M09/M10/M16/M17/M19/M20 का पूरा कोड
+   लिखा है पर उस तक कोई request कभी नहीं पहुँचेगी; M05 के पास routes ही नहीं
+3. **M05 Party Management पूरी तरह खाली** — सिर्फ `.gitkeep` + stub index (backend + frontend दोनों)
+4. **frontend का कोई App.tsx/main.tsx/router नहीं** — 314 फाइलें हैं, खोलने का रास्ता नहीं
+
+### 🔴 मेरी अपनी चूक — दर्ज कर रहा हूँ
+टास्क #003 में मैंने "Team A" = M01–M04 माना। **Blueprint में CLASS A = M01–M05 है।**
+M05 इसलिए छूट गया क्योंकि उसका error count **0** था — और मैंने 0 को "ठीक है" पढ़ लिया।
+असल में 0 इसलिए था **क्योंकि वहाँ कोड ही नहीं है।** खाली फोल्डर errors नहीं देता।
+
+**नियम जो मैं खुद पर लागू कर रहा हूँ:** "0 errors" को कभी सेहत मत मानना — पहले देखो कोड मौजूद है या नहीं।
+
+### टास्क #003 का दायरा बदल रहा हूँ क्या? — नहीं
+#003 चल रहा है, सही चल रहा है, उसे नहीं छेड़ूँगा। M05 का काम अलग टास्क (#007) में जाएगा।
+बीच में दायरा बदलना DeepSeek का काम तोड़ना होता — और guide का नियम है "एक बार में एक चीज़"।
+
+### #003 पर एक ज़रूरी बात जो audit से निकली (DeepSeek को बता दी जाएगी)
+`common/middleware/rate-limit` **फाइल मौजूद ही नहीं** है, पर M03/M04 की routes उसे import करती हैं,
+और `express-rate-limit` dependency भी नहीं है। DeepSeek इसी पर अटका था (tmux में दिखा)।
+यह #003 के Root Cause 4 (TS2307) का ही हिस्सा है — उसे बता रहा हूँ कि यह असली gap है,
+उसकी गलती नहीं, और इसे कैसे हल करना है।
+
+### बाकी बड़े findings (विस्तार audit फाइल में)
+- **21 prisma models कोड इस्तेमाल करता है, canonical schema में नहीं** — #003 वाले 4 सिर्फ 19% थे।
+  जड़: **M11–M15 के schemas कभी merge ही नहीं हुए**, 7 अलग फाइलों में पड़े हैं।
+  ⚠️ **M13 की 3 अलग-अलग, आपस में टकराती परिभाषाएँ** मिलीं — merge से पहले फैसला चाहिए।
+  *(यह वही TODO था जो मैंने Entry 4 में खुद के लिए दर्ज किया था — अब जवाब मिल गया, और यह मेरे अंदाज़े से बहुत बड़ा निकला।)*
+- **71 टूटे imports**, 44 अकेले M13 में — M13 किसी और repo के ढाँचे के लिए लिखा गया
+  (`m04-events`, `m06-notifications` जैसे phantom modules जो blueprint में हैं ही नहीं)
+- **tsconfig में M13 की 8 फाइलें + सारे tests `exclude`** — यानी 1490 का baseline असल से कम है।
+  यह वही suppression है जो मैंने `as any` के नाम पर मना किया था, बस config के स्तर पर।
+- **Security wiring लगभग नदारद** — 41 route फाइलों में auth सिर्फ 4 पर, tenant 1 पर;
+  helmet/cors dependency में हैं पर app.ts में इस्तेमाल नहीं। **multi-tenant isolation लागू नहीं** —
+  ERP में यह सबसे भारी जोखिम।
+- **event handlers कभी subscribe नहीं होते** → हर module की handlers फाइलें dead code;
+  M11 का अपना अलग event bus है (12 जगह), उसके events global bus तक पहुँचते ही नहीं।
+- **public contract नियम दोनों तरफ टूटा** — 5 modules के index.ts खाली stubs; उधर M06/M17
+  अपने **repositories** public export कर रहे हैं (blueprint में साफ़ FORBIDDEN), और M17 6 modules की
+  internal services सीधे relative path से import करता है।
+- frontend 6 ऐसे API पतों को बुलाता है जो backend पर mount ही नहीं (`/inventory`, `/gst`,
+  `/accounting`, `/reports`, `/notifications`, और `/foundation` — backend पर वो `/app` है)
+- **94 फाइलें असल में खाली placeholder** (M15:57, M13:22, M14:15) — फाइल-गिनती से प्रगति नापना गलत है
+
+### आगे का क्रम (मेरा फैसला)
+#003 (चल रहा) → #004 (frontend) → **#005 server bootstrap + 8 modules mount (P0)** →
+**#006 frontend app shell (P0)** → **#007 M05 पूरा module (P0)** → #008 M11–M15 schema merge →
+#009 security/tenant middleware → #010 M13 को ढाँचे में लाना + tsconfig exclude हटाना
+
+**#005/#006 पहले क्यों:** ये "first light" देते हैं — पहली बार एक request end-to-end चलेगी।
+जब तक वो नहीं होता, बाकी हर दावा बिना नापा हुआ अंदाज़ा है।
+
+**स्थिति:** audit पूरी, रिपोर्ट दर्ज। नए टास्क #005–#010 अभी **बनाए नहीं** — पहले #003 पूरा होने दूँगा,
+वरना DeepSeek पर एक साथ कई दिशाएँ आ जाएंगी।
