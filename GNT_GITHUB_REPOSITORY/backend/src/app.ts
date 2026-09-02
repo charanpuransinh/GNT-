@@ -49,7 +49,13 @@ app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
   if (isPublicPath(req.originalUrl)) return next();
   return authMiddleware(req, res, next);
 });
-app.use('/api/v1', tenantMiddleware);
+// ⚠️ tenant पर भी वही छूट लगनी ज़रूरी है (समीक्षक AI, 2026-09-02):
+// पहले यह बिना जाँच के हर /api/v1 पर चलता था — इसलिए /auth/login भी 403 हो रहा था,
+// यानी कोई login ही नहीं कर सकता था। चलाकर पकड़ा (login → 403), यहीं ठीक किया।
+app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
+  if (isPublicPath(req.originalUrl)) return next();
+  return tenantMiddleware(req, res, next);
+});
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
