@@ -36,26 +36,26 @@ const reportService = new ReportService(
 const controller = new ReportController(reportService);
 
 // ─── Report Generation Routes ───
-router.post('/reports/generate', controller.generateReport);
-router.get('/reports/sales', controller.getSalesReport);
-router.get('/reports/purchase', controller.getPurchaseReport);
-router.get('/reports/inventory', controller.getInventoryReport);
-router.get('/reports/gst', controller.getGSTReport);
-router.get('/reports/accounting', controller.getAccountingReport);
-router.get('/reports/hr', controller.getHRReport);
-router.post('/reports/export', controller.exportReport);
-router.get('/reports/executive', controller.getExecutiveDashboard);
+router.post('/generate', controller.generateReport);
+router.get('/sales', controller.getSalesReport);
+router.get('/purchase', controller.getPurchaseReport);
+router.get('/inventory', controller.getInventoryReport);
+router.get('/gst', controller.getGSTReport);
+router.get('/accounting', controller.getAccountingReport);
+router.get('/hr', controller.getHRReport);
+router.post('/export', controller.exportReport);
+router.get('/executive', controller.getExecutiveDashboard);
 
 // ─── Report Config Routes ───
-router.post('/reports/configs', controller.createConfig);
-router.get('/reports/configs', controller.getConfigs);
-router.put('/reports/configs/:id', controller.updateConfig);
-router.delete('/reports/configs/:id', controller.deleteConfig);
+router.post('/configs', controller.createConfig);
+router.get('/configs', controller.getConfigs);
+router.put('/configs/:id', controller.updateConfig);
+router.delete('/configs/:id', controller.deleteConfig);
 
 // ─── Report Template Routes ───
-router.post('/reports/templates', controller.createTemplate);
-router.get('/reports/templates', controller.getTemplates);
-router.put('/reports/templates/:id', controller.updateTemplate);
-router.delete('/reports/templates/:id', controller.deleteTemplate);
+router.post('/templates', controller.createTemplate);
+router.get('/templates', controller.getTemplates);
+router.put('/templates/:id', controller.updateTemplate);
+router.delete('/templates/:id', controller.deleteTemplate);
 
 export default router;

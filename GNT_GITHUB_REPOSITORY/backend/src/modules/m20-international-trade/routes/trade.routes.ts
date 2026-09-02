@@ -20,12 +20,12 @@ const fxService = new FXService(prisma);
 const docService = new TradeDocumentService(prisma);
 
 // ── Trade Shipments ──
-router.post('/trade/exports', tradeCtrl.createExport);
-router.post('/trade/imports', tradeCtrl.createImport);
-router.get('/trade/shipments', tradeCtrl.list);
-router.get('/trade/shipments/:id', tradeCtrl.getById);
-router.patch('/trade/shipments/:id', tradeCtrl.update);
-router.delete('/trade/shipments/:id', tradeCtrl.delete);
+router.post('/exports', tradeCtrl.createExport);
+router.post('/imports', tradeCtrl.createImport);
+router.get('/shipments', tradeCtrl.list);
+router.get('/shipments/:id', tradeCtrl.getById);
+router.patch('/shipments/:id', tradeCtrl.update);
+router.delete('/shipments/:id', tradeCtrl.delete);
 
 // ── HSN ──
 router.get('/hsn/search', hsnCtrl.search);
@@ -70,7 +70,7 @@ router.post('/customs/calculate', customsCtrl.calculate);
 router.get('/customs/rules', customsCtrl.getRules);
 
 // ── Documents ──
-router.post('/trade/documents/generate', async (req, res, next) => {
+router.post('/documents/generate', async (req, res, next) => {
   try {
     const companyId = req.headers['x-company-id'] as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
@@ -82,7 +82,7 @@ router.post('/trade/documents/generate', async (req, res, next) => {
   }
 });
 
-router.get('/trade/documents/:id', async (req, res, next) => {
+router.get('/documents/:id', async (req, res, next) => {
   try {
     const companyId = req.headers['x-company-id'] as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
@@ -94,7 +94,7 @@ router.get('/trade/documents/:id', async (req, res, next) => {
   }
 });
 
-router.get('/trade/shipments/:tradeJobId/documents', async (req, res, next) => {
+router.get('/shipments/:tradeJobId/documents', async (req, res, next) => {
   try {
     const companyId = req.headers['x-company-id'] as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
@@ -105,7 +105,7 @@ router.get('/trade/shipments/:tradeJobId/documents', async (req, res, next) => {
   }
 });
 
-router.patch('/trade/documents/:id/status', async (req, res, next) => {
+router.patch('/documents/:id/status', async (req, res, next) => {
   try {
     const companyId = req.headers['x-company-id'] as string;
     if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
