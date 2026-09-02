@@ -1409,3 +1409,47 @@ enum DocumentStatus {
   rejected
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TEAM D — M17 REPORTING
+// SOURCE: team-d/M17-Reporting/database/report_config.sql + report_template.sql
+// टास्क #012: camelCase model नाम (code इसी से बुलाता है) + @@map।
+// ═══════════════════════════════════════════════════════════════
+
+model ReportConfig {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  name         String
+  reportType   String   @map("report_type")
+  filtersJson  Json     @default("{}") @map("filters_json")
+  schedule     Json?
+  createdBy    String   @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId])
+  @@index([reportType])
+  @@index([createdBy])
+  @@map("report_config")
+
+  // CHECK: report_type IN ('sales','purchase','inventory','gst','accounting','hr','executive')
+}
+
+model ReportTemplate {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  name         String
+  templateType String   @map("template_type")
+  layoutJson   Json     @default("{}") @map("layout_json")
+  headerHtml   String?  @map("header_html")
+  footerHtml   String?  @map("footer_html")
+  createdBy    String   @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId])
+  @@index([templateType])
+  @@map("report_template")
+
+  // CHECK: template_type IN ('pdf','excel','html','csv')
+}
+

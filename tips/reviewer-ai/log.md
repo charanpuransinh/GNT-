@@ -905,3 +905,40 @@ CIF ₹1,00,000 · BCD 10% · SWS 10% (default) · IGST 18% · cess 0% · बा
 - **पूरा:** #013 ✅ #011 ✅ #014 ✅ #015 ✅ (M20 tsc 0, mount हुआ)
 - **रुकावट:** कुछ नहीं (M20 index type-export fix एक mount bug था, ठीक किया)
 - **अगला:** #012 M17 Reporting
+
+
+---
+
+## 🟡 कोडर AI (DeepSeek) — टास्क #012 अधूरा (आंशिक): M17 Reporting
+तारीख: 2026-09-02 | **अधूरा है — छिपाया नहीं** (आपके नियम अनुसार साफ़ लिख रहा हूँ)
+
+### जो हो गया
+- **Step 1** — 2 models (`ReportConfig`, `ReportTemplate` camelCase + @@map) + validate 🚀 green ✅
+- **Step 3** — m17 `index.ts` से `ReportRepository` + `ReportQueryBuilder` export हटाए ✅
+- **Step 2 (आंशिक)** — m07/m08/m09 के खाली `index.ts` में `PurchaseService`/`SalesService`/`GSTService` export जोड़े (repository export नहीं) ✅
+- Mechanical fixes: controller `err.issues` + `String(req.params)`, handlers `eventBus.subscribe/publish`, repository type नाम + Prisma import, `report.model` `Prisma.TransactionClient`, service के duplicate DTO imports ठीक किए
+
+### अभी की गिनती
+```
+$ npx tsc -p tsconfig.backend.json --noEmit | grep -c "m17-reporting"  → 35 (0 नहीं पहुंचा)
+$ npx prisma validate  → valid 🚀
+backend कुल: 807 → 782
+```
+
+### 🔴 बचे 35 errors — सिर्फ़ 4 जड़ें, और 4 में से 2 आपके फैसले चाहिए
+1. **3 services मौजूद ही नहीं (TS2307 ×3 + उनसे जुड़े TS2344/TS2554/TS2345):**
+   `report.routes.ts` import करता है: `InventoryService` (m06), `AccountingService` (m10), `HRService` (m12) —
+   **ये तीनों services उन modules में हैं ही नहीं** (m06 में product/stock/category, m10 में ledger/voucher/brs, m12 में employee/leave/payroll)। `ReportQueryBuilder` इनके types पर टिका है। यह business design फैसला है — मैंने services गढ़ीं नहीं (अंदाज़ा मना है)।
+2. **pdfkit + uuid के @types नहीं (TS7016 ×2 + PDFKit namespace ×6):** package install चाहिए, network blocked + "नया package नहीं" नियम।
+3. `ReportService.deleteTemplate` method मौजूद नहीं (controller बुलाता है) — छोटा, पर service का काम है।
+4. `SalesReportRow.totalTax` field type में नहीं + `ExportFormat` में 'json' नहीं + ReportSchedule→Json cast (TS2322/TS2352) — छोटे type fixes, पर 1/2 हल करने के बाद ये आ जाते हैं।
+
+### सुझाव (आपके लौटने पर)
+- M17 को पूरा करने के लिए **3 services का rough/design** (InventoryService/AccountingService/HRService के public method क्या-क्या) और **@types/pdfkit + @types/uuid install** की अनुमति/व्यवस्था चाहिए।
+- बाक़ी (deleteTemplate, totalTax, ExportFormat, casts) आपका rough मिलते ही मैं ख़त्म कर दूँगा।
+
+### सत्र नोट (आख़िरी)
+- **पूरा:** #013 ✅ #011 ✅ #014 ✅ #015 ✅ (Team D के 5 में से 4 पूरे)
+- **अधूरा:** #012 M17 — Step 1+3+आंशिक 2 हो गए; 35 errors बचे, 2 hard blockers (3 services + @types packages) आपके फैसले चाहिए
+- **रुकावट:** ऊपर दर्ज
+- **अगला:** आपका verify + #012 के blockers का फैसला

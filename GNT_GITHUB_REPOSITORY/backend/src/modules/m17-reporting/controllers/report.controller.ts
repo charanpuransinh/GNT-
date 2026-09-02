@@ -30,7 +30,7 @@ export class ReportController {
       res.status(200).json(result);
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ success: false, error: error.errors });
+        res.status(400).json({ success: false, error: error.issues });
         return;
       }
       next(error);
@@ -164,7 +164,7 @@ export class ReportController {
       res.status(200).json(result);
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ success: false, error: error.errors });
+        res.status(400).json({ success: false, error: error.issues });
         return;
       }
       next(error);
@@ -192,7 +192,7 @@ export class ReportController {
       res.status(201).json({ success: true, data: result });
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ success: false, error: error.errors });
+        res.status(400).json({ success: false, error: error.issues });
         return;
       }
       next(error);
@@ -212,7 +212,7 @@ export class ReportController {
   updateConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const companyId = req.headers['x-company-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
       const result = await this.reportService.updateReportConfig(id, companyId, req.body);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
@@ -223,7 +223,7 @@ export class ReportController {
   deleteConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const companyId = req.headers['x-company-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
       await this.reportService.deleteReportConfig(id, companyId);
       res.status(204).send();
     } catch (error) {
@@ -242,7 +242,7 @@ export class ReportController {
       res.status(201).json({ success: true, data: result });
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ success: false, error: error.errors });
+        res.status(400).json({ success: false, error: error.issues });
         return;
       }
       next(error);
@@ -262,7 +262,7 @@ export class ReportController {
   updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const companyId = req.headers['x-company-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
       const result = await this.reportService.updateReportTemplate(id, companyId, req.body);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
@@ -273,7 +273,7 @@ export class ReportController {
   deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const companyId = req.headers['x-company-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
       await this.reportService.deleteTemplate(id, companyId);
       res.status(204).send();
     } catch (error) {

@@ -2,7 +2,7 @@
  * M17 Reporting — Event Consumers
  * Owner: D4-DELTA
  */
-import { EventBus } from '../../../shared/event-bus';
+import { eventBus } from '../../../shared/events/event-bus';
 import { REPORT_EVENTS, ReportSubscriptionEvent } from './report.events';
 import { ReportService } from '../services/report.service';
 import { reportCache } from '../services/report.cache';
@@ -12,23 +12,23 @@ export class ReportEventHandlers {
 
   register(): void {
     // Subscribe to cross-module events to update report caches
-    EventBus.on(
+    eventBus.subscribe(
       REPORT_EVENTS.SUBSCRIPTIONS.SALES_INVOICE_CREATED,
       this.handleSalesInvoiceCreated.bind(this)
     );
-    EventBus.on(
+    eventBus.subscribe(
       REPORT_EVENTS.SUBSCRIPTIONS.PURCHASE_INVOICE_APPROVED,
       this.handlePurchaseInvoiceApproved.bind(this)
     );
-    EventBus.on(
+    eventBus.subscribe(
       REPORT_EVENTS.SUBSCRIPTIONS.STOCK_UPDATED,
       this.handleStockUpdated.bind(this)
     );
-    EventBus.on(
+    eventBus.subscribe(
       REPORT_EVENTS.SUBSCRIPTIONS.PAYMENT_RECEIVED,
       this.handlePaymentReceived.bind(this)
     );
-    EventBus.on(
+    eventBus.subscribe(
       REPORT_EVENTS.SUBSCRIPTIONS.EMPLOYEE_SALARY_PROCESSED,
       this.handleSalaryProcessed.bind(this)
     );
@@ -49,7 +49,7 @@ export class ReportEventHandlers {
     // Invalidate sales report cache for the company
     await this.invalidateReportCache(payload.companyId, 'sales');
     // Publish report updated event
-    EventBus.emit(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
+    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
       reportType: 'sales',
       companyId: payload.companyId,
       triggeredBy: 'sales.invoice.created',
@@ -69,7 +69,7 @@ export class ReportEventHandlers {
   }): Promise<void> {
     console.log(`[M17] Purchase invoice approved: ${payload.poId}`);
     await this.invalidateReportCache(payload.companyId, 'purchase');
-    EventBus.emit(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
+    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
       reportType: 'purchase',
       companyId: payload.companyId,
       triggeredBy: 'purchase.invoice.approved',
@@ -89,7 +89,7 @@ export class ReportEventHandlers {
   }): Promise<void> {
     console.log(`[M17] Stock updated: ${payload.productId}`);
     await this.invalidateReportCache(payload.companyId, 'inventory');
-    EventBus.emit(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
+    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
       reportType: 'inventory',
       companyId: payload.companyId,
       triggeredBy: 'stock.updated',
@@ -109,7 +109,7 @@ export class ReportEventHandlers {
   }): Promise<void> {
     console.log(`[M17] Payment received: ${payload.paymentId}`);
     await this.invalidateReportCache(payload.companyId, 'accounting');
-    EventBus.emit(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
+    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
       reportType: 'accounting',
       companyId: payload.companyId,
       triggeredBy: 'payment.received',
@@ -130,7 +130,7 @@ export class ReportEventHandlers {
   }): Promise<void> {
     console.log(`[M17] Salary processed: ${payload.salaryId}`);
     await this.invalidateReportCache(payload.companyId, 'hr');
-    EventBus.emit(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
+    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
       reportType: 'hr',
       companyId: payload.companyId,
       triggeredBy: 'employee.salary.processed',

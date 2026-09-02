@@ -7,17 +7,15 @@ import { ReportRepository } from '../repositories/report.repository';
 import { ReportQueryBuilder } from './report.internal';
 import { ReportGenerator } from './report.generator';
 import {
-  GenerateReportRequestDto,
-  ExportReportRequestDto,
-  ReportConfigDto,
-  ReportTemplateDto,
+  GenerateReportRequest,
+  ExportReportRequest,
+  ReportConfig,
+  ReportTemplate,
   ReportResponse,
   ExportReportResponse,
   ReportType,
   ReportFilters,
   ExecutiveDashboard,
-  ReportConfig,
-  ReportTemplate,
 } from '../types/report.types';
 
 export class ReportService {
@@ -50,7 +48,7 @@ export class ReportService {
    * → Frontend pages
    */
   async generateReport(
-    request: GenerateReportRequestDto,
+    request: GenerateReportRequest,
     companyId: string
   ): Promise<ReportResponse<unknown>> {
     const { reportType, filters } = request;
@@ -86,7 +84,7 @@ export class ReportService {
    * → PDF/Excel download
    */
   async exportReport(
-    request: ExportReportRequestDto,
+    request: ExportReportRequest,
     companyId: string,
     baseUrl: string
   ): Promise<ExportReportResponse> {
@@ -134,7 +132,7 @@ export class ReportService {
   // ─── Report Config Management ───
 
   async createReportConfig(
-    dto: ReportConfigDto,
+    dto: ReportConfig,
     createdBy: string
   ): Promise<ReportConfig> {
     return this.repository.createConfig({ ...dto, createdBy });
@@ -151,7 +149,7 @@ export class ReportService {
   async updateReportConfig(
     id: string,
     companyId: string,
-    dto: Partial<ReportConfigDto>
+    dto: Partial<ReportConfig>
   ): Promise<ReportConfig> {
     return this.repository.updateConfig(id, companyId, dto);
   }
@@ -163,7 +161,7 @@ export class ReportService {
   // ─── Report Template Management ───
 
   async createReportTemplate(
-    dto: ReportTemplateDto,
+    dto: ReportTemplate,
     createdBy: string
   ): Promise<ReportTemplate> {
     return this.repository.createTemplate({ ...dto, createdBy });
@@ -176,7 +174,7 @@ export class ReportService {
   async updateReportTemplate(
     id: string,
     companyId: string,
-    dto: Partial<ReportTemplateDto>
+    dto: Partial<ReportTemplate>
   ): Promise<ReportTemplate> {
     return this.repository.updateTemplate(id, companyId, dto);
   }

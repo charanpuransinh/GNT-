@@ -47,4 +47,4 @@ export const reportConfigExtension = Prisma.defineExtension({
   },
 });
 
-export type ExtendedPrismaClient = Prisma.Client;
+export type ExtendedPrismaClient = Prisma.TransactionClient;

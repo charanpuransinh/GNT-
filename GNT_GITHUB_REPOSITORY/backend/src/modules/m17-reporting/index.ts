@@ -4,12 +4,9 @@
  */
 
 // Services
-export { ReportService } from './services/report.service';
-export { ReportQueryBuilder } from './services/report.internal';
-export { ReportGenerator } from './services/report.generator';
 
-// Repository
-export { ReportRepository } from './repositories/report.repository';
+export { ReportService } from './services/report.service';
+export { ReportGenerator } from './services/report.generator';
 
 // Controller
 export { ReportController } from './controllers/report.controller';

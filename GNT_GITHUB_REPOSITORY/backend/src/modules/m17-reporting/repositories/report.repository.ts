@@ -3,12 +3,10 @@
  * Owner: D4-DELTA
  * Tables: report_config, report_template
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import {
   ReportConfig,
   ReportTemplate,
-  ReportConfigDto,
-  ReportTemplateDto,
 } from '../types/report.types';
 
 export class ReportRepository {
@@ -16,14 +14,14 @@ export class ReportRepository {
 
   // ─── Report Config CRUD ───
 
-  async createConfig(data: ReportConfigDto & { createdBy: string }): Promise<ReportConfig> {
+  async createConfig(data: ReportConfig & { createdBy: string }): Promise<ReportConfig> {
     return this.prisma.reportConfig.create({
       data: {
         companyId: data.companyId,
         name: data.name,
         reportType: data.reportType,
-        filtersJson: data.filtersJson as Prisma.JsonValue,
-        schedule: data.schedule as Prisma.JsonValue,
+        filtersJson: data.filtersJson as Prisma.InputJsonValue,
+        schedule: data.schedule as Prisma.InputJsonValue,
         createdBy: data.createdBy,
       },
     }) as Promise<ReportConfig>;
@@ -52,14 +50,14 @@ export class ReportRepository {
   async updateConfig(
     id: string,
     companyId: string,
-    data: Partial<ReportConfigDto>
+    data: Partial<ReportConfig>
   ): Promise<ReportConfig> {
     return this.prisma.reportConfig.update({
       where: { id },
       data: {
         ...data,
-        filtersJson: data.filtersJson ? (data.filtersJson as Prisma.JsonValue) : undefined,
-        schedule: data.schedule ? (data.schedule as Prisma.JsonValue) : undefined,
+        filtersJson: data.filtersJson ? (data.filtersJson as Prisma.InputJsonValue) : undefined,
+        schedule: data.schedule ? (data.schedule as Prisma.InputJsonValue) : undefined,
       },
     }) as Promise<ReportConfig>;
   }
@@ -75,13 +73,13 @@ export class ReportRepository {
 
   // ─── Report Template CRUD ───
 
-  async createTemplate(data: ReportTemplateDto & { createdBy: string }): Promise<ReportTemplate> {
+  async createTemplate(data: ReportTemplate & { createdBy: string }): Promise<ReportTemplate> {
     return this.prisma.reportTemplate.create({
       data: {
         companyId: data.companyId,
         name: data.name,
         templateType: data.templateType,
-        layoutJson: data.layoutJson as Prisma.JsonValue,
+        layoutJson: data.layoutJson as Prisma.InputJsonValue,
         headerHtml: data.headerHtml,
         footerHtml: data.footerHtml,
         createdBy: data.createdBy,
@@ -105,7 +103,7 @@ export class ReportRepository {
   async updateTemplate(
     id: string,
     companyId: string,
-    data: Partial<ReportTemplateDto>
+    data: Partial<ReportTemplate>
   ): Promise<ReportTemplate> {
     const template = await this.findTemplateById(id, companyId);
     if (!template) throw new Error('Report template not found');
@@ -113,7 +111,7 @@ export class ReportRepository {
       where: { id },
       data: {
         ...data,
-        layoutJson: data.layoutJson ? (data.layoutJson as Prisma.JsonValue) : undefined,
+        layoutJson: data.layoutJson ? (data.layoutJson as Prisma.InputJsonValue) : undefined,
       },
     }) as Promise<ReportTemplate>;
   }
