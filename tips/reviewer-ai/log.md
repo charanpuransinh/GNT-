@@ -351,3 +351,64 @@ scope-check (generator/datasource अछूता, मौजूदा 41 models 
 न उस पर tsc/prisma/test चलते हैं — यानी verify करना ही नामुमकिन हो जाता। ऊपर से एक ही फाइल की
 दो प्रतियाँ बनतीं और यह भी पता न चलता कि सच कौन सी है।
 **git की branch यही काम सही तरीके से करती है** — इसलिए `deepseek/work` branch।
+
+
+---
+
+## 📥 कोडर AI (DeepSeek) — टास्क #004 की तैयारी: frontend m01–m04 की exact error लिस्ट
+तारीख: 2026-09-02 | आपके कहे अनुसार — अभी कोई fix नहीं किया, सिर्फ लिस्ट + शुरुआती पढ़ाई। Task फाइल का इंतज़ार।
+
+**स्रोत:** `npx tsc -p tsconfig.json --noEmit` (टास्क #003 के बाद वाला state, कुल 1386 errors)
+**दायरा:** सिर्फ `frontend/src/modules/m01-foundation` से `m04-company-management` तक
+**कुल:** **97 errors** (task में बताई गिनती से मेल ✅)
+
+**पूरी exact लिस्ट (verbatim):** `tips/reviewer-ai/task-004-frontend-errors-team-a.txt`
+
+### Error-code के हिसाब से बँटवारा
+- TS2307 (Cannot find module): **53**
+- TS7006 (implicit any): **21**
+- TS2345 (argument type mismatch): **13**
+- TS2322 (assignability): **6**
+- TS2339 (property नहीं है): **2**
+- TS2613 (no default export): **1**
+- TS2554 (expected args): **1**
+
+### फाइल-वार (top)
+- `m03/.../pages/DeploymentSettingsPage.tsx`: 17
+- `m04/.../pages/CompanyProfilePage.tsx`: 12
+- `m04/.../routes/company.routes.ts`: 6 (TS2322 lazy imports)
+- `m01/.../pages/AppShellPage.tsx`: 6 (TS2307)
+- बाकी 1–5 per file
+
+### मैंने हर error पढ़ा — शुरुआती नज़ारा (आपकी चेतावनी मानते हुए: snake_case fix यहाँ नहीं लागू)
+1. **53 में से 52 TS2307 की जड़ एक ही है — `@` alias सिर्फ backend की तरफ है।**
+   Root `tsconfig.json` में `"paths": { "@/*": ["backend/src/*"] }` है। Frontend जिन चीज़ों को
+   `@/components/ui/Button`, `@/core/api-client`, `@/hooks/useOffline`, `@/modules/m01-foundation/components/AppLogo`
+   ढूंढता है — वो **सब फाइलें disk पर मौजूद हैं** (मैंने एक-एक check की: Button.tsx, Card.tsx,
+   Badge.tsx, Input.tsx, Modal.tsx, Toggle.tsx, Table.tsx, ProgressBar.tsx, Header/Sidebar/Footer,
+   LoadingOverlay, OfflineBanner, api-client.ts, useOffline.ts, AppLogo.tsx — सब हैं)।
+   यानी यह "फाइल गायब" नहीं, **alias की समस्या** है। m04 की 9 जगहें relative path
+   `../../../components/ui` से import करती हैं (वो भी frontend/src/components/ui तक नहीं पहुँचता —
+   m04 पेजों से `../../../` = frontend/src तक ही है)। हल क्या होगा (tsconfig paths में दूसरी alias
+   जोड़ना, या `@` को array में दोनों src देना, या m04 को `@` पर ले जाना) — आपके task फाइल में तय होगा।
+   **ध्यान दिलाने लायक:** `@/modules/...` prefix backend और frontend दोनों में है, इसलिए एक `@` को
+   दोनों तरफ point करना टकराएगा — यही सबसे नाज़ुक फैसला है।
+2. **api-client (TS2613 + 3 TS2307):** `frontend/src/core/api-client.ts` में **named export** है
+   (`export { apiClient }` — error message खुद बता रहा है), पर m01/m02/m03/m04 की services
+   `import apiClient from '@/core/api-client'` (default import) करती हैं। यही गलती 4 services में है।
+3. **zod v4 का टकराव (2 + 1):** `LoginPage` में `err.errors` — zod v4 में अब `.issues` है।
+   `app.schema.ts(7,15)` में `z.string()` वाला call बदले हुए signature की वजह से टूटा है (backend के
+   validators में यही pattern कैसे handle है, वहीं से पक्का होगा)।
+4. **lazy routes (6 TS2322):** `company.routes.ts` में `lazy(() => import('./pages/...'))` करता है,
+   पर पेजों में **default export नहीं, named export** है (`export const CompanyProfilePage` वगैरह)।
+   मतलब lazy() को `{ default: Component }` चाहिए, मिल नहीं रहा। हर page देखकर default/named तय करना होगा।
+5. **TS7006 (21):** catch handler और callback params बिना type के — हर जगह का असली type पढ़कर डालना होगा।
+6. **TS2345 (13):** `DeploymentSettingsPage` (setState/context shape) और `CompanyProfilePage`
+   (`Company | null` vs `Partial<Company>`) — असली type chain पढ़कर ही तय होगा कि कहाँ data कहाँ state।
+
+**इसी हफ्ते जो नहीं करना (आपकी चेतावनी दर्ज है):** frontend को API से camelCase ही मिलता है —
+prisma objects यहाँ आते ही नहीं। snake_case बदलाव यहाँ कहीं नहीं करूँगा; हर error की जड़ पढ़कर ही हाथ लगाऊँगा।
+
+**अगला कदम:** आपकी `004-team-a-frontend-green.md` task फाइल का इंतज़ार। वो मिलते ही शुरू करूँगा।
+
+> **नोट:** push नहीं हो पाया — इस machine से GitHub पर anonymous read तो चलता है, पर write के लिए token चाहिए (fatal: Authentication failed / No anonymous write access)। commit `b054436` local पर सुरक्षित है; आपके token से push होगा।
