@@ -13,3 +13,4 @@ export { inventoryEventHandlers } from './events/inventory.handlers';
 export * from './types/inventory.types';
 export * from './validators/inventory.schema';
 export { default as inventoryRoutes } from './routes/inventory.routes';
+export { InventoryService, inventoryService } from './services/inventory.service';

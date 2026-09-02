@@ -6,3 +6,4 @@ const router = Router();
 router.use('/', hrRoutes);
 
 export default router;
+export { HRService, hrService } from './services/hr.service';
