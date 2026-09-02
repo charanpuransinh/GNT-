@@ -1,0 +1,118 @@
+# 🔏 VERIFICATION CERTIFICATES — समीक्षक AI (Claude)
+
+यह फाइल प्रोजेक्ट का **"सच का रजिस्टर"** है।
+यहाँ सिर्फ वही काम दर्ज होता है जिसे मैंने **खुद जांचा, खुद टेस्ट चलाया, और OK किया** है।
+
+**नियम (पूरन सिंह द्वारा तय, 2026-09-02):**
+- DeepSeek (कोडर AI) **बेरोक-टोक commit और push कर सकता है** — उसे रोकना नहीं है
+- **final lock/approve का अधिकार सिर्फ समीक्षक AI (Claude) के पास है**
+- जो चीज़ इस रजिस्टर में **नहीं** है, वो **verified नहीं मानी जाएगी** — चाहे वो GitHub पर मौजूद हो
+
+**हर certificate में क्या रहेगा:** commit hash · कौन सी फाइलें · मैंने खुद क्या-क्या टेस्ट चलाया ·
+exact output · फैसला (VERIFIED / REJECTED / VERIFIED-WITH-CONDITIONS) · git tag
+
+**Git tag भी लगेगा:** हर verified task पर `verified/<task-number>` नाम का tag —
+GitHub पर सीधे दिखता है, यानी कोड देखते ही पता चल जाता है कि यह जांचा हुआ है या नहीं।
+
+---
+
+## स्थिति एक नज़र में
+
+| Task | Commit | फैसला | Tag | तारीख |
+|---|---|---|---|---|
+| #002 Prisma schema fix | `77e2de2` | 🟢 VERIFIED & LOCKED | `verified/002` (backfill) | 2026-09-02 |
+| #003 Team A backend → 0 | `01ddae7` | 🟢 **VERIFIED** (schema LOCKED, कोड 4 शर्तों के साथ) | `verified/003` | 2026-09-02 |
+
+---
+
+## CERT-002 — टास्क #002: Prisma Foundation Baseline
+**Commit:** `77e2de2` · **फैसला:** 🟢 **VERIFIED & LOCKED** · **तारीख:** 2026-09-02
+
+**मैंने खुद क्या चलाया:**
+1. `npx prisma validate` → `The schema at prisma/schema.prisma is valid 🚀`, exit 0 ✅
+2. `npx tsc -p tsconfig.json --noEmit` पूरा चलाया और DeepSeek की फाइल से `diff` किया →
+   **byte-to-byte IDENTICAL** (1490 errors / 309 फाइलें) ✅
+3. Root cause की पुष्टि: temp copy में पुराना one-line format वापस डाला → 48 validation errors लौट आए ✅
+4. `git check-ignore` → `.env` git में नहीं गया, कोई secret leak नहीं ✅
+5. Scope: सिर्फ 9 lines बदलीं, models/business logic अछूते ✅
+
+**LOCK का दायरा:** `prisma/schema.prisma` का `generator` + `datasource` block —
+मेरी लिखित अनुमति के बिना कोई नहीं बदलेगा।
+*(#003 में मैंने यह lock सीमित रूप से खोला था: सिर्फ नए models + relation fields जोड़ने के लिए।)*
+
+---
+
+## CERT-003 — टास्क #003: Team A (M01–M04) Backend GREEN
+**Commit:** `01ddae7` · **तारीख:** 2026-09-02
+**फैसला:** 🟢 **VERIFIED** — schema का हिस्सा **LOCKED**, कोड का हिस्सा **4 दर्ज शर्तों के साथ पास**
+
+### मैंने खुद क्या-क्या चलाया (DeepSeek की रिपोर्ट पर भरोसा नहीं किया)
+
+| # | जांच | नतीजा |
+|---|---|---|
+| 1 | `npx tsc -p tsconfig.json --noEmit` **पूरा खुद चलाया** (~25 मिनट) | कुल **1386** errors (पहले 1490 → **104 घटे**, बढ़े नहीं) ✅ |
+| 2 | Task का pass/fail टेस्ट: Team A का count | **0** ✅ (`grep -cE "^backend/src/(app\.ts\|modules/m0[1-4])"`) |
+| 3 | मेरा output बनाम DeepSeek की `task-003-tsc-final.txt` | **byte-to-byte IDENTICAL** ✅ — कुछ छिपाया नहीं गया |
+| 4 | `npx prisma validate` खुद चलाया | `The schema at prisma/schema.prisma is valid 🚀` ✅ |
+| 5 | `as any` / `@ts-ignore` / `@ts-expect-error` / `as unknown as` diff की **नई lines** में | **0** ✅ (`git show 01ddae7 \| grep -E "^\+.*(as any\|@ts-ignore...)"`) |
+| 6 | `generator` / `datasource` block छुआ? | **नहीं** ✅ (lock सुरक्षित) |
+| 7 | मौजूदा 41 models का कोई field नाम/type बदला या हटाया? | **नहीं** ✅ (schema diff में एक भी `-` line नहीं, सिर्फ additions) |
+| 8 | 4 नए models बनाम SQL source of truth — field-दर-field मिलान (`database/schema/m03/schema.sql`, `m04/m04_schema.sql`) | **पूरा मेल** ✅ कोई column न जोड़ा, न छोड़ा |
+| 9 | `ip_address` | `String @db.Inet` — SQL के `INET` से सही मेल ✅ |
+| 10 | CHECK / EXCLUDE constraints पर comment | दोनों जगह मौजूद ✅ |
+| 11 | frontend या M06–M20 की कोई फाइल छुई? | **नहीं** ✅ |
+
+### 🔒 LOCK सर्टिफिकेट (schema)
+`prisma/schema.prisma` में जोड़े गए **4 models** (`device_registry`, `active_session`,
+`deployment_settings`, `financial_year`) और **11 relation fields** अब **LOCKED** हैं —
+SQL source से पूरी तरह मेल खाते हैं, production के लिए तैयार।
+मेरी लिखित अनुमति के बिना कोई इन्हें नहीं बदलेगा।
+
+### ⚠️ 4 शर्तें (compile रोकने वाली नहीं, पर दर्ज हैं — अगले tasks में हल होंगी)
+
+**शर्त 1 — `gstin: companyCode` एक अस्थायी अनुमान है (सबसे ज़रूरी)**
+`user.repository.findByUsernameAndCompany` में login अब **GSTIN** से company ढूंढता है, क्योंकि
+`company_master` में `code` नाम का column है ही नहीं। DeepSeek ने इसे छिपाया नहीं, साफ़ पूछा — सही किया।
+**पर यह contract से मेल नहीं खाता:** `api-contracts/v1/M02-core.contract.yaml:258` में
+`companyCode` की लंबाई 2–20 है, जबकि GSTIN हमेशा 15 अक्षर का होता है — यानी user को login में
+पूरा GSTIN टाइप करना पड़ेगा। **यह business बदलाव है, इसे "verified सही" नहीं मान रहा।**
+→ अलग task में हल होगा: या `company_master` में `code VARCHAR(20) UNIQUE` जोड़ें (SQL + schema दोनों में),
+या login contract बदलें। **फैसला पूरन सिंह के सामने रखा जाएगा।**
+
+**शर्त 2 — `express.d.ts` की typing असुरक्षित (unsound) है**
+उसमें `req.tenant` और `req.requestId` **अनिवार्य (required)** घोषित हैं — जबकि AUDIT-01 में मापा गया कि
+`tenant-middleware` 41 में से **सिर्फ 1** route पर लगा है। यानी type कहता है "हमेशा मौजूद है",
+हकीकत में ज़्यादातर routes पर `undefined` आएगा → runtime crash, और tsc उसे पकड़ नहीं पाएगा।
+यह तकनीकी रूप से वही चीज़ है जो `as any` करता है, बस दूसरे रास्ते से।
+→ task #009 (security/tenant middleware हर route पर) में हल होगा — तब यह typing सच हो जाएगी।
+
+**शर्त 3 — global typing गलत जगह है**
+`m04-company-management/types/express.d.ts` एक **global** declaration है, पर एक module के अंदर रखी है —
+इसका असर सारे 20 modules पर पड़ता है। Blueprint की module-ownership के हिसाब से यह
+`common/types/` में होनी चाहिए। → #009 के साथ ठीक होगी।
+
+**शर्त 4 — `app.ts` में एक और event bus जुड़ गया**
+M18 की wiring के लिए `new EventEmitter()` बनाया गया। यह ज़रूरी था (function को argument चाहिए था),
+पर AUDIT-01 की F9 (event bus टुकड़ों में बँटा है) अब एक कदम और बढ़ गई।
+→ #010 में सब buses एक किए जाएंगे।
+
+**दर्ज (शर्त नहीं, जानकारी):** `company.repository` के `findRoles`/`findUsers`/`updateRolePermissions`
+में response shape बदला है। DeepSeek का तर्क सही है — पुराना shape schema में मौजूद ही नहीं था,
+यानी वो कभी चलता ही नहीं था। पर `api-contracts/v1/M04-company.contract.yaml` अब कोड से पीछे रह गया है;
+contract अपडेट अलग task में।
+
+### निर्णय
+टास्क #003 **पास** — pass/fail टेस्ट (Team A = 0) पूरा हुआ, कोई error दबाया नहीं गया,
+कोई सीमा नहीं तोड़ी गई, और repo का कुल count 1490 → 1386 घटा (कहीं और कुछ नहीं टूटा)।
+ऊपर की 4 शर्तें अगले tasks में दर्ज हैं — इनके बिना यह काम "पूरा" तो है, पर "अंतिम" नहीं।
+
+**Tag:** `verified/003` → commit `01ddae7`
+
+### 🔴 इस task में मेरी अपनी गलती (दर्ज कर रहा हूँ)
+मैंने `git push HEAD:main` चलाया, और उतनी देर में DeepSeek का कोड commit हो चुका था —
+इसलिए **बिना verify किया कोड `main` पर चला गया।** यह उसी नियम का उल्लंघन है जो मैंने खुद लिखा था।
+गनीमत है कि जांच के बाद वो कोड **पास** हुआ, इसलिए `main` का सच खराब नहीं हुआ — पर क्रम गलत था।
+**सुधार:** आगे से हमेशा `git push <commit-hash>:main` (नाम लेकर), कभी `HEAD:main` नहीं —
+ताकि बीच में आया कोई और commit गलती से साथ न चला जाए।
+
+---

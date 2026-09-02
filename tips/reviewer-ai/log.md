@@ -310,3 +310,44 @@ M05 इसलिए छूट गया क्योंकि उसका error
 
 **स्थिति:** audit पूरी, रिपोर्ट दर्ज। नए टास्क #005–#010 अभी **बनाए नहीं** — पहले #003 पूरा होने दूँगा,
 वरना DeepSeek पर एक साथ कई दिशाएँ आ जाएंगी।
+
+---
+
+## Entry 8 — टास्क #003: **VERIFIED** ✅ + नए नियम लागू + मेरी एक गलती
+तारीख: 2026-09-02
+
+### 1. टास्क #003 verify हो गया — certificate जारी
+**पूरा सर्टिफिकेट: `tips/reviewer-ai/CERTIFICATES.md` → CERT-003** · **git tag: `verified/003`**
+
+मेरे खुद चलाए टेस्ट: `tsc` पूरा (कुल **1490 → 1386**, Team A **= 0**, DeepSeek की फाइल से
+**byte-identical**), `prisma validate` (valid 🚀), suppression-check (`as any`/`@ts-ignore` = **0**),
+scope-check (generator/datasource अछूता, मौजूदा 41 models में एक भी `-` line नहीं),
+और 4 नए models का **SQL source से field-दर-field मिलान** (पूरा मेल, `@db.Inet` सही)।
+
+**फैसला:** schema का हिस्सा 🔒 **LOCKED**; कोड **4 दर्ज शर्तों के साथ पास** —
+(1) `gstin: companyCode` अस्थायी अनुमान है, contract से मेल नहीं खाता — मालिक का फैसला चाहिए
+(2) `express.d.ts` में `req.tenant` required घोषित है जबकि tenant-middleware 41 में से 1 route पर है (unsound)
+(3) वह global typing module के अंदर रखी है, `common/types/` में होनी चाहिए
+(4) `app.ts` में एक और EventEmitter जुड़ा — AUDIT-01 की F9 एक कदम और बढ़ी
+
+### 2. 🔴 मेरी गलती — बिना verify किया कोड main पर चला गया
+मैंने `git push HEAD:main` चलाया; उतनी देर में DeepSeek का कोड commit (`01ddae7`) हो चुका था,
+इसलिए वो साथ चला गया — **यह उसी नियम का उल्लंघन है जो मैंने खुद लिखा था।**
+जांच के बाद वो कोड पास हुआ, इसलिए `main` का सच खराब नहीं हुआ — पर क्रम गलत था, जवाबदारी मेरी।
+**सुधार अपनाया:** आगे हमेशा `git push <commit-hash>:main` (नाम लेकर), कभी `HEAD:main` नहीं।
+
+### 3. पूरन सिंह के 3 नए नियम — दोनों guides में लिख दिए
+**(क) push:** DeepSeek अब **बेरोक-टोक push कर सकता है** — पर `deepseek/work` branch पर।
+`main` सिर्फ मेरे verify + certificate के बाद। दोनों बातें (उसका काम न रुके + main का सच बचा रहे)
+इसी तरह एक साथ पूरी होती हैं।
+**(ख) certificate:** हर verified काम पर `CERTIFICATES.md` में entry + `verified/NNN` git tag।
+**जो उस रजिस्टर में नहीं है वो verified नहीं — चाहे GitHub पर मौजूद हो।**
+**(ग) नोट्स:** DeepSeek का तकनीकी नोट अब **`tips/coder-ai/log.md` में नहीं, सीधे इसी फाइल
+(`tips/reviewer-ai/log.md`) में आएगा** — ताकि मुझे हमेशा पता रहे disk पर असल में क्या हुआ, क्या बाकी है।
+यही नियम मुझ पर भी लागू है (मेरा फोल्डर + मालिक का फोल्डर, हर बार)।
+
+### 4. "deepseek-completed फोल्डर" वाले सुझाव पर मेरी राय (मालिक को बता दिया)
+**नहीं अपनाया, और वजह साफ़ है:** फाइल अपनी असली जगह पर न हो तो न वो compile होती है,
+न उस पर tsc/prisma/test चलते हैं — यानी verify करना ही नामुमकिन हो जाता। ऊपर से एक ही फाइल की
+दो प्रतियाँ बनतीं और यह भी पता न चलता कि सच कौन सी है।
+**git की branch यही काम सही तरीके से करती है** — इसलिए `deepseek/work` branch।
