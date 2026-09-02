@@ -40,6 +40,10 @@ export const routes: ReadonlyArray<AppRoute> = [
   { path: '/company/fy',        label: 'वित्तीय वर्ष',    element: page(() => import('./modules/m04-company-management/pages/FinancialYearPage'), 'FinancialYearPage') },
   { path: '/company/theme',     label: 'थीम',             element: page(() => import('./modules/m04-company-management/pages/ThemeSettingsPage'), 'ThemeSettingsPage') },
 
+  // M05 — Party Management
+  { path: '/parties',      label: 'पार्टी (ग्राहक/सप्लायर)', element: page(() => import('./modules/m05-party-management/pages/PartyListPage'), 'PartyListPage') },
+  { path: '/parties/:id',                                element: page(() => import('./modules/m05-party-management/pages/PartyDetailHubPage'), 'PartyDetailHubPage') },
+
   // M01 — Foundation
   { path: '/maintenance', public: true, element: page(() => import('./modules/m01-foundation/pages/MaintenancePage'), 'MaintenancePage') },
   { path: '/error',       public: true, element: page(() => import('./modules/m01-foundation/pages/ErrorPage'), 'ErrorPage') },
