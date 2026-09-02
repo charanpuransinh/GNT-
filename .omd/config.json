@@ -1,0 +1,27 @@
+{
+  "_comment_1": "GNT project — omd (oh-my-deepseek) की सेटिंग। समीक्षक AI (Claude), 2026-09-03.",
+  "_comment_2": "Flash + Pro का जोड़ा: तेज़ काम Flash से, सोचने वाला काम Pro से — यही omd का अपना तरीक़ा है, हमने उसे साफ़ लिखकर पक्का किया है।",
+
+  "model": "deepseek-v4-flash",
+  "reasonerModel": "deepseek-v4-pro",
+
+  "_comment_3": "बड़ी फाइलें/लंबे जवाब कटें नहीं — इसलिए 8192 से बढ़ाया",
+  "maxTokens": 16384,
+
+  "_comment_4": "कोड में रचनात्मकता नहीं, सटीकता चाहिए — इसलिए 0.7 से घटाकर 0.2",
+  "temperature": 0.2,
+
+  "baseUrl": "https://api.deepseek.com",
+
+  "_comment_5": "autopilot = explore(Flash) → plan(Pro) → execute(Flash) → review(Flash) → fix. हर पड़ाव पर जाँच (gate) होती है।",
+  "defaultMode": "autopilot",
+
+  "_comment_6": "review में गड़बड़ मिले तो अपने आप 3 बार तक ठीक करने की कोशिश",
+  "maxAgentRetries": 3,
+
+  "_comment_7": "एक साथ कितने काम — मशीन में 128 cores हैं पर सिर्फ़ 7 GB RAM, इसलिए 6 से ज़्यादा नहीं",
+  "maxParallelAgents": 6,
+
+  "allowedTools": ["bash", "read", "write", "edit", "glob", "grep"],
+  "sandboxRoot": "/root/gnt-project"
+}
