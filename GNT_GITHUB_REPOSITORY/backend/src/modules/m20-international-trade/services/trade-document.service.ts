@@ -1,7 +1,7 @@
 // GNT M20 — Trade Document Service (PUBLIC)
 // Owner: D4-DELTA | Consumed by: M08, M10, M11
 
-import { PrismaClient, DocumentType, DocumentStatus } from '@prisma/client';
+import { PrismaClient, Prisma, DocumentType, DocumentStatus } from '@prisma/client';
 import { TradeRepository } from '../repositories/trade.repository';
 import { AppError } from '../../../shared/errors/app-error';
 import { GenerateDocumentRequest, TradeDocument } from '../types/trade.types';
@@ -30,7 +30,7 @@ export class TradeDocumentService {
         company_id: companyId,
         trade_job_id: request.trade_job_id,
         document_type: request.document_type as DocumentType,
-        content_json: content,
+        content_json: content as Prisma.InputJsonValue,
         status: 'generated' as DocumentStatus,
       },
     });

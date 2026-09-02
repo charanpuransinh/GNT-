@@ -2,7 +2,8 @@
 // Owner: D4-DELTA
 
 // Services (PUBLIC — consumed by other modules)
-export { TradeService, CreateExportShipmentInput, CreateImportShipmentInput } from './services/trade.service';
+export { TradeService } from './services/trade.service';
+export type { CreateExportShipmentInput, CreateImportShipmentInput } from './services/trade.service';
 export { HSNService } from './services/hsn.service';
 export { FXService } from './services/fx.service';
 export { CustomsService } from './services/customs.service';

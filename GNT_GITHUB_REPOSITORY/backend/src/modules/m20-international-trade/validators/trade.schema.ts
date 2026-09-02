@@ -67,7 +67,7 @@ export const CustomsCalculateSchema = z.object({
 export const GenerateDocumentSchema = z.object({
   trade_job_id: z.string().min(1),
   document_type: DocumentTypeEnum,
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type CreateTradeShipmentInput = z.infer<typeof CreateTradeShipmentSchema>;

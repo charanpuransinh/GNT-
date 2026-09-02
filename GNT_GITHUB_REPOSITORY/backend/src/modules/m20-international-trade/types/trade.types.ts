@@ -114,6 +114,7 @@ export interface CustomsDutyBreakdown {
   hsn_code: string;
   assessable_value_inr: number;
   bcd: number;
+  sws: number;
   acd: number;
   sad: number;
   cvd: number;

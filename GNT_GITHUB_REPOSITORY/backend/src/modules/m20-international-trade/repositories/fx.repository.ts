@@ -9,13 +9,15 @@ export class FXRepository {
   async findLatest(
     companyId: string,
     baseCurrency: string,
-    targetCurrency: string
+    targetCurrency: string,
+    asOf?: Date
   ): Promise<fx_rate | null> {
     return this.prisma.fx_rate.findFirst({
       where: {
         company_id: companyId,
         base_currency: baseCurrency,
         target_currency: targetCurrency,
+        ...(asOf ? { effective_date: { lte: asOf } } : {}),
       },
       orderBy: { effective_date: 'desc' },
     });

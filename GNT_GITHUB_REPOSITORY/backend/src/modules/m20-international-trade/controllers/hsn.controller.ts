@@ -32,7 +32,7 @@ export class HSNController {
   // GET /api/v1/hsn/:code
   getByCode = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.service.getHSNDetails(req.params.code);
+      const result = await this.service.getHSNDetails(String(req.params.code));
       if (!result) throw new AppError('NOT_FOUND', 'HSN code not found', 404);
       res.status(200).json(result);
     } catch (err) {
@@ -64,7 +64,7 @@ export class HSNController {
   // GET /api/v1/hsn/chapters/:chapter/headings
   getHeadings = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const headings = await this.service.getHeadings(req.params.chapter);
+      const headings = await this.service.getHeadings(String(req.params.chapter));
       res.status(200).json(headings);
     } catch (err) {
       next(err);

@@ -70,7 +70,7 @@ export class TradeController {
       const companyId = req.headers['x-company-id'] as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
-      const job = await this.service.getTradeJob(req.params.id, companyId);
+      const job = await this.service.getTradeJob(String(req.params.id), companyId);
       res.status(200).json(job);
     } catch (err) {
       next(err);
@@ -84,7 +84,7 @@ export class TradeController {
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const parsed = UpdateTradeShipmentSchema.parse(req.body);
-      const job = await this.service.updateTradeJob(req.params.id, companyId, parsed);
+      const job = await this.service.updateTradeJob(String(req.params.id), companyId, parsed);
       res.status(200).json(job);
     } catch (err) {
       next(err);
@@ -97,7 +97,7 @@ export class TradeController {
       const companyId = req.headers['x-company-id'] as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
-      await this.service.deleteTradeJob(req.params.id, companyId);
+      await this.service.deleteTradeJob(String(req.params.id), companyId);
       res.status(204).send();
     } catch (err) {
       next(err);

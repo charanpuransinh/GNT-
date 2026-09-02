@@ -27,14 +27,15 @@ export class CustomsService {
     hsnCode: string,
     assessableValue: number,
     currency: string = 'USD',
-    fxRate?: number
+    fxRate?: number,
+    asOf?: Date
   ): Promise<CustomsDutyBreakdown> {
-    const rule = await this.repo.findLatestRule(companyId, hsnCode);
+    const rule = await this.repo.findLatestRule(companyId, hsnCode, asOf ?? new Date());
     if (!rule) {
       throw new AppError('CUSTOMS_RULE_MISSING', `No customs rule found for HSN ${hsnCode}`, 400);
     }
 
-    // Convert to INR if needed
+    // Convert to INR if needed (bill of entry की तारीख़ वाली दर — Step 6)
     let valueInr = assessableValue;
     if (currency !== 'INR') {
       if (fxRate) {
@@ -44,44 +45,54 @@ export class CustomsService {
           companyId,
           assessableValue,
           currency,
-          'INR'
+          'INR',
+          asOf
         );
         valueInr = conversion.converted_amount;
       }
     }
 
     const bcdRate = Number(rule.bcd_rate);
+    const swsRate = Number(rule.sws_rate);
     const acdRate = Number(rule.acd_rate);
     const sadRate = Number(rule.sad_rate);
     const cvdRate = Number(rule.cvd_rate);
     const antiDumpingRate = Number(rule.anti_dumping_rate);
     const safeguardRate = Number(rule.safeguard_duty);
 
+    // पैसा float में नहीं, नज़दीकी रुपये (integer) पर round — भारत में customs duty 2 दशमलव पर नहीं (Step 5)।
+    // हर duty line को अलग-अलग round किया जाता है, ताकि बाद में जोड़ने पर rounding drift न आए।
     const bcd = this.round(valueInr * (bcdRate / 100));
+    // Social Welfare Surcharge (SWS) = BCD का sws_rate% — दर कस्टम-बदलती है, कोड में जमा नहीं (Step 2)
+    const sws = this.round(bcd * (swsRate / 100));
     const acd = this.round(valueInr * (acdRate / 100));
     const sad = this.round(valueInr * (sadRate / 100));
     const cvd = this.round(valueInr * (cvdRate / 100));
     const antiDumping = this.round(valueInr * (antiDumpingRate / 100));
     const safeguard = this.round(valueInr * (safeguardRate / 100));
 
-    // IGST on (CIF + BCD + SAD + CVD + AntiDumping + Safeguard)
-    const igstBase = valueInr + bcd + sad + cvd + antiDumping + safeguard;
-    const hsn = await this.prisma.hsn_master.findFirst({ where: { code: hsnCode, is_active: true } });
+    const hsn = await this.prisma.customs_tariff.findFirst({ where: { code: hsnCode, is_active: true } });
     if (!hsn) {
       throw new AppError('HSN_RATE_MISSING', `Active HSN ${hsnCode} not found`, 400);
     }
     const igstRate = Number(hsn.igst_rate) / 100;
+    const cessRate = Number(hsn.cess_rate) / 100;
+
+    // IGST base = assessable value + सभी customs duties।
+    // (Step 3): acd भी base में शामिल — totalDuty से मेल खाता है; IGST सीमा शुल्क की कुल राशि पर लगता है।
+    const igstBase = valueInr + bcd + sws + acd + sad + cvd + antiDumping + safeguard;
     const igst = this.round(igstBase * igstRate);
 
-    // Cess (default 0 unless specified)
-    const cess = 0;
+    // Cess (Step 4): customs_tariff.cess_rate से — कोड में 0 जमा नहीं। IGST base पर लगता है।
+    const cess = this.round(igstBase * cessRate);
 
-    const totalDuty = this.round(bcd + acd + sad + cvd + antiDumping + safeguard + igst + cess);
+    const totalDuty = this.round(bcd + sws + acd + sad + cvd + antiDumping + safeguard + igst + cess);
 
     const breakdown: CustomsDutyBreakdown = {
       hsn_code: hsnCode,
       assessable_value_inr: this.round(valueInr),
       bcd,
+      sws,
       acd,
       sad,
       cvd,
@@ -92,13 +103,14 @@ export class CustomsService {
       total_duty: totalDuty,
       breakup: [
         { label: 'Basic Customs Duty (BCD)', rate: bcdRate, amount: bcd },
+        { label: 'Social Welfare Surcharge (SWS)', rate: swsRate, amount: sws },
         { label: 'Additional Customs Duty (ACD)', rate: acdRate, amount: acd },
         { label: 'Special Additional Duty (SAD)', rate: sadRate, amount: sad },
         { label: 'Countervailing Duty (CVD)', rate: cvdRate, amount: cvd },
         { label: 'Anti-Dumping Duty', rate: antiDumpingRate, amount: antiDumping },
         { label: 'Safeguard Duty', rate: safeguardRate, amount: safeguard },
         { label: 'IGST', rate: igstRate * 100, amount: igst },
-        { label: 'Cess', rate: 0, amount: cess },
+        { label: 'Cess', rate: cessRate * 100, amount: cess },
       ],
     };
 
@@ -132,7 +144,8 @@ export class CustomsService {
     }));
   }
 
+  // नज़दीकी रुपये (integer) पर round — भारत का customs नियम (2 दशमलव नहीं)
   private round(n: number): number {
-    return Math.round(n * 100) / 100;
+    return Math.round(n);
   }
 }

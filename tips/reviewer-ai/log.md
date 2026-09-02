@@ -851,3 +851,57 @@ $ npx tsc -p tsconfig.backend.json --noEmit | grep -c "m19-production-monitoring
 - **अधूरा:** कुछ नहीं
 - **रुकावट:** runtime DB-test नहीं (no Postgres) — noted
 - **अगला:** #015 M20 tariff/duty
+
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #015 पूरा: M20 tariff/duty
+तारीख: 2026-09-02 | verify के लिए तैयार
+
+### Pass/fail
+```
+$ npx prisma validate --schema prisma/schema.prisma  → "valid 🚀" ✅
+$ npx tsc -p tsconfig.backend.json --noEmit | grep -c "m20-international-trade"  → 0 ✅
+$ grep -rn "hsn_master" backend/src/modules/m20-international-trade/  → (कुछ नहीं) ✅
+```
+पूरे backend: **884 → 807** ✅ · अब **12 modules चढ़ते हैं** (M20 शामिल), /healthz 200 ✅
+
+### Step 1 — hsn_master का टकराव हल
+- ⛔ **M09 का `hsn_master` नहीं छुआ** (अछूता)
+- नया `customs_tariff` model (team-d hsn_master का ढाँचा, `@@map("customs_tariff")`) + बाक़ी 4 models (`trade_job`, `fx_rate`, `customs_rule`, `trade_document`) + 4 enums — relations `customs_tariff` की तरफ
+- कोड में `prisma.hsn_master`/`hsn_master` type → `prisma.customs_tariff`/`customs_tariff` (repo/service/model/customs.service)
+
+### Step 2 — SWS जोड़ा
+`customs_rule.sws_rate` (default 10, @db.Decimal) + गणना में `sws = round(bcd * sws_rate/100)`, IGST base + total दोनों में शामिल। ⚠️ source schema में sws_rate नहीं था — जोड़ा (flag)।
+
+### Step 3 — ACD विरोधाभास ठीक
+`igstBase` में अब `acd` भी शामिल (totalDuty से मेल) + comment लिखा कि IGST सीमा शुल्क की कुल राशि पर लगता है।
+
+### Step 4 — cess
+`cess = 0` हटाकर `customs_tariff.cess_rate` से गिना (IGST base पर)।
+
+### Step 5 — रुपये (integer) rounding
+`round()` अब `Math.round` (नज़दीकी रुपया, 2 दशमलव नहीं) + comment: हर duty line अलग-अलग round (rounding drift नहीं)।
+
+### Step 6 — FX asOf
+`getFXRate(..., asOf?)`/`convertAmount(..., asOf?)`/`findLatest(..., asOf?)` — `effective_date <= asOf`; न मिले तो साफ़ `FX_RATE_MISSING` (चुपचाप नई दर नहीं)। `calculateCustomsDuty` में `asOf` pass होता है।
+
+### गणना का उदाहरण (हाथ से मिलाने के लिए)
+CIF ₹1,00,000 · BCD 10% · SWS 10% (default) · IGST 18% · cess 0% · बाकी duties 0:
+- BCD = round(100000×0.10) = **₹10,000**
+- SWS = round(10000×0.10) = **₹1,000**
+- IGST base = 100000+10000+1000 = 111000 → IGST = round(111000×0.18) = **₹19,980**
+- Cess = **₹0** · **Total duty = ₹30,980**
+
+### बदली फाइलें
+`prisma/schema.prisma` · `m20/{repositories/{hsn,fx}.repository, services/{customs,fx,hsn,trade-document}.service, models/hsn.model, controllers/{hsn,trade}.controller, validators/trade.schema, types/trade.types, index}.ts` · `module-registry.ts`
+
+### नोट
+- `as any`/`@ts-ignore`/`@ts-expect-error`: **0** (सिर्फ `as Prisma.InputJsonValue` typed assertion)
+- index.ts में type re-export fix (`export type`) — वरना tsx पर M20 mount गिर रहा था
+- runtime DB-test नहीं (no Postgres) — duty गणना का असली run आपके पास DB के साथ
+
+### सत्र नोट
+- **पूरा:** #013 ✅ #011 ✅ #014 ✅ #015 ✅ (M20 tsc 0, mount हुआ)
+- **रुकावट:** कुछ नहीं (M20 index type-export fix एक mount bug था, ठीक किया)
+- **अगला:** #012 M17 Reporting

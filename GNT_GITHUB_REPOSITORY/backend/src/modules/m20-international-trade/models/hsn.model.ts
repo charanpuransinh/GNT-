@@ -1,13 +1,13 @@
-// GNT M20 — Prisma Model Extensions (hsn_master)
+// GNT M20 — Prisma Model Extensions (customs_tariff)
 // Owner: D4-DELTA
 
 import { Prisma } from '@prisma/client';
 
 export const hsnMasterExtensions = Prisma.defineExtension({
   model: {
-    hsn_master: {
+    customs_tariff: {
       async search(ctx: Prisma.TransactionClient, query: string, limit: number = 20) {
-        return ctx.hsn_master.findMany({
+        return ctx.customs_tariff.findMany({
           where: {
             is_active: true,
             OR: [
@@ -23,7 +23,7 @@ export const hsnMasterExtensions = Prisma.defineExtension({
       },
 
       async getByCode(ctx: Prisma.TransactionClient, code: string) {
-        return ctx.hsn_master.findUnique({
+        return ctx.customs_tariff.findUnique({
           where: { code },
         });
       },

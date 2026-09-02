@@ -1263,3 +1263,149 @@ enum HealthStatus {
   down
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TEAM D — M20 INTERNATIONAL TRADE
+// SOURCE: team-d/M20-International-Trade/database/m20-schema.prisma
+// टास्क #015: ⛔ team-d वाला hsn_master मत डालना (M09 का है) → नया customs_tariff।
+// बाक़ी 4 models ज्यों-के-त्यों (relations customs_tariff की तरफ)।
+// ⚠️ Step 2 के लिए customs_rule.sws_rate जोड़ा (source में नहीं था)।
+// ═══════════════════════════════════════════════════════════════
+
+model customs_tariff {
+  id          String   @id @default(cuid())
+  code        String   @unique // 8-digit HSN
+  description String
+  chapter     String   // 2-digit
+  heading     String   // 4-digit
+  subheading  String   // 6-digit
+  tariff_item String   // 8-digit
+  gst_rate    Decimal  @db.Decimal(5, 2)
+  igst_rate   Decimal  @db.Decimal(5, 2)
+  cess_rate   Decimal  @db.Decimal(5, 2)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  customs_rules customs_rule[]
+  trade_jobs    trade_job[]
+
+  @@index([code])
+  @@index([chapter, heading])
+  @@map("customs_tariff")
+}
+
+model trade_job {
+  id              String    @id @default(cuid())
+  company_id      String
+  type            TradeType // import | export
+  reference_no    String    @unique
+  party_id        String
+  product_id      String
+  hsn_code        String
+  quantity        Decimal   @db.Decimal(18, 4)
+  value_fob       Decimal?  @db.Decimal(18, 4) // Free On Board
+  value_cif       Decimal?  @db.Decimal(18, 4) // Cost Insurance Freight
+  currency        String    @default("USD")
+  fx_rate         Decimal   @db.Decimal(18, 6)
+  customs_duty    Decimal?  @db.Decimal(18, 4)
+  gst_amount      Decimal?  @db.Decimal(18, 4)
+  status          TradeStatus @default(draft)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  completed_at    DateTime?
+
+  hsn             customs_tariff @relation(fields: [hsn_code], references: [code])
+  documents       trade_document[]
+
+  @@index([company_id, type])
+  @@index([status])
+  @@index([reference_no])
+  @@map("trade_job")
+}
+
+model fx_rate {
+  id              String   @id @default(cuid())
+  company_id      String
+  base_currency   String   @default("INR")
+  target_currency String
+  rate            Decimal  @db.Decimal(18, 6)
+  source          String   @default("manual") // manual | rbi | xe
+  effective_date  DateTime @default(now())
+  created_at      DateTime @default(now())
+
+  @@unique([company_id, base_currency, target_currency, effective_date])
+  @@index([company_id, target_currency])
+  @@map("fx_rate")
+}
+
+model customs_rule {
+  id                String   @id @default(cuid())
+  company_id        String
+  hsn_code          String
+  bcd_rate          Decimal  @db.Decimal(5, 2) // Basic Customs Duty
+  sws_rate          Decimal  @db.Decimal(5, 2) @default(10) // Social Welfare Surcharge (टास्क #015)
+  acd_rate          Decimal  @db.Decimal(5, 2) // Additional Customs Duty
+  sad_rate          Decimal  @db.Decimal(5, 2) // Special Additional Duty
+  cvd_rate          Decimal  @db.Decimal(5, 2) // Countervailing Duty
+  anti_dumping_rate Decimal  @db.Decimal(5, 2) @default(0)
+  safeguard_duty    Decimal  @db.Decimal(5, 2) @default(0)
+  effective_from    DateTime
+  effective_to      DateTime?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  hsn               customs_tariff @relation(fields: [hsn_code], references: [code])
+
+  @@index([company_id, hsn_code])
+  @@index([effective_from])
+  @@map("customs_rule")
+}
+
+model trade_document {
+  id              String       @id @default(cuid())
+  company_id      String
+  trade_job_id    String
+  document_type   DocumentType
+  content_json    Json
+  generated_at    DateTime     @default(now())
+  status          DocumentStatus @default(generated)
+  file_url        String?
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+
+  trade_job       trade_job    @relation(fields: [trade_job_id], references: [id])
+
+  @@index([trade_job_id, document_type])
+  @@map("trade_document")
+}
+
+enum TradeType {
+  import
+  export
+}
+
+enum TradeStatus {
+  draft
+  submitted
+  under_review
+  customs_cleared
+  completed
+  cancelled
+}
+
+enum DocumentType {
+  boe
+  shipping_bill
+  commercial_invoice
+  packing_list
+  certificate_of_origin
+}
+
+enum DocumentStatus {
+  generated
+  signed
+  submitted
+  approved
+  rejected
+}
+

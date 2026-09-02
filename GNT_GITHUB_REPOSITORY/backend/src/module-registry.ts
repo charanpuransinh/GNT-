@@ -68,7 +68,8 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     } },
   { code: 'M19', path: '/api/v1/monitoring', mounted: true,
     load: async () => (await import('./modules/m19-production-monitoring')).securityRoutes },
-  { code: 'M20', path: '/api/v1/trade',         mounted: false, blockedBy: 'टास्क #015 — tables + duty गणना (AUDIT-02 File 15)' },
+  { code: 'M20', path: '/api/v1/trade',         mounted: true,
+    load: async () => (await import('./modules/m20-international-trade')).tradeRoutes },
 ];
 
 export const pendingMounts = (): ReadonlyArray<ModuleMount> => MODULE_MOUNTS.filter((m) => !m.mounted);

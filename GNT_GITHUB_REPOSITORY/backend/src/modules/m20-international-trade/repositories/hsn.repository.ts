@@ -1,13 +1,13 @@
-// GNT M20 — HSN Repository (OWNER ONLY for hsn_master)
+// GNT M20 — HSN Repository (OWNER ONLY for customs_tariff)
 // Owner: D4-DELTA
 
-import { PrismaClient, hsn_master } from '@prisma/client';
+import { PrismaClient, customs_tariff } from '@prisma/client';
 
 export class HSNRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async search(query: string, limit: number = 20): Promise<hsn_master[]> {
-    return this.prisma.hsn_master.findMany({
+  async search(query: string, limit: number = 20): Promise<customs_tariff[]> {
+    return this.prisma.customs_tariff.findMany({
       where: {
         is_active: true,
         OR: [
@@ -23,26 +23,26 @@ export class HSNRepository {
     });
   }
 
-  async findByCode(code: string): Promise<hsn_master | null> {
-    return this.prisma.hsn_master.findUnique({ where: { code } });
+  async findByCode(code: string): Promise<customs_tariff | null> {
+    return this.prisma.customs_tariff.findUnique({ where: { code } });
   }
 
-  async findByCodes(codes: string[]): Promise<hsn_master[]> {
-    return this.prisma.hsn_master.findMany({
+  async findByCodes(codes: string[]): Promise<customs_tariff[]> {
+    return this.prisma.customs_tariff.findMany({
       where: { code: { in: codes }, is_active: true },
     });
   }
 
-  async create(data: Omit<hsn_master, 'id' | 'created_at' | 'updated_at'>): Promise<hsn_master> {
-    return this.prisma.hsn_master.create({ data });
+  async create(data: Omit<customs_tariff, 'id' | 'created_at' | 'updated_at'>): Promise<customs_tariff> {
+    return this.prisma.customs_tariff.create({ data });
   }
 
-  async update(code: string, data: Partial<hsn_master>): Promise<hsn_master> {
-    return this.prisma.hsn_master.update({ where: { code }, data });
+  async update(code: string, data: Partial<customs_tariff>): Promise<customs_tariff> {
+    return this.prisma.customs_tariff.update({ where: { code }, data });
   }
 
   async getChapters(): Promise<string[]> {
-    const results = await this.prisma.hsn_master.findMany({
+    const results = await this.prisma.customs_tariff.findMany({
       where: { is_active: true },
       select: { chapter: true },
       distinct: ['chapter'],
@@ -52,7 +52,7 @@ export class HSNRepository {
   }
 
   async getHeadingsByChapter(chapter: string): Promise<string[]> {
-    const results = await this.prisma.hsn_master.findMany({
+    const results = await this.prisma.customs_tariff.findMany({
       where: { chapter, is_active: true },
       select: { heading: true },
       distinct: ['heading'],

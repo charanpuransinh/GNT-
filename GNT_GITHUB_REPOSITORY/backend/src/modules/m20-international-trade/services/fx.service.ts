@@ -1,7 +1,7 @@
 // GNT M20 — FX Service (PUBLIC)
 // Owner: D4-DELTA | Consumed by: M06, M08, M09, M10, M11
 
-import { PrismaClient, fx_rate } from '@prisma/client';
+import { PrismaClient, Prisma, fx_rate } from '@prisma/client';
 import { FXRepository } from '../repositories/fx.repository';
 import { EventBus } from '../../../shared/events/event-bus';
 import { FXConvertResponse } from '../types/trade.types';
@@ -15,20 +15,20 @@ export class FXService {
   }
 
   // ── PUBLIC: Get FX Rate ──
-  async getFXRate(companyId: string, base: string, target: string): Promise<fx_rate | null> {
+  async getFXRate(companyId: string, base: string, target: string, asOf?: Date): Promise<fx_rate | null> {
     if (base === target) {
       return {
         id: 'self',
         company_id: companyId,
         base_currency: base,
         target_currency: target,
-        rate: 1,
+        rate: new Prisma.Decimal(1),
         source: 'system',
         effective_date: new Date(),
         created_at: new Date(),
       } as fx_rate;
     }
-    return this.repo.findLatest(companyId, base, target);
+    return this.repo.findLatest(companyId, base, target, asOf);
   }
 
   // ── PUBLIC: Get All Rates ──
@@ -41,7 +41,8 @@ export class FXService {
     companyId: string,
     amount: number,
     fromCurrency: string,
-    toCurrency: string
+    toCurrency: string,
+    asOf?: Date
   ): Promise<FXConvertResponse> {
     if (fromCurrency === toCurrency) {
       return {
@@ -53,7 +54,8 @@ export class FXService {
       };
     }
 
-    const rateRecord = await this.getFXRate(companyId, fromCurrency, toCurrency);
+    // asOf दी गई तो उस तारीख़ से पहले की सबसे नई दर; न मिले तो साफ़ error (चुपचाप नई दर नहीं)
+    const rateRecord = await this.getFXRate(companyId, fromCurrency, toCurrency, asOf);
     if (!rateRecord) {
       throw new AppError(
         'FX_RATE_MISSING',

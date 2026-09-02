@@ -1,7 +1,7 @@
 // GNT M20 — HSN Service (PUBLIC)
 // Owner: D4-DELTA | Consumed by: M06, M07, M08, M09
 
-import { PrismaClient, hsn_master } from '@prisma/client';
+import { PrismaClient, customs_tariff } from '@prisma/client';
 import { HSNRepository } from '../repositories/hsn.repository';
 import { EventBus } from '../../../shared/events/event-bus';
 import { HSNItem, HSNValidationResponse } from '../types/trade.types';
@@ -75,7 +75,7 @@ export class HSNService {
     return this.repo.getHeadingsByChapter(chapter);
   }
 
-  private mapToHSNItem(hsn: hsn_master): HSNItem {
+  private mapToHSNItem(hsn: customs_tariff): HSNItem {
     return {
       id: hsn.id,
       code: hsn.code,
