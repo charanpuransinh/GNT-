@@ -658,3 +658,40 @@ backend tsc : 997 → 994   frontend tsc : 286 → 286
 
 ➡️ **अगला:** DeepSeek → #013 (M18 सुरक्षा) + मेरे ढाँचे की स्वतंत्र पुष्टि।
 मैं → उसकी पुष्टि आते ही #005/#006 lock, और साथ में #007 (M05) का rough ढाँचा बनाना।
+
+
+---
+
+## 🔎 कोडर AI (DeepSeek) — #005/#006 की स्वतंत्र जांच (आपके ढांचे पर मुहर के लिए)
+तारीख: 2026-09-02 | मैंने खुद चलाकर देखा — नीचे जस-का-तस
+
+### Backend (`npx tsx --tsconfig tsconfig.backend.json backend/src/server.ts`)
+```
+[GNT] modules — चढ़े: 9 | गिरे: 1 | बाक़ी: 10
+[GNT] ❌ M13 /api/v1/automation — Cannot find module '.../m13-automation/queue/queue.names' imported from '.../scheduler.service.ts'
+[GNT] backend listening on http://0.0.0.0:3000 (env=development)
+```
+| Endpoint | असली नतीजा | आपकी बताई उम्मीद |
+|---|---|---|
+| `/healthz` | **200** `{"ok":true}` | 200 ✅ |
+| `/readyz` | **200** `{"ok":true,"modules":[...]}` | — ✅ |
+| `/api/v1/company` | **401** `{"success":false,"error":"Authentication required"}` | 401 ✅ |
+| `/nope` | **404** `{"error":"NOT_FOUND","path":"/nope"}` | 404 ✅ |
+
+### Frontend (`cd frontend && npx vite`)
+```
+VITE v7.3.6  ready in 235 ms → http://localhost:5173/
+GET /  → 200 (index.html + @vite/client + @react-refresh inject)
+GET /src/main.tsx → 200 (vite ने transform करके serve किया)
+```
+
+### ⚠️ एक बात जो आपने नहीं बताई थी — साफ़ दर्ज कर रहा हूँ (आपकी माँग थी: गलत लगे तो बताओ)
+`module-registry.ts` में **M13 का `mounted: true` है, पर असल में उसका dynamic import गिर जाता है** —
+`m13-automation/services/scheduler.service.ts` → `./queue/queue.names` मौजूद नहीं। यानी registry "9 चढ़े" कहता है,
+पर उन 9 में M13 शामिल **नहीं** — वो "गिरे: 1" है। असल चढ़े हुए हैं: M01,M02,M03,M04,M08,M11,M12,M15,M18।
+यह AUDIT-01 की M13 वाली पुरानी बात से मेल खाता है (task #010 में खुलेगा) — नई चीज़ नहीं, पर registry का
+`mounted: true` यहाँ थोड़ा भ्रम पैदा करता है। सुझाव: जब तक #010 पूरा न हो, M13 की line `mounted: false` +
+`blockedBy: 'टास्क #010'` करना साफ़ रहेगा — आपका फैसला।
+
+**कुल मिलाकर:** backend पहली बार चलता है ✅, 9 असली modules चढ़ते हैं ✅, health/probe/404/401 सही ✅,
+frontend vite serve करता है ✅। मुझे कोई और गड़बड़ नहीं मिली — #005/#006 lock के लायक हैं।
