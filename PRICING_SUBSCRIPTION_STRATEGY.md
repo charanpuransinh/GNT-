@@ -403,3 +403,84 @@ Razorpay या PayU? · WhatsApp किस provider से?
 और #004 पूरा होने के बाद, मैं Phase 0 का टास्क DeepSeek के फ़ोल्डर में डालूँगा।
 
 — समीक्षक AI (Claude)
+
+---
+
+# परिशिष्ट (Addendum) — "1 महीने का Warning + Auto-Close" पर समीक्षक AI का फ़ैसला
+*(owner ने 2026-09-02 को एक bash/sqlite script के रूप में यह विचार भेजा)*
+
+## पहले साफ़ बात: विचार सही है, बर्तन ग़लत है
+
+आपके script में **तीन चीज़ें बिल्कुल सही** पकड़ी गई हैं, और मैं तीनों रख रहा हूँ:
+1. **एक timer** जो किसी तारीख़ पर लगता है (`+1 month`)
+2. **warning की हालत में सब काम चलता रहे** (`active_with_warning` — काम रोका नहीं)
+3. **रोज़ एक जाँच** जो समय पूरा होने पर अगला कदम उठाए (cron)
+
+**पर इसे bash + sqlite के रूप में लगाना नहीं चाहिए।** नीचे हर वजह अलग से:
+
+| # | दिक्कत | असर |
+|---|---|---|
+| 1 | **`gnt.db` (sqlite) एक दूसरा database बन जाएगा** — असली डेटा PostgreSQL में है (`schema.prisma` का `datasource` यही कहता है), और पूरे repo में sqlite कहीं इस्तेमाल नहीं होता | ऐप Postgres देखकर access देगा, script sqlite में status बदलेगा — **दोनों कभी मेल नहीं खाएंगे।** ग्राहक बंद दिखेगा पर चलता रहेगा (या उल्टा) |
+| 2 | **कोई इतिहास दर्ज नहीं** — `UPDATE ... SET status=...` पुरानी हालत मिटा देता है | आपकी अपनी **§3.4** माँगती है कि हर company की पूरी history दिखे (कब trial शुरू, कब reminder गया, कब block हुआ)। इस script के बाद यह बताना नामुमकिन होगा कि किसी को बंद **क्यों** किया गया |
+| 3 | **cron ही सच बन जाता है** | job एक दिन न चली (server बंद/deploy/error) → **समय पूरा हो चुका ग्राहक मुफ़्त चलता रहेगा**, किसी को पता भी नहीं चलेगा। इसीलिए मेरे design में हालत **तारीख़ से गणना** होती है, cron सिर्फ़ reminder भेजता है |
+| 4 | **सीधे `closed_wiring_failed` — बीच का पड़ाव ही नहीं** | यह आपकी अपनी **§2.3 (Trust-First)** के ख़िलाफ़ है: "trial ख़त्म होते ही access पूरी तरह बंद न करें — पहले 15 दिन Read-only, और block से पहले इंसानी WhatsApp संदेश।" script सीधे बंद कर देता है, न read-only, न कोई संदेश |
+| 5 | **`party_id` ग़लत जगह है** | GNT में **party (M05) = आपके ग्राहक का अपना ग्राहक/सप्लायर**। Subscription तो **company (दुकानदार)** की होती है, party की नहीं। (और अभी `party_master` schema में मौजूद ही नहीं है — M05 पूरा खाली है, देखें AUDIT-01 F3) |
+| 6 | `sqlite3 "... party_id=$1"` में value सीधे SQL में जुड़ती है | कल यही function किसी API/form से बुलाया गया तो **SQL injection** का रास्ता खुला रहेगा |
+| 7 | `date -d "+1 month"` server की timezone से चलेगा | server UTC पर हो और कारोबार Asia/Kolkata पर — तो कुछ ग्राहक **एक दिन पहले** बंद हो जाएंगे |
+
+## जो मैं बना रहा हूँ (वही इरादा, सही तरीके से)
+
+### 1. "1 महीना" कोड में नहीं, **बदलने लायक policy** में
+```prisma
+model platform_policy {          // owner control panel से बदलने लायक — deploy की ज़रूरत नहीं
+  key        String   @id @db.VarChar(60)  // "onboarding_days" | "grace_days" | "reminder_days"
+  value      String   @db.VarChar(120)     // "30" | "15" | "15,7,1"
+  updated_by String?  @db.Uuid
+  updated_at DateTime @updatedAt
+  @@map("platform_policy")
+}
+```
+कल "1 महीना" को 45 दिन करना हो तो **एक row बदलेगी**, कोई कोड नहीं।
+
+### 2. "wiring पूरी हुई या नहीं" — यह भी data होगा, कोड नहीं
+```prisma
+model onboarding_item {
+  id           String    @id @default(uuid()) @db.Uuid
+  company_id   String    @db.Uuid
+  item_key     String    @db.VarChar(60)  // "company_profile" | "gst_setup" | "device_registered" | "first_invoice"
+  status       String    @default("pending") @db.VarChar(20) // pending | done | waived
+  completed_at DateTime?
+  waived_by    String?   @db.Uuid         // owner ने छूट दी हो
+  @@unique([company_id, item_key])
+  @@map("onboarding_item")
+}
+```
+और `company_subscription` में दो field जुड़ेंगे: `onboarding_status`, `onboarding_deadline_at`।
+**"wiring पूरी" का मतलब = इस सूची के सारे ज़रूरी item `done` हैं** — सूची owner बदल सकता है।
+
+### 3. समय का रास्ता (आपका इरादा + आपकी §2.3, दोनों एक साथ)
+```
+दिन 0      → deadline = आज + onboarding_days (30)। हालत active रहेगी — सब काम चलेगा  ← आपका "active_with_warning"
+T-15/7/1   → WhatsApp reminder (M16), हर एक subscription_event में दर्ज (एक ही संदेश दो बार नहीं)
+T+0        → grace_readonly (15 दिन): पुराना डेटा दिखेगा, नया बिल नहीं बनेगा            ← §2.3
+T+15       → blocked: डेटा सुरक्षित, export फिर भी खुला
+कभी भी पूरा → वापस active, deadline हटी, event दर्ज
+```
+**"closed" शब्द मैं जान-बूझकर नहीं रख रहा** — वो "खाता ख़त्म/डेटा गया" जैसा लगता है।
+हालत `blocked` रहेगी और आपकी §2.3 के मुताबिक **डेटा कभी नहीं मिटेगा।**
+
+### 4. रोज़ की job क्या करेगी (और क्या नहीं)
+**करेगी:** reminder भेजना, इतिहास लिखना, dashboard के आंकड़े ताज़ा करना।
+**नहीं करेगी:** access का फ़ैसला। वो हर request पर तारीख़ से गिना जाएगा — इसलिए job एक हफ़्ता न चले
+तब भी हिसाब सही रहेगा, और दो बार चल जाए तब भी किसी का access ग़लती से बंद नहीं होगा।
+
+### 5. आपका command वैसा ही रहेगा, बस नीचे का इंजन बदलेगा
+```
+POST /api/v1/platform/companies/:id/onboarding-deadline   { days: 30, reason: "..." }
+POST /api/v1/platform/companies/:id/onboarding-complete
+POST /api/v1/platform/companies/:id/status                { to: "active", until: "...", reason: "..." }
+```
+यानी आपको वही एक-कमांड वाली आसानी मिलेगी (control panel के बटन या CLI से) —
+पर हर कदम **इतिहास में दर्ज**, **एक ही database में**, और **आपकी trust policy का पालन करते हुए।**
+
+— समीक्षक AI (Claude), 2026-09-02
