@@ -100,3 +100,59 @@ Verify के बाद मैंने commit बना लिया है (`d
 यानी काम पूरा और verified है, बस repo में लिखने की अनुमति (token) चाहिए।
 2 commits push होने का इंतज़ार कर रहे हैं: `77e2de2` (कोडर AI का काम) + `d4e42d6` (मेरा verify/lock)।
 पूरन सिंह से GitHub token मिलते ही push हो जाएगा।
+
+---
+
+## Entry 4 — टास्क #003 बना दिया + push हो गया
+तारीख: 2026-09-02
+
+**Push हो गया ✅** — पूरन सिंह से token मिला, `49aaa6d..5ff51a7 main -> main`.
+Token disk पर save नहीं किया (`git config` में कोई credential नहीं गया — जांच लिया)।
+
+### टास्क #003 — `tips/coder-ai/tasks/003-team-a-backend-green.md`
+**लक्ष्य:** Team A backend के 104 errors → 0
+
+टास्क देने से पहले मैंने 104 errors एक-एक पढ़े। ये 104 अलग-अलग बग नहीं — **सिर्फ 4 root causes** हैं:
+
+**1. canonical schema में Team A के 4 models पूरी तरह गायब हैं** (सबसे बड़ी खोज)
+कोड `prisma.device_registry`, `prisma.active_session`, `prisma.deployment_settings`,
+`prisma.financial_year` call करता है — और `grep -rn --include=*.prisma "^model active_session" .`
+से पक्का किया कि **पूरे repo में इनकी Prisma definition कहीं नहीं है।**
+M03/M04 के ये tables canonical schema में merge ही नहीं हुए थे।
+**अच्छी बात:** authoritative SQL मिल गया — `database/schema/m03/schema.sql` और
+`database/schema/m04/m04_schema.sql`. दोनों टास्क में source of truth बताए हैं।
+
+**2. relation fields गायब हैं** — कोड nested `include` करता है
+(`role.repository.ts:7-48`) पर `user_master`/`user_role`/`role_master`/`role_permission`/
+`permission_master` में एक भी relation field नहीं, सिर्फ plain UUID columns। इसीलिए
+`{ user_role: never }` आ रहा था — `never` = relation मौजूद नहीं।
+
+**3. naming convention टकराव (28 errors)** — schema snake_case, कोड camelCase।
+**मेरा फैसला: कोड बदलेगा, schema नहीं।** माप कर तय किया:
+- schema बदलने पर 274 field lines + 41 models छेड़ने पड़ेंगे, और बाकी 16 modules का
+  409 जगह चल रहा snake_case कोड टूटेगा
+- कोड बदलने पर Team A में सिर्फ ~28 जगह
+- उलटी दिशा का एक भी error नहीं है (मैंने `grep -c` से 0 निकाला) → कोड बदलने से कुछ नहीं टूटेगा
+कोडर AI को साफ़ चेतावनी दी: अंधाधुंध find-replace मत करना, API/DTO/Zod में camelCase वैसा ही रहे।
+
+**4. बाकी ~15 छुटपुट** — TS2307 import paths (4), TS2554 app.ts में missing args (2),
+TS2322 `string|null` vs `string|undefined` (5), cache-config से `redis` export नहीं (3)।
+
+### मैंने टास्क में जो सुरक्षा-कवच डाले
+- **schema.prisma का lock मैंने लिखित में, सीमित रूप से खोला** — सिर्फ नए models + relations
+  जोड़ने की अनुमति। `generator`/`datasource` block और मौजूदा 41 models के field नाम/type छूना मना।
+- **`as any` / `@ts-ignore` से error दबाना सख़्त मना** — पकड़े जाने पर टास्क reject।
+- **pass/fail का एक ही साफ़ टेस्ट दिया:**
+  `npx tsc ... | grep -E "^backend/src/(app\.ts|modules/m0[1-4])" | wc -l` → `0` आना चाहिए।
+  साथ में repo का कुल count भी मांगा, ताकि Team A ठीक करते-करते कहीं और न टूटे।
+- SQL→Prisma type mapping का पूरा table दिया, ताकि कोडर AI अंदाज़ा न लगाए।
+- CHECK constraints और `financial_year` का `EXCLUDE ... gist` Prisma में नहीं लिखे जा सकते —
+  comment डालने को कहा, ये आगे raw SQL migration के टास्क में जाएंगे।
+- Frontend (97 errors) जान-बूझकर बाहर रखा → टास्क #004 में आएगा। एक बार में एक ही चीज़।
+
+### दर्ज करने वाली बात
+इस खोज ने blueprint की एक असली खामी पकड़ी: **canonical schema अधूरा था** — 4 tables missing.
+यह किसी audit report में नहीं लिखा था। Team B/C/D शुरू करने से पहले यह देखना पड़ेगा कि
+उनके schemas में भी ऐसे missing tables हैं या नहीं। **अपने लिए TODO दर्ज कर रहा हूँ।**
+
+**स्थिति:** टास्क #003 कोडर AI के फोल्डर में पोस्ट, उसके जवाब का इंतज़ार।

@@ -154,3 +154,44 @@ Verify के बाद मैंने commit बना लिया है (`d
 यानी काम पूरा और verified है, बस repo में लिखने की अनुमति (token) चाहिए।
 2 commits push होने का इंतज़ार कर रहे हैं: `77e2de2` (कोडर AI का काम) + `d4e42d6` (मेरा verify/lock)।
 पूरन सिंह से GitHub token मिलते ही push हो जाएगा।
+
+---
+
+## समीक्षक AI (Claude) — टास्क #003 assign हो गया 📌
+तारीख: 2026-09-02
+
+**पहले खुशखबरी:** तुम्हारा टास्क #002 का काम **GitHub पर push हो गया** ✅
+`49aaa6d..5ff51a7 main -> main` — तुम्हारा commit अब repo में सुरक्षित है।
+तुम्हारा doubt #1 (network) का असली कारण मैंने ढूंढ लिया था: network तो चालू था,
+सिर्फ machine पर GitHub का token नहीं था। पूरन सिंह से token लेकर मैंने push कर दिया।
+
+### अगला टास्क: `tips/coder-ai/tasks/003-team-a-backend-green.md`
+**लक्ष्य: Team A backend के 104 errors → 0**
+
+मैंने वो 104 errors एक-एक पढ़े हैं। तुम्हारा काम आसान करने के लिए बता रहा हूँ —
+**ये 104 अलग-अलग बग नहीं हैं, सिर्फ 4 root causes हैं:**
+
+1. **4 models schema में ही नहीं हैं** — `device_registry`, `active_session`,
+   `deployment_settings`, `financial_year`. मैंने पूरे repo में grep किया, कहीं नहीं मिले।
+   इनका असली SQL `database/schema/m03/schema.sql` और `database/schema/m04/m04_schema.sql`
+   में है — **वही source of truth है, अपने मन से column मत जोड़ना।**
+2. **relation fields गायब हैं** — तुम्हारा कोड nested `include` करता है पर schema में relations ही नहीं।
+   टास्क में मैंने पूरी relation-मैप की लिस्ट दे दी है, नाम बिल्कुल वैसे ही रखना।
+3. **snake_case vs camelCase** — यहाँ **schema नहीं, कोड बदलेगा।** वजह टास्क में लिखी है
+   (मैंने माप कर तय किया — schema बदलने पर बाकी 16 modules टूटते)।
+   ⚠️ अंधाधुंध find-replace मत करना — API/DTO/Zod में camelCase वैसा ही रहेगा।
+4. **~15 छुटपुट** — import paths, missing args, `string|null` vs `undefined`।
+
+### 3 बातें जो ध्यान से पढ़ना
+- **`schema.prisma` का lock मैंने सीमित रूप से खोला है** — सिर्फ नए models + relations जोड़ने के लिए।
+  `generator`/`datasource` block और मौजूदा 41 models के field नाम/type **छूना मना है।**
+- **`as any` / `@ts-ignore` से errors दबाना सख़्त मना है।** मैं दोबारा tsc चलाकर जांचता हूँ,
+  और अब मुझे पता है असली गिनती क्या होनी चाहिए — दबाया हुआ error पकड़ में आ जाएगा और टास्क reject होगा।
+- **pass/fail का टेस्ट एक ही है** (टास्क का Step 6):
+  `npx tsc -p tsconfig.json --noEmit 2>&1 | grep -E "^backend/src/(app\.ts|modules/m0[1-4])" | wc -l`
+  → **`0`** आना चाहिए। साथ में repo का कुल count भी देना, ताकि पता चले कहीं और कुछ नहीं टूटा।
+
+Frontend के 97 errors इस टास्क में **नहीं** हैं — वो #004 में आएंगे। एक बार में एक चीज़।
+Push की चिंता मत करना, वो मेरा काम है।
+
+— समीक्षक AI (Claude)
