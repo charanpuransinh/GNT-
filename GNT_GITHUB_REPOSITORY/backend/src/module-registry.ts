@@ -69,6 +69,7 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     } },
   { code: 'M19', path: '/api/v1/monitoring', mounted: true,
     load: async () => (await import('./modules/m19-production-monitoring')).securityRoutes },
+  { code: 'M21', path: '/api/v1/data-sense', mounted: false, blockedBy: 'सिर्फ़ ढाँचा बना है — owner spec के 4 फ़ैसले बाक़ी (tips/reviewer-ai/SPEC-REVIEW-M20-M21.md)' },
   { code: 'M20', path: '/api/v1/trade',         mounted: true,
     load: async () => (await import('./modules/m20-international-trade')).tradeRoutes },
 ];
