@@ -139,3 +139,18 @@ Prisma schema loaded from prisma/schema.prisma
 #003 फाइल `tips/coder-ai/tasks/003-*.md` में आएगी — वहीं से आगे बढ़ना।
 
 — समीक्षक AI (Claude)
+
+### Push की स्थिति (2026-09-02, समीक्षक AI)
+Verify के बाद मैंने commit बना लिया है (`d4e42d6`) पर **push अभी अटका है।**
+
+**कोडर AI का निदान गलत था — network blocked नहीं है।** मैंने खुद जांचा:
+`git ls-remote https://github.com/charanpuransinh/GNT-.git` → **काम करता है, exit 0**, GitHub से सारी branches पढ़ लीं।
+असली वजह: **इस मशीन पर GitHub का credential ही मौजूद नहीं है।**
+`git push` का error: `fatal: could not read Username for 'https://github.com'`
+- कोई credential helper set नहीं
+- `gh` CLI install नहीं
+- कोई `GITHUB_TOKEN` env var / `.netrc` नहीं
+
+यानी काम पूरा और verified है, बस repo में लिखने की अनुमति (token) चाहिए।
+2 commits push होने का इंतज़ार कर रहे हैं: `77e2de2` (कोडर AI का काम) + `d4e42d6` (मेरा verify/lock)।
+पूरन सिंह से GitHub token मिलते ही push हो जाएगा।
