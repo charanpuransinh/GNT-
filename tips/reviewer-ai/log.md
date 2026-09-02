@@ -695,3 +695,61 @@ GET /src/main.tsx → 200 (vite ने transform करके serve किया
 
 **कुल मिलाकर:** backend पहली बार चलता है ✅, 9 असली modules चढ़ते हैं ✅, health/probe/404/401 सही ✅,
 frontend vite serve करता है ✅। मुझे कोई और गड़बड़ नहीं मिली — #005/#006 lock के लायक हैं।
+
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #013 पूरा: M18 Security Hardening
+तारीख: 2026-09-02 | verify के लिए तैयार
+
+### Pass/fail (task के exact commands)
+```
+$ npx prisma validate --schema prisma/schema.prisma            → "The schema ... is valid 🚀" ✅
+$ npx tsc -p tsconfig.backend.json --noEmit | grep -c m18-external-integration  → 0  (पहले ~38, अब 0 — घटा ✅)
+$ grep -rn "return true" .../gateway.service.ts                 → (कोई output नहीं) ✅
+```
+पूरे backend की error गिनती: **994 → 956** (घटी, बढ़ी नहीं ✅)
+
+### Step 1 — schema: 3 models + 1 ज़रूरी column (⚠️ एक जगह source से हटना पड़ा)
+`team-d/M18-External-Integration/database/m18-schema.prisma` से ज्यों-के-त्यों जोड़े:
+`integration_config`, `api_key_registry`, `webhook_log` (@@map सहित, कोई column नहीं बदला)।
+**⚠️ Step 7 की dedup के लिए `webhook_log.event_id String?` + `@@unique([provider, event_id])` जोड़ना पड़ा —
+source model में यह column था ही नहीं।** आपका फैसला चाहिए: रखें (dedup ज़रूरी) या अलग तरीका।
+
+### Step 2 — twilio auth-bypass हटाया
+`gateway.service.ts` का `return true` (कोई भी जाली webhook valid) → **`return false`** (default-deny)।
+असली Twilio HMAC के लिए fullUrl + sorted POST params चाहिए जो इस signature में नहीं आते — TODO(#018) लिखा।
+
+### Step 3 — default-deny (secret न हो तो मना)
+`webhook.service.ts` अब secret न मिले → `AppError(401)`। बिना-जाँच स्वीकार का रास्ता बंद।
+
+### Step 4 — असली raw body
+- `app.ts` का raw middleware path **ठीक किया**: `/webhooks` → `/webhook` (route `/webhook/:provider` से मेल नहीं खा रहा था — आपके rough में यह mismatch था, दर्ज किया)
+- controller अब `Buffer.isBuffer(req.body)` से असली bytes निकालता है; **signature पहले, JSON parse बाद में** (service में)
+
+### Step 5 — Stripe + timing-safe
+- Stripe: `t=...,v1=...` parse करके `${t}.${rawBody}` पर HMAC-SHA256, और `t` की उम्र 5 मिनट (replay रोका)
+- Razorpay: HMAC-SHA256 + `crypto.timingSafeEqual` (length मिलान पहले — exception से बचा)
+
+### Step 6 — सही status codes
+controller: स्वीकार→200, signature/secret गलत→401, बेकार payload→400, हमारी गड़बड़→500।
+
+### Step 7 — dedup (एक webhook दो बार नहीं)
+Razorpay `x-razorpay-event-id`/payload.event, Stripe payload.id → `webhook_log` में unique; पहले से हो तो बिना process `200`।
+
+### बदली फाइलें (सिर्फ M18 + schema + app.ts की 1 line)
+`prisma/schema.prisma`, `services/gateway.service.ts`, `services/webhook.service.ts`,
+`controllers/webhook.controller.ts`, `repositories/integration.repository.ts`, `types/integration.types.ts`,
+`validators/integration.schema.ts` (6× z.record zod-v4 fix), `app.ts` (1 line)
+
+### नोट
+- `as any`/`@ts-ignore`: **0**। सिर्फ typed assertion (`as Prisma.InputJsonValue`, `as string`) — वो भी सिर्फ zod↔Prisma और enum→string की सीमा पर।
+- साथ में M18 के **पुराने type-debt भी 0 किए** (DTO key_hash/status, enum→string, z.record) — क्योंकि ये मॉडल जुड़ने पर सामने आए थे और M18 के दायरे में हैं।
+- Boot smoke: server चला, 9 चढ़े, M18 गिरा नहीं, /healthz 200।
+- runtime DB-test नहीं हुआ (local Postgres नहीं चलता) — webhook का असली round-trip आपके पास DB के साथ जाँचना।
+
+### सत्र नोट (मालिक के 3 नियमों के format में)
+- **पूरा हुआ:** #005/#006 स्वतंत्र जांच (backend+frontend चले) + #013 M18 security (M18 tsc 0)
+- **अधूरा:** कुछ नहीं अटका
+- **रुकावट:** कोई नहीं (push मेरे पास write access नहीं — आपका काम)
+- **अगला:** #011 M16 Notification

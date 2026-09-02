@@ -285,18 +285,46 @@ export class GatewayService {
     const p = provider.toLowerCase();
     if (p.includes('razorpay')) {
       const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+      return this.safeEqual(expected, signature);
     }
     if (p.includes('stripe')) {
-      const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-      return expected === signature;
+      return this.validateStripeSignature(rawBody, signature, secret);
     }
     if (p.includes('twilio')) {
-      // Twilio uses URL-encoded body for signature
-      return true; // Implement Twilio-specific validation if needed
+      // Twilio का असली नियम: X-Twilio-Signature = base64(HMAC-SHA1(authToken, fullUrl + sorted POST params))
+      // इसके लिए fullUrl + params चाहिए जो यहाँ उपलब्ध नहीं — इसलिए default-deny (कभी भी जाली webhook स्वीकार नहीं)।
+      // TODO(#018): URL+params देकर असली Twilio validation लगाना।
+      return false;
     }
-    // Default: simple HMAC compare
+    // Default: simple HMAC compare (x-webhook-signature वगैरह)
     const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-    return expected === signature;
+    return this.safeEqual(expected, signature);
+  }
+
+  private validateStripeSignature(rawBody: string, signatureHeader: string, secret: string): boolean {
+    // Stripe header: "t=1234567890,v1=abcdef..." — signed payload `${t}.${rawBody}`
+    const parts = signatureHeader.split(',').map((s) => s.trim());
+    const tPart = parts.find((s) => s.startsWith('t='));
+    const v1Part = parts.find((s) => s.startsWith('v1='));
+    if (!tPart || !v1Part) return false;
+    const t = tPart.slice(2);
+    const v1 = v1Part.slice(3);
+
+    // replay रोकने के लिए t की उम्र (5 मिनट)
+    const issuedAt = Number(t);
+    if (!Number.isFinite(issuedAt)) return false;
+    const ageSeconds = Math.floor(Date.now() / 1000) - issuedAt;
+    if (ageSeconds < 0 || ageSeconds > 5 * 60) return false;
+
+    const expected = crypto.createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex');
+    return this.safeEqual(expected, v1);
+  }
+
+  private safeEqual(a: string, b: string): boolean {
+    const ab = Buffer.from(a);
+    const bb = Buffer.from(b);
+    // timingSafeEqual लंबाई अलग होने पर exception फेंकता है — पहले length मिलाओ
+    if (ab.length !== bb.length) return false;
+    return crypto.timingSafeEqual(ab, bb);
   }
 }

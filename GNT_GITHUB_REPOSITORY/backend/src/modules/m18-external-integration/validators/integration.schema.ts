@@ -9,13 +9,13 @@ export const createIntegrationSchema = z.object({
   company_id: z.string().uuid(),
   provider: z.string().min(1).max(100),
   type: z.nativeEnum(GatewayType),
-  config_json: z.record(z.unknown()),
+  config_json: z.record(z.string(), z.unknown()),
   is_active: z.boolean().optional().default(true),
 });
 
 export const updateIntegrationSchema = z.object({
   provider: z.string().min(1).max(100).optional(),
-  config_json: z.record(z.unknown()).optional(),
+  config_json: z.record(z.string(), z.unknown()).optional(),
   status: z.nativeEnum(GatewayStatus).optional(),
   is_active: z.boolean().optional(),
 });
@@ -45,14 +45,14 @@ export const webhookProviderParamSchema = z.object({
 });
 
 export const receiveWebhookSchema = z.object({
-  payload: z.record(z.unknown()),
-  headers: z.record(z.string()).optional().default({}),
+  payload: z.record(z.string(), z.unknown()),
+  headers: z.record(z.string(), z.string()).optional().default({}),
 });
 
 export const createWebhookLogSchema = z.object({
   provider: z.string().min(1).max(100),
-  payload: z.record(z.unknown()),
-  headers: z.record(z.string()),
+  payload: z.record(z.string(), z.unknown()),
+  headers: z.record(z.string(), z.string()),
   status: z.nativeEnum(WebhookStatus).optional().default(WebhookStatus.RECEIVED),
   error_message: z.string().nullable().optional(),
 });

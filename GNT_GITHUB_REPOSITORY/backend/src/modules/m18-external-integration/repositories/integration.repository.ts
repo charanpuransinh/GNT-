@@ -3,7 +3,7 @@
  * Owner: D4-DELTA | Table Owner: M18 ONLY
  * WARNING: No external module may access this directly.
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import {
   IntegrationConfig,
   ApiKeyRegistry,
@@ -14,6 +14,7 @@ import {
   CreateWebhookLogDto,
   GatewayType,
   GatewayStatus,
+  WebhookStatus,
 } from '../types/integration.types';
 
 export class IntegrationRepository {
@@ -22,7 +23,16 @@ export class IntegrationRepository {
   // ─── Integration Config ───
 
   async createIntegration(data: CreateIntegrationConfigDto): Promise<IntegrationConfig> {
-    return this.prisma.integration_config.create({ data }) as Promise<IntegrationConfig>;
+    return this.prisma.integration_config.create({
+      data: {
+        company_id: data.company_id,
+        provider: data.provider,
+        type: data.type,
+        config_json: data.config_json as Prisma.InputJsonValue,
+        status: (data.status ?? GatewayStatus.PENDING) as string,
+        is_active: data.is_active ?? true,
+      },
+    }) as Promise<IntegrationConfig>;
   }
 
   async findIntegrationById(id: string): Promise<IntegrationConfig | null> {
@@ -55,7 +65,7 @@ export class IntegrationRepository {
     return { items: items as IntegrationConfig[], total };
   }
 
-  async findActiveIntegrationByType(companyId: string, type: GatewayType): Promise<IntegrationConfig | null> {
+  async findActiveIntegrationByType(companyId: string, type: string): Promise<IntegrationConfig | null> {
     return this.prisma.integration_config.findFirst({
       where: { company_id: companyId, type, is_active: true },
     }) as Promise<IntegrationConfig | null>;
@@ -64,7 +74,12 @@ export class IntegrationRepository {
   async updateIntegration(id: string, data: UpdateIntegrationConfigDto): Promise<IntegrationConfig> {
     return this.prisma.integration_config.update({
       where: { id },
-      data,
+      data: {
+        ...(data.provider !== undefined ? { provider: data.provider } : {}),
+        ...(data.config_json !== undefined ? { config_json: data.config_json as Prisma.InputJsonValue } : {}),
+        ...(data.status !== undefined ? { status: data.status as string } : {}),
+        ...(data.is_active !== undefined ? { is_active: data.is_active } : {}),
+      },
     }) as Promise<IntegrationConfig>;
   }
 
@@ -74,8 +89,17 @@ export class IntegrationRepository {
 
   // ─── API Key Registry ───
 
-  async createApiKey(data: CreateApiKeyDto): Promise<ApiKeyRegistry> {
-    return this.prisma.api_key_registry.create({ data }) as Promise<ApiKeyRegistry>;
+  async createApiKey(data: CreateApiKeyDto & { key_hash: string }): Promise<ApiKeyRegistry> {
+    return this.prisma.api_key_registry.create({
+      data: {
+        company_id: data.company_id,
+        name: data.name,
+        key_hash: data.key_hash,
+        permissions: data.permissions,
+        expires_at: data.expires_at ?? null,
+        created_by: data.created_by,
+      },
+    }) as Promise<ApiKeyRegistry>;
   }
 
   async findApiKeyById(id: string): Promise<ApiKeyRegistry | null> {
@@ -109,7 +133,22 @@ export class IntegrationRepository {
   // ─── Webhook Log ───
 
   async createWebhookLog(data: CreateWebhookLogDto): Promise<WebhookLog> {
-    return this.prisma.webhook_log.create({ data }) as Promise<WebhookLog>;
+    return this.prisma.webhook_log.create({
+      data: {
+        provider: data.provider,
+        event_id: data.event_id ?? null,
+        payload: data.payload as Prisma.InputJsonValue,
+        headers: data.headers as Prisma.InputJsonValue,
+        status: (data.status ?? WebhookStatus.RECEIVED) as string,
+        error_message: data.error_message ?? null,
+      },
+    }) as Promise<WebhookLog>;
+  }
+
+  async findWebhookByEventId(provider: string, eventId: string): Promise<WebhookLog | null> {
+    return this.prisma.webhook_log.findUnique({
+      where: { provider_event_id: { provider, event_id: eventId } },
+    }) as Promise<WebhookLog | null>;
   }
 
   async findWebhookLogById(id: string): Promise<WebhookLog | null> {

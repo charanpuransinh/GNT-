@@ -46,6 +46,7 @@ export interface CreateIntegrationConfigDto {
   provider: string;
   type: GatewayType;
   config_json: Record<string, unknown>;
+  status?: GatewayStatus;
   is_active?: boolean;
 }
 
@@ -91,6 +92,7 @@ export interface ApiKeyResponse {
 export interface WebhookLog {
   id: string;
   provider: string;
+  event_id: string | null;
   payload: Record<string, unknown>;
   headers: Record<string, string>;
   status: WebhookStatus;
@@ -101,6 +103,7 @@ export interface WebhookLog {
 
 export interface CreateWebhookLogDto {
   provider: string;
+  event_id?: string | null;
   payload: Record<string, unknown>;
   headers: Record<string, string>;
   status?: WebhookStatus;
@@ -142,8 +145,6 @@ export interface GatewayTestResult {
 
 // ─── Webhook Service DTOs ───
 export interface ReceiveWebhookDto {
-  provider: string;
-  payload: Record<string, unknown>;
   headers: Record<string, string>;
   raw_body: string;
 }

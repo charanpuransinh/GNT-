@@ -24,7 +24,7 @@ app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? true, credentials:
 
 // ⚠️ Webhook signature असली bytes पर बनती है — यह route JSON-parse से पहले raw रहेगा
 // (टास्क #013 इसे पूरा करेगा; AUDIT-02 → M18-3)
-app.use('/api/v1/integrations/webhooks', express.raw({ type: '*/*', limit: '2mb' }));
+app.use('/api/v1/integrations/webhook', express.raw({ type: '*/*', limit: '2mb' }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(requestTracer);
