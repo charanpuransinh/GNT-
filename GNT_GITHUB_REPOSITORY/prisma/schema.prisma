@@ -873,6 +873,7 @@ model company_master {
   deployment_settings deployment_settings?
   financial_year financial_year[]
   user_master user_master[]
+  party_master party_master[]
   @@map("company_master")
 }
 
@@ -2805,5 +2806,51 @@ model RestoreJob {
   @@index([backupJobId])
   @@index([tenantId, status])
   @@map("m15_restore_jobs")
+}
+
+// ────────────────────────────────────────────────────────────
+// GNT M05 — PARTY MANAGEMENT (टास्क #007)
+// समीक्षक AI का तय डिज़ाइन — कोई SQL source नहीं था, ज्यों-का-त्यों लिया गया।
+// Party = दुकानदार का ग्राहक/सप्लायर (company_master की कंपनी नहीं)।
+// बकाया (outstanding) यहाँ store नहीं होता — M10 से गिनकर आता है।
+// ────────────────────────────────────────────────────────────
+
+model party_master {
+  id             String   @id @default(uuid()) @db.Uuid
+  company_id     String   @db.Uuid
+  branch_id      String?  @db.Uuid
+  party_type     String   @db.VarChar(10)   // customer | supplier | both
+  name           String   @db.VarChar(200)
+  display_name   String?  @db.VarChar(100)  // बिल में छोटा नाम
+  gstin          String?  @db.VarChar(15)
+  pan            String?  @db.VarChar(10)
+  gst_type       String?  @db.VarChar(20)   // regular | composition | unregistered | sez | overseas
+  contact_person String?  @db.VarChar(100)
+  phone          String?  @db.VarChar(20)
+  alt_phone      String?  @db.VarChar(20)
+  email          String?  @db.VarChar(255)
+  billing_address String? @db.Text
+  shipping_address String? @db.Text
+  city           String?  @db.VarChar(100)
+  state_code     String?  @db.VarChar(2)    // GST राज्य कोड — CGST/SGST बनाम IGST यहीं से तय होता है
+  pincode        String?  @db.VarChar(10)
+  country        String   @default("IN") @db.VarChar(2)
+  credit_limit   Decimal  @default(0) @db.Decimal(14, 2)
+  credit_days    Int      @default(0)
+  opening_balance Decimal @default(0) @db.Decimal(14, 2)
+  opening_type   String   @default("dr") @db.VarChar(2)   // dr | cr
+  notes          String?  @db.Text
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  created_by     String?  @db.Uuid
+  updated_by     String?  @db.Uuid
+
+  company_master company_master @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@unique([company_id, gstin])
+  @@index([company_id, party_type])
+  @@index([company_id, name])
+  @@map("party_master")
 }
 
