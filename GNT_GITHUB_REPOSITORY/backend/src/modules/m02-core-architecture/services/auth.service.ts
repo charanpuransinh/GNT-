@@ -6,6 +6,7 @@ import {
   LoginResponse,
   OTPVerifyRequest,
   OTPVerifyResponse,
+  Role,
   UserProfile,
   TokenPair,
 } from '../types/auth.types';
@@ -24,14 +25,14 @@ export const authService = {
       throw new AppError('GNT-ERR-2002', 'Invalid credentials', 401);
     }
 
-    if (!user.isActive) {
+    if (!user.is_active) {
       throw new AppError('GNT-ERR-2003', 'Account is disabled', 403);
     }
 
     // 2. Verify password
     const isValidPassword = await authInternal.verifyPassword(
       data.password,
-      user.passwordHash
+      user.password_hash
     );
 
     if (!isValidPassword) {
@@ -40,7 +41,7 @@ export const authService = {
     }
 
     // 3. Check if account is locked due to failed attempts
-    if (user.failedLoginAttempts >= 5) {
+    if (user.failed_login_attempts >= 5) {
       throw new AppError('GNT-ERR-2004', 'Account locked due to too many failed attempts', 403);
     }
 
@@ -54,7 +55,7 @@ export const authService = {
     // 6. Generate tokens
     const tokens = await authInternal.generateTokenPair({
       userId: user.id,
-      companyId: user.companyId,
+      companyId: user.company_id,
       roles: roles.map((r) => r.id),
     });
 
@@ -62,7 +63,7 @@ export const authService = {
     await userRepository.updateLastLogin(user.id);
 
     // 8. Check if OTP is required
-    const requiresOtp = user.twoFactorEnabled || authInternal.isHighRiskLogin(user);
+    const requiresOtp = user.two_factor_enabled || authInternal.isHighRiskLogin(user);
 
     if (requiresOtp) {
       await authInternal.sendOtp(user.id, user.email);
@@ -74,18 +75,18 @@ export const authService = {
         name: user.name,
         email: user.email,
         username: user.username,
-        avatar: user.avatar,
-        roles: roles.map((r) => ({ id: r.id, name: r.name, description: r.description, permissions: [] })),
+        avatar: user.avatar ?? undefined,
+        roles: roles.map((r): Role => ({ id: r.id, name: r.name, description: r.description ?? '', permissions: [] })),
         permissions,
-        companyId: user.companyId,
-        branchId: user.branchId,
-        isActive: user.isActive,
-        lastLoginAt: user.lastLoginAt?.toISOString(),
+        companyId: user.company_id,
+        branchId: user.branch_id ?? undefined,
+        isActive: user.is_active,
+        lastLoginAt: user.last_login_at?.toISOString(),
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       requiresOtp,
-      roles: roles.map((r) => ({ id: r.id, name: r.name, description: r.description, permissions: [] })),
+      roles: roles.map((r): Role => ({ id: r.id, name: r.name, description: r.description ?? '', permissions: [] })),
     };
   },
 
@@ -106,7 +107,7 @@ export const authService = {
 
     const tokens = await authInternal.generateTokenPair({
       userId: user.id,
-      companyId: user.companyId,
+      companyId: user.company_id,
       roles: roles.map((r) => r.id),
     });
 
@@ -118,13 +119,13 @@ export const authService = {
         name: user.name,
         email: user.email,
         username: user.username,
-        avatar: user.avatar,
-        roles: roles.map((r) => ({ id: r.id, name: r.name, description: r.description, permissions: [] })),
+        avatar: user.avatar ?? undefined,
+        roles: roles.map((r): Role => ({ id: r.id, name: r.name, description: r.description ?? '', permissions: [] })),
         permissions,
-        companyId: user.companyId,
-        branchId: user.branchId,
-        isActive: user.isActive,
-        lastLoginAt: user.lastLoginAt?.toISOString(),
+        companyId: user.company_id,
+        branchId: user.branch_id ?? undefined,
+        isActive: user.is_active,
+        lastLoginAt: user.last_login_at?.toISOString(),
       },
     };
   },
@@ -133,14 +134,14 @@ export const authService = {
     const payload = await authInternal.verifyRefreshToken(refreshToken);
     const user = await userRepository.findById(payload.userId);
 
-    if (!user || !user.isActive) {
+    if (!user || !user.is_active) {
       throw new AppError('GNT-ERR-2007', 'Invalid refresh token', 401);
     }
 
     const roles = await roleRepository.getRolesByUserId(user.id);
     return authInternal.generateTokenPair({
       userId: user.id,
-      companyId: user.companyId,
+      companyId: user.company_id,
       roles: roles.map((r) => r.id),
     });
   },
@@ -163,13 +164,13 @@ export const authService = {
       name: user.name,
       email: user.email,
       username: user.username,
-      avatar: user.avatar,
-      roles: roles.map((r) => ({ id: r.id, name: r.name, description: r.description, permissions: [] })),
+      avatar: user.avatar ?? undefined,
+      roles: roles.map((r): Role => ({ id: r.id, name: r.name, description: r.description ?? '', permissions: [] })),
       permissions,
-      companyId: user.companyId,
-      branchId: user.branchId,
-      isActive: user.isActive,
-      lastLoginAt: user.lastLoginAt?.toISOString(),
+      companyId: user.company_id,
+      branchId: user.branch_id ?? undefined,
+      isActive: user.is_active,
+      lastLoginAt: user.last_login_at?.toISOString(),
     };
   },
 

@@ -24,7 +24,7 @@ export const deviceController = {
   async terminateSession(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user?.id;
-      const { sessionId } = req.params;
+      const sessionId = String(req.params.sessionId);
       await deviceService.terminateSession(userId, sessionId);
       res.json({
         success: true,

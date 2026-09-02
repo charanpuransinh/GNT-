@@ -1,5 +1,6 @@
 import { prisma } from '@/common/config/env-config';
-import { redis } from '@/common/config/cache-config';
+import { cacheConfig } from '@/common/config/cache-config';
+import Redis from 'ioredis';
 import { AppConfig } from '../types/app.types';
 import { logger } from '@/common/logging/logger';
 
@@ -35,11 +36,9 @@ export const appRepository = {
 
   async checkCacheConnection(): Promise<boolean> {
     try {
-      if (redis) {
-        await redis.ping();
-        return true;
-      }
-      return false;
+      const redis = new Redis(cacheConfig.url || 'redis://localhost:6379', { lazyConnect: true });
+      await redis.ping();
+      return true;
     } catch (error) {
       logger.error('Cache health check failed', { error });
       return false;

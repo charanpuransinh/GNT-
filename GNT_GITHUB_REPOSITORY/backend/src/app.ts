@@ -1,4 +1,5 @@
 import express from 'express';
+import { EventEmitter } from 'node:events';
 import companyRouter from './modules/m04-company-management/routes/company.routes';
 import authRouter from './modules/m02-core-architecture/routes/auth.routes';
 import deviceRouter from './modules/m03-device-platform/routes/device.routes';
@@ -15,6 +16,9 @@ import { IntegrationController } from './modules/m18-external-integration/contro
 import { WebhookController } from './modules/m18-external-integration/controllers/webhook.controller';
 import { IntegrationService } from './modules/m18-external-integration/services/integration.service';
 import { WebhookService } from './modules/m18-external-integration/services/webhook.service';
+import { IntegrationRepository } from './modules/m18-external-integration/repositories/integration.repository';
+import { GatewayService } from './modules/m18-external-integration/services/gateway.service';
+import { prisma } from './common/config/prisma';
 
 export const app = express();
 
@@ -56,8 +60,11 @@ app.use('/api/v1/exports', exportRoutes);
 app.use('/api/v1/sync', syncRouter);
 
 // M18 — External Integration
-const integrationService = new IntegrationService();
-const webhookService = new WebhookService();
+const integrationRepository = new IntegrationRepository(prisma);
+const gatewayService = new GatewayService(integrationRepository);
+const integrationEventBus = new EventEmitter();
+const integrationService = new IntegrationService(integrationRepository, gatewayService, integrationEventBus);
+const webhookService = new WebhookService(integrationRepository, gatewayService, integrationService, integrationEventBus);
 const integrationController = new IntegrationController(integrationService);
 const webhookController = new WebhookController(webhookService);
 const integrationRouter = createIntegrationRoutes(integrationController, webhookController);

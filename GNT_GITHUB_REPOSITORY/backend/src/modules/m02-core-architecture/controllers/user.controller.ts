@@ -22,7 +22,7 @@ export const userController = {
 
   async getUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const user = await userService.getUserById(id);
       res.json({
         success: true,
@@ -56,7 +56,7 @@ export const userController = {
 
   async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const user = await userService.updateUser(id, req.body);
       res.json({
         success: true,
@@ -73,7 +73,7 @@ export const userController = {
 
   async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       await userService.deleteUser(id);
       res.json({
         success: true,

@@ -16,7 +16,7 @@ export const roleRepository = {
 
   async findByCompanyId(companyId: string) {
     return prisma.role_master.findMany({
-      where: { companyId },
+      where: { company_id: companyId },
       include: {
         role_permission: {
           include: {
@@ -29,7 +29,7 @@ export const roleRepository = {
 
   async getRolesByUserId(userId: string) {
     const userRoles = await prisma.user_role.findMany({
-      where: { userId },
+      where: { user_id: userId },
       include: {
         role_master: true,
       },
@@ -39,7 +39,7 @@ export const roleRepository = {
 
   async getPermissionsByUserId(userId: string): Promise<string[]> {
     const userRoles = await prisma.user_role.findMany({
-      where: { userId },
+      where: { user_id: userId },
       include: {
         role_master: {
           include: {
@@ -84,7 +84,7 @@ export const roleRepository = {
 
   async getUserCountForRole(roleId: string) {
     return prisma.user_role.count({
-      where: { roleId },
+      where: { role_id: roleId },
     });
   },
 };

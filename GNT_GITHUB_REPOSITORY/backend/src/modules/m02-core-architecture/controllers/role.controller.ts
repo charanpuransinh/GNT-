@@ -21,7 +21,7 @@ export const roleController = {
 
   async getRole(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const role = await roleService.getRoleById(id);
       res.json({
         success: true,
@@ -55,7 +55,7 @@ export const roleController = {
 
   async updateRole(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const role = await roleService.updateRole(id, req.body);
       res.json({
         success: true,
@@ -72,7 +72,7 @@ export const roleController = {
 
   async deleteRole(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       await roleService.deleteRole(id);
       res.json({
         success: true,

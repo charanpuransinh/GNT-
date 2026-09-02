@@ -20,7 +20,7 @@ export const userRepository = {
       where: {
         username,
         company_master: {
-          code: companyCode,
+          gstin: companyCode,
         },
       },
     });
@@ -28,16 +28,16 @@ export const userRepository = {
 
   async findByCompanyId(companyId: string) {
     return prisma.user_master.findMany({
-      where: { companyId },
+      where: { company_id: companyId },
       select: {
         id: true,
         name: true,
         email: true,
         username: true,
         avatar: true,
-        isActive: true,
-        lastLoginAt: true,
-        createdAt: true,
+        is_active: true,
+        last_login_at: true,
+        created_at: true,
       },
     });
   },
@@ -65,7 +65,7 @@ export const userRepository = {
     return prisma.user_master.update({
       where: { id },
       data: {
-        failedLoginAttempts: {
+        failed_login_attempts: {
           increment: 1,
         },
       },
@@ -76,8 +76,8 @@ export const userRepository = {
     return prisma.user_master.update({
       where: { id },
       data: {
-        failedLoginAttempts: 0,
-        lockedUntil: null,
+        failed_login_attempts: 0,
+        locked_until: null,
       },
     });
   },
@@ -86,7 +86,7 @@ export const userRepository = {
     return prisma.user_master.update({
       where: { id },
       data: {
-        lastLoginAt: new Date(),
+        last_login_at: new Date(),
       },
     });
   },

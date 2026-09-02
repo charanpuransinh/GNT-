@@ -869,6 +869,10 @@ model company_master {
   primary_color String? @default("#2563EB") @db.VarChar(7)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+  branch_master branch_master[]
+  deployment_settings deployment_settings?
+  financial_year financial_year[]
+  user_master user_master[]
   @@map("company_master")
 }
 
@@ -881,6 +885,7 @@ model branch_master {
   is_active Boolean @default(true)
   created_at DateTime @default(now())
   deleted_at DateTime?
+  company_master company_master @relation(fields: [company_id], references: [id], onDelete: Cascade)
   @@index([company_id])
   @@map("branch_master")
 }
@@ -903,6 +908,10 @@ model user_master {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   deleted_at DateTime?
+  user_role user_role[]
+  device_registry device_registry[]
+  active_session active_session[]
+  company_master company_master @relation(fields: [company_id], references: [id], onDelete: Cascade)
   @@unique([company_id, username])
   @@unique([company_id, email])
   @@map("user_master")
@@ -916,6 +925,8 @@ model role_master {
   is_system_role Boolean @default(false)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+  user_role user_role[]
+  role_permission role_permission[]
   @@unique([company_id, name])
   @@map("role_master")
 }
@@ -927,6 +938,7 @@ model permission_master {
   resource String @db.VarChar(50)
   description String? @db.VarChar(200)
   created_at DateTime @default(now())
+  role_permission role_permission[]
   @@unique([module, action, resource])
   @@map("permission_master")
 }
@@ -937,6 +949,8 @@ model user_role {
   role_id String @db.Uuid
   assigned_at DateTime @default(now())
   assigned_by String? @db.Uuid
+  user_master user_master @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role_master role_master @relation(fields: [role_id], references: [id], onDelete: Cascade)
   @@unique([user_id, role_id])
   @@map("user_role")
 }
@@ -945,7 +959,104 @@ model role_permission {
   id String @id @default(uuid()) @db.Uuid
   role_id String @db.Uuid
   permission_id String @db.Uuid
+  role_master role_master @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission_master permission_master @relation(fields: [permission_id], references: [id], onDelete: Cascade)
   @@unique([role_id, permission_id])
   @@map("role_permission")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TEAM A — M03 DEVICE & PLATFORM + M04 FINANCIAL YEAR
+// SOURCE (सच = source of truth):
+//   - database/schema/m03/schema.sql  (device_registry, active_session, deployment_settings)
+//   - database/schema/m04/m04_schema.sql (financial_year)
+// टास्क #003 में समीक्षक AI की लिखित अनुमति से जोड़े गए।
+// ═══════════════════════════════════════════════════════════════
+
+model device_registry {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  device_name  String   @db.VarChar(100)
+  model        String   @db.VarChar(100)
+  platform     String   @db.VarChar(20)
+  os_version   String   @db.VarChar(50)
+  app_version  String   @db.VarChar(20)
+  push_token   String?  @db.VarChar(255)
+  is_trusted   Boolean  @default(false)
+  last_seen_at DateTime @default(now())
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  user_master    user_master      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  active_session active_session[]
+
+  @@unique([user_id, device_name])
+  @@index([user_id])
+  @@index([platform])
+  @@map("device_registry")
+
+  // CHECK: platform IN ('ios','android','windows','macos','linux','web') — SQL का CHECK Prisma में नहीं लिख सकते, app layer में validate होगा
+}
+
+model active_session {
+  id             String    @id @default(uuid()) @db.Uuid
+  user_id        String    @db.Uuid
+  device_id      String?   @db.Uuid
+  device_name    String?   @db.VarChar(100)
+  platform       String?   @db.VarChar(20)
+  ip_address     String    @db.Inet
+  location       String?   @db.VarChar(100)
+  user_agent     String?   @db.Text
+  status         String    @default("active") @db.VarChar(20)
+  created_at     DateTime  @default(now())
+  last_active_at DateTime  @default(now())
+  expires_at     DateTime
+  user_master    user_master      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  device_registry device_registry? @relation(fields: [device_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@index([status])
+  @@map("active_session")
+
+  // CHECK: status IN ('active','idle','expired') — app layer में validate होगा
+  // CHECK: valid_expiry (expires_at > created_at) — app layer में validate होगा
+  // SQL का partial index (status WHERE active) Prisma में नहीं — सामान्य @@index([status]) रखा है
+}
+
+model deployment_settings {
+  id                    String   @id @default(uuid()) @db.Uuid
+  company_id            String   @unique @db.Uuid
+  auto_update           Boolean  @default(false)
+  update_notifications  Boolean  @default(true)
+  session_timeout       Int      @default(30)
+  force_single_session  Boolean  @default(false)
+  offline_sync          Boolean  @default(true)
+  sync_interval         Int      @default(15)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  company_master company_master @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@map("deployment_settings")
+
+  // CHECK: session_timeout BETWEEN 5 AND 120 — app layer में validate होगा
+  // CHECK: sync_interval BETWEEN 1 AND 60 — app layer में validate होगा
+  // SQL का अलग INDEX (company_id) यहाँ ज़रूरी नहीं — @unique(company_id) खुद index बनाता है
+}
+
+model financial_year {
+  id         String   @id @default(uuid()) @db.Uuid
+  company_id String   @db.Uuid
+  start_date DateTime @db.Date
+  end_date   DateTime @db.Date
+  prefix     String   @db.VarChar(10)
+  is_active  Boolean  @default(false)
+  created_at DateTime @default(now())
+  company_master company_master @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id])
+  @@index([is_active])
+  @@map("financial_year")
+
+  // EXCLUDE fy_no_overlap (gist/daterange) — Prisma में नहीं लिख सकते; raw SQL migration में जोड़ना होगा (टास्क में अलग से आएगा)
 }
 

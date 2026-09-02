@@ -5,10 +5,10 @@ export const deviceRepository = {
   async getActiveSessionsByUserId(userId: string) {
     return prisma.active_session.findMany({
       where: {
-        userId,
-        expiresAt: { gt: new Date() },
+        user_id: userId,
+        expires_at: { gt: new Date() },
       },
-      orderBy: { lastActiveAt: 'desc' },
+      orderBy: { last_active_at: 'desc' },
     });
   },
 
@@ -25,7 +25,7 @@ export const deviceRepository = {
   async updateSessionLastActive(sessionId: string) {
     return prisma.active_session.update({
       where: { id: sessionId },
-      data: { lastActiveAt: new Date() },
+      data: { last_active_at: new Date() },
     });
   },
 
@@ -38,7 +38,7 @@ export const deviceRepository = {
   async deleteAllSessionsByUserId(userId: string, exceptSessionId?: string) {
     return prisma.active_session.deleteMany({
       where: {
-        userId,
+        user_id: userId,
         ...(exceptSessionId ? { id: { not: exceptSessionId } } : {}),
       },
     });
@@ -46,14 +46,14 @@ export const deviceRepository = {
 
   async getDevicesByUserId(userId: string) {
     return prisma.device_registry.findMany({
-      where: { userId },
-      orderBy: { lastSeenAt: 'desc' },
+      where: { user_id: userId },
+      orderBy: { last_seen_at: 'desc' },
     });
   },
 
   async getDeviceByUserAndName(userId: string, deviceName: string) {
     return prisma.device_registry.findFirst({
-      where: { userId, deviceName },
+      where: { user_id: userId, device_name: deviceName },
     });
   },
 
@@ -70,7 +70,7 @@ export const deviceRepository = {
 
   async getDeploymentSettings(companyId: string) {
     return prisma.deployment_settings.findUnique({
-      where: { companyId },
+      where: { company_id: companyId },
     });
   },
 
@@ -80,7 +80,7 @@ export const deviceRepository = {
 
   async updateDeploymentSettings(companyId: string, data: any) {
     return prisma.deployment_settings.update({
-      where: { companyId },
+      where: { company_id: companyId },
       data,
     });
   },

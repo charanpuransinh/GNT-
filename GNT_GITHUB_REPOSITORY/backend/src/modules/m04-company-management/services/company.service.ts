@@ -42,7 +42,7 @@ export class CompanyService {
 
   async updateRolePermissions(roleId: string, companyId: string, permissions: string[]) {
     const role = await this.companyRepo.findRoleById(roleId);
-    if (!role || role.companyId !== companyId) throw new AppError("GNT-ERR-0401", "Role not found", 404);
+    if (!role || role.company_id !== companyId) throw new AppError("GNT-ERR-0401", "Role not found", 404);
     await this.companyRepo.updateRolePermissions(roleId, permissions);
     this.audit.log({ action: "ROLE_PERMISSIONS_UPDATED", target: roleId });
   }
@@ -58,8 +58,8 @@ export class CompanyService {
 
   async toggleUserStatus(userId: string, companyId: string) {
     const user = await this.companyRepo.findUserById(userId);
-    if (!user || user.companyId !== companyId) throw new AppError("GNT-ERR-0402", "User not found", 404);
-    await this.companyRepo.toggleUserStatus(userId, !user.isActive);
+    if (!user || user.company_id !== companyId) throw new AppError("GNT-ERR-0402", "User not found", 404);
+    await this.companyRepo.toggleUserStatus(userId, !user.is_active);
     this.audit.log({ action: "USER_STATUS_TOGGLED", target: userId });
   }
 }
