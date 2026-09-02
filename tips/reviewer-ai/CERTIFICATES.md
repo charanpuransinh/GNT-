@@ -25,6 +25,11 @@ GitHub पर सीधे दिखता है, यानी कोड दे
 | #004 Team A frontend → 0 | `ea0bfba` | 🟢 **VERIFIED** | `verified/004` | 2026-09-02 |
 | #005 server bootstrap | `efbf998` | 🟡 **चालू साबित, LOCKED नहीं** (नीचे वजह) | — | 2026-09-02 |
 | #006 frontend shell | `efbf998` | 🟡 **चालू साबित, LOCKED नहीं** (नीचे वजह) | — | 2026-09-02 |
+| #013 M18 सुरक्षा | `cbbcd7c` | 🟢 **VERIFIED** | `verified/013` | 2026-09-02 |
+| #011 M16 Notification | — | 🟢 **VERIFIED** | `verified/011` | 2026-09-02 |
+| #014 M19 Audit trail | — | 🟢 **VERIFIED** | `verified/014` | 2026-09-02 |
+| #015 M20 Customs duty | — | 🟢 **VERIFIED** | `verified/015` | 2026-09-02 |
+| #012 M17 Reporting | — | 🔧 **अधूरा** (DeepSeek ने ख़ुद दर्ज किया) — 25 errors बाक़ी | — | — |
 
 ---
 
@@ -163,5 +168,81 @@ frontend: VITE ready in 274ms · / → HTML · /src/main.tsx 200 · /src/App.tsx
    अधूरे को "पूरा" कहकर lock करना ठीक वही होता जो करने से मना किया गया है।
 
 **यह इस वक़्त की सच्ची हालत है:** ढाँचा बना और चलता है ✅ — पर **locked नहीं।**
+
+---
+
+## CERT-013 — टास्क #013: M18 External Integration — Security Hardening
+**तारीख:** 2026-09-02 · **फैसला:** 🟢 **VERIFIED** · **Tag:** `verified/013`
+
+यह Team D में सबसे ज़रूरी था — M18 अकेला module है जो app में सच में चढ़ा हुआ है,
+यानी उसका छेद **आज** खुला था।
+
+| मैंने खुद क्या जाँचा | पहले | अब |
+|---|---|---|
+| `provider` में "twilio" आते ही signature जाँच | `return true` — **कोई भी जाली webhook पास** | `return false` (default-deny) + comment क्यों ✅ |
+| secret सेट न हो तो | बिना जाँच **स्वीकार** | **401 के साथ अस्वीकार** ✅ |
+| signature किस पर | `JSON.stringify(req.body)` — असली bytes नहीं | raw body पर, parse से पहले ✅ |
+| तुलना | `===` (timing leak) | `safeEqual` constant-time ✅ |
+| Stripe | ग़लत algorithm, replay खुला | अलग सही function + timestamp ✅ |
+| M18 का tsc | 39 errors | **0** ✅ |
+| `as any`/`@ts-ignore` कोड में | — | **0** ✅ |
+| पूरा backend | 994 | 956 (कहीं और कुछ नहीं टूटा) ✅ |
+
+**दर्ज शर्त:** Twilio की असली जाँच (URL + sorted params वाला नियम) अभी नहीं लगी —
+DeepSeek ने उसे `TODO(#018)` में साफ़ लिखा है और तब तक **मना** कर रहा है। यह सही रास्ता है
+(शक हो तो मना करो, स्वीकार मत करो), पर Twilio इस्तेमाल करने से पहले वो पूरा करना होगा।
+
+---
+
+## CERT-011 — टास्क #011: M16 Notification Engine
+**तारीख:** 2026-09-02 · **फैसला:** 🟢 **VERIFIED** · **Tag:** `verified/011`
+
+| जाँच | नतीजा |
+|---|---|
+| 2 models (`NotificationMaster`, `NotificationDeliveryLog`) | ✅ जुड़े, `@@map` snake_case सही (कोड camelCase से बुलाता है) |
+| M18 से binding — **सीमा टूटी तो नहीं?** | ✅ `gateway.binding.ts` **M18 के public `index.ts`** से लेता है, internal फाइल से नहीं — और comment में वजह भी लिखी है |
+| fail-closed सोच बची रही? | ✅ provider न हो तो चुपचाप गिराने के बजाय साफ़ मना |
+| M16 का tsc | 50 → **0** ✅ |
+
+---
+
+## CERT-014 — टास्क #014: M19 — असली Audit Trail
+**तारीख:** 2026-09-02 · **फैसला:** 🟢 **VERIFIED** · **Tag:** `verified/014`
+
+**पहले:** दो अधूरे सिस्टम, आपस में जुड़े नहीं — जो चालू था (`common/audit-logger`) वो सिर्फ़
+`console.info` करता था (restart पर सब ख़त्म), और जो सही लिख सकता था (M19) वो पहुँच से बाहर था।
+
+| जाँच | नतीजा |
+|---|---|
+| 4 models (`AuditLog`, `LoginHistory`, `SecurityEvent`, `SystemHealth`) | ✅ |
+| audit-logger अब DB में लिखता है? | ✅ — और **console वाला रास्ता हटाया नहीं** (जैसा कहा था) |
+| audit की चूक से असली काम रुकेगा? | ✅ नहीं — fire-and-forget + catch, और चूक ख़ुद दर्ज होती है |
+| `company_id` अनिवार्य? | ✅ न मिले तो **ग़लत entry लिखने के बजाय** सिर्फ़ console |
+| छेड़छाड़ से बचाव | ✅ `006_M19_audit_log_append_only.sql` — `REVOKE UPDATE, DELETE`; repository में update/delete `ILLEGAL_OPERATION` फेंकते हैं |
+| M19 का tsc | 33 → **0** ✅ |
+
+**दर्ज:** migration **चलाई नहीं गई** है (फाइल में साफ़ लिखा है कि तैनाती के वक़्त चलेगी,
+और `<app_user>` असली नाम से बदलना होगा) — यह सही तरीक़ा है।
+
+---
+
+## CERT-015 — टास्क #015: M20 — Customs Duty की गणना
+**तारीख:** 2026-09-02 · **फैसला:** 🟢 **VERIFIED** · **Tag:** `verified/015`
+
+यह सबसे नाज़ुक था — एक ग़लती पूरे repo की GST गणना तोड़ सकती थी।
+
+| जाँच | नतीजा |
+|---|---|
+| **M09 का `hsn_master` सुरक्षित?** | ✅ **field-दर-field मिलाया — बिल्कुल पहले जैसा** |
+| M20 ने उसे छुआ? | ✅ नहीं — `grep` से पक्का, अलग `customs_tariff` बनी |
+| 🔴 Social Welfare Surcharge | ✅ जुड़ा — और **IGST के आधार में भी**, total में भी |
+| ACD का विरोधाभास | ✅ ठीक — अब `igstBase` में भी है |
+| `cess = 0` जमा हुआ था | ✅ अब `customs_tariff.cess_rate` से |
+| rounding | ✅ अब **नज़दीकी रुपये** पर (भारत का नियम), 2 दशमलव नहीं |
+| FX की दर | ✅ `asOf` तारीख़ जुड़ी — न मिले तो साफ़ error, चुपचाप नई दर नहीं |
+| M20 का tsc | 77 → **0** ✅ |
+
+**दर्ज शर्त:** बीच की गणना अब भी `Number` (float) में है। इन रक़मों पर रुपये-भर की
+round के बाद फ़र्क नहीं पड़ता, पर आगे Decimal में ले जाना बेहतर रहेगा — #016 में दर्ज।
 
 ---
