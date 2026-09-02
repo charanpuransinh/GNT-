@@ -434,3 +434,45 @@ prisma objects यहाँ आते ही नहीं। snake_case बद�
 **टास्क #004:** अभी भी वही हालत — `tips/coder-ai/tasks/` में 004 की फाइल नहीं आई है। तैयार हूँ, 97 errors की लिस्ट+जड़ें पहले ही `tips/reviewer-ai/log.md` और `task-004-frontend-errors-team-a.txt` में हैं।
 
 > **Push की बात (फिर से):** मेरी तरफ से GitHub write access नहीं है (anonymous read चलता है) — इसलिए मैं सिर्फ local commit करता हूँ; आप वहीं से merge/push कर लेते हैं। ध्यान रखिए कि मेरा local commit आपके merge से पहले disk पर रहेगा।
+
+
+---
+
+## ⛔ कोडर AI (DeepSeek) — टास्क #004 में एक blocker: 2 फाइलों के लिए लिखित अनुमति चाहिए
+तारीख: 2026-09-02 | **अकेले आगे नहीं बढ़ रहा — आपका फैसला/अनुमति चाहिए** (नियम: अटको तो नोट)
+
+### अब तक क्या हो चुका (सब in-scope, सब commit होगा)
+1. **tsconfig 3 भागों में बाँटा** (आपकी दी गई exact JSON: base/backend/frontend + root references) — M13 की 8 exclude lines और tests exclude ज्यों-के-त्यों रखीं
+2. backend/frontend के `build` scripts नई configs पर लगाए
+3. api-client के **named imports** (m04 service) · lazy routes `.then(m => ({default: m.X}))` · `err.issues` (zod v4) · `z.record(z.string(), z.boolean())` · `z.union([z.ipv4(), z.ipv6()])` · m04 के सारे relative imports → `@/components/ui/X` (individual) · TS7006/TS2345 के असली types (form Partial state, typed handlers, `e.target.checked`) · AppLogo में `size`/`className` props
+4. **कोई `as any`/`@ts-ignore` नहीं** — दोबारा गिन लें
+
+### अभी की गिनती (3-count)
+- frontend m01–m04: **90** (शुरू 97 → alias fix के बाद 98 → अब 90)
+- frontend कुल: **382** · backend कुल: **997** (= पुराना 997, नहीं बढ़ा ✅)
+- 1386 का बँटवारा: backend 997 + frontend 389 (पुराना) → अब 997 + 382 (8 ठीक किए, 1 नया alias की वजह से सामने आया था)
+
+### 🔴 Blocker — बचे 90 errors सिर्फ 2 जड़ों में हैं, और दोनों जड़ें `frontend/src/modules/m01–m04` के **बाहर** हैं
+**जड़ 1 — `frontend/src/core/api-client.ts` (33 errors, TS2339):**
+असली फाइल में `apiClient` एक **bare GET function** है: `export async function apiClient<T>(path, init)`।
+पर पूरे frontend में **130 जगह इसे object की तरह बुलाया जाता है** — `.get` (56), `.post` (41), `.delete` (12),
+`.patch` (12), `.put` (5), `.interceptors` (4) — और function की तरह **0 जगह** (grep से पक्का किया)।
+साथ ही services `r.data.data` करती हैं — यानी apiClient को **axios-shape response** `{ data, status }` देना चाहिए।
+**प्रस्ताव:** named export रहेगा (default नहीं — आपके फैसले 2 अनुसार), object बनेगा: `get/post/put/patch/delete`
+जो fetch को लपेटकर `{ data, status }` लौटाएँ। एक ही फाइल बदलेगी, 130 call sites वैसे ही चलेंगे।
+
+**जड़ 2 — `frontend/src/components/ui/*` + `feedback/LoadingOverlay` (57 errors, TS2322):**
+pages जो props भेजते हैं, components में हैं ही नहीं:
+- `Button` ← `variant` ("primary"/"secondary"/"ghost"/"danger"), `size` ("sm"/"md"/"lg"), `loading`
+- `Input` ← `label`, `error`
+- `Badge` ← `variant` ("success"/"warning"/"info"/"muted"/"danger"/"default")
+- `Modal` ← `isOpen`, `title`, `onClose` (अभी सिर्फ `open`/`children`)
+- `LoadingOverlay` ← `message` (अभी सिर्फ `loading`)
+- `Table` ← पूरी data-table API (`columns: {key/header/accessor/render}` + `data`) — 4 pages इस्तेमाल करते हैं
+**प्रस्ताव:** सिर्फ **optional props जोड़ना** (पुराना कुछ नहीं हटेगा) — backward-compatible है, m05–m20 पर कोई
+नया error नहीं आएगा (मैं `variant?: string` जैसा permissive रखूँगा, ताकि बाकी modules के और variant values न टूटें)।
+Table में generic `columns/data` API जोड़नी होगी (डिज़ाइन का हिस्सा — इसलिए आपकी मंज़ूरी ज़रूरी है)।
+
+### माँग
+इन दोनों को **#004 के दायरे में गिनने की लिखित अनुमति** दें (जैसे #003 में rate-limit.ts की दी थी),
+या बताएँ कि अलग task बनाएँ। **अनुमति मिलते ही बचे 90 errors का काम मिनटों में होगा** — सब कुछ पढ़ा-परखा हुआ तैयार है।
