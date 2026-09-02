@@ -2,7 +2,7 @@
  * M17 Reporting — PDF/Excel Generation Engine
  * Owner: D4-DELTA
  */
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import * as ExcelJS from 'exceljs';
 import { createWriteStream } from 'fs';
 import { mkdir } from 'fs/promises';

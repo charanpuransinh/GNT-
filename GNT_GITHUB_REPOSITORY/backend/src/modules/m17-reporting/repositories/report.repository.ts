@@ -14,14 +14,16 @@ export class ReportRepository {
 
   // ─── Report Config CRUD ───
 
-  async createConfig(data: ReportConfig & { createdBy: string }): Promise<ReportConfig> {
+  async createConfig(
+    data: Omit<ReportConfig, 'id' | 'createdAt' | 'updatedAt'> & { createdBy: string }
+  ): Promise<ReportConfig> {
     return this.prisma.reportConfig.create({
       data: {
         companyId: data.companyId,
         name: data.name,
         reportType: data.reportType,
         filtersJson: data.filtersJson as Prisma.InputJsonValue,
-        schedule: data.schedule as Prisma.InputJsonValue,
+        schedule: data.schedule ? (JSON.parse(JSON.stringify(data.schedule)) as Prisma.InputJsonValue) : undefined,
         createdBy: data.createdBy,
       },
     }) as Promise<ReportConfig>;
@@ -57,7 +59,7 @@ export class ReportRepository {
       data: {
         ...data,
         filtersJson: data.filtersJson ? (data.filtersJson as Prisma.InputJsonValue) : undefined,
-        schedule: data.schedule ? (data.schedule as Prisma.InputJsonValue) : undefined,
+        schedule: data.schedule ? (JSON.parse(JSON.stringify(data.schedule)) as Prisma.InputJsonValue) : undefined,
       },
     }) as Promise<ReportConfig>;
   }
@@ -73,7 +75,9 @@ export class ReportRepository {
 
   // ─── Report Template CRUD ───
 
-  async createTemplate(data: ReportTemplate & { createdBy: string }): Promise<ReportTemplate> {
+  async createTemplate(
+    data: Omit<ReportTemplate, 'id' | 'createdAt' | 'updatedAt'> & { createdBy: string }
+  ): Promise<ReportTemplate> {
     return this.prisma.reportTemplate.create({
       data: {
         companyId: data.companyId,

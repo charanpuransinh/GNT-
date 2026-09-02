@@ -274,7 +274,7 @@ export class ReportController {
     try {
       const companyId = req.headers['x-company-id'] as string;
       const id = String(req.params.id);
-      await this.reportService.deleteTemplate(id, companyId);
+      await this.reportService.deleteReportTemplate(id, companyId);
       res.status(204).send();
     } catch (error) {
       next(error);

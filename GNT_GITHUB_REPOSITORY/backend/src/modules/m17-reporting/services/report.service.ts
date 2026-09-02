@@ -4,6 +4,14 @@
  * Exposed to: Frontend pages, Executive BI widget
  */
 import { ReportRepository } from '../repositories/report.repository';
+import {
+  IInventoryService,
+  IPurchaseService,
+  ISalesService,
+  IGSTService,
+  IAccountingService,
+  IHRService,
+} from './report.internal';
 import { ReportQueryBuilder } from './report.internal';
 import { ReportGenerator } from './report.generator';
 import {
@@ -24,12 +32,12 @@ export class ReportService {
 
   constructor(
     private readonly repository: ReportRepository,
-    inventoryService: Parameters<typeof ReportQueryBuilder.prototype.constructor>[0],
-    purchaseService: Parameters<typeof ReportQueryBuilder.prototype.constructor>[1],
-    salesService: Parameters<typeof ReportQueryBuilder.prototype.constructor>[2],
-    gstService: Parameters<typeof ReportQueryBuilder.prototype.constructor>[3],
-    accountingService: Parameters<typeof ReportQueryBuilder.prototype.constructor>[4],
-    hrService: Parameters<typeof ReportQueryBuilder.prototype.constructor>[5],
+    inventoryService: IInventoryService,
+    purchaseService: IPurchaseService,
+    salesService: ISalesService,
+    gstService: IGSTService,
+    accountingService: IAccountingService,
+    hrService: IHRService,
     exportDir?: string
   ) {
     this.queryBuilder = new ReportQueryBuilder(
@@ -132,7 +140,7 @@ export class ReportService {
   // ─── Report Config Management ───
 
   async createReportConfig(
-    dto: ReportConfig,
+    dto: Omit<ReportConfig, 'id' | 'createdBy' | 'createdAt' | 'updatedAt'>,
     createdBy: string
   ): Promise<ReportConfig> {
     return this.repository.createConfig({ ...dto, createdBy });
@@ -161,7 +169,7 @@ export class ReportService {
   // ─── Report Template Management ───
 
   async createReportTemplate(
-    dto: ReportTemplate,
+    dto: Omit<ReportTemplate, 'id' | 'createdBy' | 'createdAt' | 'updatedAt'>,
     createdBy: string
   ): Promise<ReportTemplate> {
     return this.repository.createTemplate({ ...dto, createdBy });

@@ -942,3 +942,48 @@ backend कुल: 807 → 782
 - **अधूरा:** #012 M17 — Step 1+3+आंशिक 2 हो गए; 35 errors बचे, 2 hard blockers (3 services + @types packages) आपके फैसले चाहिए
 - **रुकावट:** ऊपर दर्ज
 - **अगला:** आपका verify + #012 के blockers का फैसला
+
+
+---
+
+## 📥 कोडर AI (DeepSeek) — टास्क #012 का अगला हिस्सा: 25 → 3 errors
+तारीख: 2026-09-02 | आपके rough (3 facades + @types) के बाद काम चलाया — अब सिर्फ़ **3 errors** बचे
+
+### जो हुआ
+- routes के 6 imports अब सिर्फ़ public contract (`@/modules/m06-inventory` वगैरह) से ✅ (boundary pass/fail हरा)
+- `ExportFormat` में `'json'` जोड़ा (6 errors गए)
+- `SalesReportRow.totalTax` जोड़ा · generator का `import PDFDocument from 'pdfkit'` (TS2351 गया)
+- controller का `deleteTemplate` → `deleteReportTemplate` (सही method नाम)
+- `createReportConfig`/`createReportTemplate`/repository create का type `Omit<...,'id'|'createdAt'|'updatedAt'>` किया
+- repository `schedule` cast JSON-roundtrip से · validators 3× `z.record(z.string(), z.unknown())`
+- `report.internal` के 6 interfaces export किए और `report.service` का constructor उन्हीं से type किया (`Parameters<...>` हटाया — वो TS2344 की जड़ थी)
+
+### अभी की गिनती
+```
+$ npx tsc -p tsconfig.backend.json --noEmit | grep -c "m17-reporting"  → 3
+$ npx prisma validate → valid 🚀
+backend कुल: 807 → 745
+```
+
+### 🔴 बचे 3 — एक ही जड़, और वो डिज़ाइन फैसला है (साफ़ बता रहा हूँ)
+`report.routes.ts` में:
+1. `new PurchaseService()` (28) — m07 की असली service को 3 constructor args चाहिए
+2. `new GSTService()` (30) — m09 की असली service को repo चाहिए
+3. `new ReportService(..., new InventoryService(), ...)` (36) — `IInventoryService` (QueryBuilder की उम्मीद: `getStockSummary(filters)` + `getProductList`) और आपकी facade (`getStockSummary(company_id, as_on)`) के **signature नहीं मिलते**
+
+**जड़:** `ReportQueryBuilder` (report.internal) की 6 interfaces ऐसी methods माँगती हैं जो किसी भी module की असली service पर नहीं हैं —
+`getSalesRegister`, `getPurchaseRegister`, `getGSTTransactions`, `getHSNSummary`, `getTrialBalance`, `getProductList` —
+m07/m08/m09 की असली services में `getPurchaseInvoices`/`getInvoices`/`getGSTR1` हैं, और आपकी बनाई facades भी अलग shape की हैं।
+यह report की content-design बात है (किस API से कौन सा report डेटा बनेगा) — आपका फैसला है, मैंने अंदाज़े से QueryBuilder नहीं बदला।
+
+### मेरा सुझाव (आपके फैसले के लिए)
+- या तो m07/m08/m09 के लिए भी म06/m10/m12 जैसी facades बनाएँ (getSalesRegister/getPurchaseRegister/getGSTTransactions) —
+  तब QueryBuilder को छूना ही नहीं पड़ेगा
+- या QueryBuilder की interfaces को असली APIs (`getInvoices`/`getPurchaseInvoices`/`getGSTR1` + facades) से मिलाएँ — मैं कर दूँगा, बस हाँ कहिए
+
+**M17 mount अभी नहीं किया** (3 errors की वजह से) — registry में वजह लिखी है। बाक़ी सब (#013/#011/#014/#015) आपके verify हो चुके।
+
+### सत्र नोट
+- **पूरा:** #012 का type-हिस्सा (25→3) — boundary साफ़, सारे mechanical fixes
+- **अधूरा:** #012 के आख़िरी 3 errors — QueryBuilder↔services का design फैसला आपका
+- **अगला:** आपका फैसला → मैं ख़त्म करके mount कर दूँगा

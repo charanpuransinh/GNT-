@@ -78,7 +78,7 @@ export const GenerateReportRequestSchema = z.object({
 export const ExportReportRequestSchema = z.object({
   reportType: ReportTypeSchema,
   format: ExportFormatSchema,
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
   templateId: z.string().uuid().optional(),
   fileName: z.string().min(1).max(255).optional(),
 });
@@ -87,7 +87,7 @@ export const ReportConfigSchema = z.object({
   companyId: z.string().uuid(),
   name: z.string().min(1).max(255),
   reportType: ReportTypeSchema,
-  filtersJson: z.record(z.unknown()).default({}),
+  filtersJson: z.record(z.string(), z.unknown()).default({}),
   schedule: z.object({
     frequency: z.enum(['daily', 'weekly', 'monthly', 'quarterly']),
     dayOfWeek: z.number().int().min(0).max(6).optional(),
@@ -101,7 +101,7 @@ export const ReportTemplateSchema = z.object({
   companyId: z.string().uuid(),
   name: z.string().min(1).max(255),
   templateType: z.enum(['pdf', 'excel', 'html', 'csv']),
-  layoutJson: z.record(z.unknown()).default({}),
+  layoutJson: z.record(z.string(), z.unknown()).default({}),
   headerHtml: z.string().optional(),
   footerHtml: z.string().optional(),
 });

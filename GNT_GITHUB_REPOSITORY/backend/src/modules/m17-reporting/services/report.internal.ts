@@ -21,32 +21,32 @@ import {
 } from '../types/report.types';
 
 // ─── Cross-Module Service Interfaces (READ ONLY) ───
-interface IInventoryService {
+export interface IInventoryService {
   getStockSummary(filters: InventoryReportFilters): Promise<InventoryReportData>;
   getProductList(): Promise<{ id: string; name: string; sku: string }[]>;
 }
 
-interface IPurchaseService {
+export interface IPurchaseService {
   getPurchaseRegister(filters: PurchaseReportFilters): Promise<PurchaseReportData>;
 }
 
-interface ISalesService {
+export interface ISalesService {
   getSalesRegister(filters: SalesReportFilters): Promise<SalesReportData>;
 }
 
-interface IGSTService {
+export interface IGSTService {
   getGSTTransactions(filters: GSTReportFilters): Promise<GSTReportData>;
   getHSNSummary(): Promise<{ hsnCode: string; description: string; totalQuantity: number; taxableValue: number; cgstRate: number; sgstRate: number; igstRate: number; totalTax: number }[]>;
 }
 
-interface IAccountingService {
+export interface IAccountingService {
   getLedgerEntries(filters: AccountingReportFilters): Promise<AccountingReportData>;
   getTrialBalance(): Promise<{ ledgerName: string; debit: number; credit: number }[]>;
   getCashflow(filters: AccountingReportFilters): Promise<{ openingBalance: number; totalInflow: number; totalOutflow: number; netFlow: number; closingBalance: number }>;
   getAgingReport(): Promise<{ partyName: string; totalOutstanding: number; days0_30: number; days31_60: number; days61_90: number; days91_plus: number }[]>;
 }
 
-interface IHRService {
+export interface IHRService {
   getAttendanceReport(filters: HRReportFilters): Promise<{ employeeId: string; employeeName: string; department: string; month: string; presentDays: number; absentDays: number; leaveDays: number; halfDays: number; overtimeHours: number }[]>;
   getSalaryRegister(filters: HRReportFilters): Promise<{ employeeId: string; employeeName: string; basicSalary: number; hra: number; da: number; otherAllowances: number; grossSalary: number; pfDeduction: number; esiDeduction: number; tds: number; otherDeductions: number; netSalary: number }[]>;
   getEmployeeCount(): Promise<number>;

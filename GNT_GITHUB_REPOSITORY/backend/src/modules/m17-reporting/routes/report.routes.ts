@@ -8,14 +8,14 @@ import { ReportService } from '../services/report.service';
 import { ReportRepository } from '../repositories/report.repository';
 import { PrismaClient } from '@prisma/client';
 
-// Import cross-module services (READ ONLY access)
+// Import cross-module services (READ ONLY access) — public contract (index.ts) से ही
 // These are injected into ReportService via the query builder
-import { InventoryService } from '../../m06-inventory/services/inventory.service';
-import { PurchaseService } from '../../m07-purchase/services/purchase.service';
-import { SalesService } from '../../m08-sales/services/sales.service';
-import { GSTService } from '../../m09-gst/services/gst.service';
-import { AccountingService } from '../../m10-accounting/services/accounting.service';
-import { HRService } from '../../m12-hr/services/hr.service';
+import { InventoryService } from '@/modules/m06-inventory';
+import { PurchaseService } from '@/modules/m07-purchase';
+import { SalesService } from '@/modules/m08-sales';
+import { GSTService } from '@/modules/m09-gst';
+import { AccountingService } from '@/modules/m10-accounting';
+import { HRService } from '@/modules/m12-hr';
 
 const router = Router();
 const prisma = new PrismaClient();

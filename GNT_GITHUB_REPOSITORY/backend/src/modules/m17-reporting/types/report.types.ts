@@ -4,7 +4,7 @@
  */
 
 export type ReportType = 'sales' | 'purchase' | 'inventory' | 'gst' | 'accounting' | 'hr' | 'executive';
-export type ExportFormat = 'pdf' | 'excel' | 'csv' | 'html';
+export type ExportFormat = 'pdf' | 'excel' | 'csv' | 'html' | 'json';
 export type TemplateType = 'pdf' | 'excel' | 'html' | 'csv';
 
 // ─── Filter Types ───
@@ -147,6 +147,7 @@ export interface SalesReportRow {
   cgst: number;
   sgst: number;
   igst: number;
+  totalTax: number;
   totalAmount: number;
   marginPercent: number;
 }
