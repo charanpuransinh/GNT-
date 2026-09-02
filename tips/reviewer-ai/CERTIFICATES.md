@@ -22,6 +22,9 @@ GitHub पर सीधे दिखता है, यानी कोड दे
 |---|---|---|---|---|
 | #002 Prisma schema fix | `77e2de2` | 🟢 VERIFIED & LOCKED | `verified/002` (backfill) | 2026-09-02 |
 | #003 Team A backend → 0 | `01ddae7` | 🟢 **VERIFIED** (schema LOCKED, कोड 4 शर्तों के साथ) | `verified/003` | 2026-09-02 |
+| #004 Team A frontend → 0 | `ea0bfba` | 🟢 **VERIFIED** | `verified/004` | 2026-09-02 |
+| #005 server bootstrap | `efbf998` | 🟡 **चालू साबित, LOCKED नहीं** (नीचे वजह) | — | 2026-09-02 |
+| #006 frontend shell | `efbf998` | 🟡 **चालू साबित, LOCKED नहीं** (नीचे वजह) | — | 2026-09-02 |
 
 ---
 
@@ -114,5 +117,51 @@ contract अपडेट अलग task में।
 गनीमत है कि जांच के बाद वो कोड **पास** हुआ, इसलिए `main` का सच खराब नहीं हुआ — पर क्रम गलत था।
 **सुधार:** आगे से हमेशा `git push <commit-hash>:main` (नाम लेकर), कभी `HEAD:main` नहीं —
 ताकि बीच में आया कोई और commit गलती से साथ न चला जाए।
+
+---
+
+## CERT-004 — टास्क #004: Team A (M01–M04) Frontend GREEN
+**Commit:** `ea0bfba` · **तारीख:** 2026-09-02 · **फैसला:** 🟢 **VERIFIED**
+
+### मैंने खुद क्या चलाया
+| जाँच | नतीजा |
+|---|---|
+| `npx tsc -p tsconfig.frontend.json --noEmit` — Team A (m01–m04) | **0** ✅ (यही pass/fail टेस्ट था) |
+| पूरा frontend | 295 → **286** (9 घटे, वही 9 जो बचे थे) ✅ |
+| पूरा backend | **994** — बिल्कुल पहले जितना, कुछ नहीं टूटा ✅ |
+| `as any` / `@ts-ignore` **कोड** में (`git show -- '*.ts' '*.tsx'`) | **0** ✅ |
+| scope | सिर्फ़ 2 फाइलें: `company.service.ts` + नई `company.types.ts` ✅ |
+
+### एक बात जो जाँच में पकड़ी और साफ़ करता हूँ
+पहले grep में `as any` के 2 hits दिखे थे — जाँचने पर वो **log.md के text** में थे
+(DeepSeek की अपनी रिपोर्ट की लाइनें, जिनमें लिखा था "कोई as any नहीं")। **कोड में शून्य।**
+सिर्फ़ गिनती देखकर reject कर देना ग़लत होता — इसलिए हर hit खोलकर देखा।
+
+### तरीक़ा सही था
+`r.data` को `any` बनाकर दबाने के बजाय **असली envelope type** बनाया
+(`ApiEnvelope<T> { success, data, meta }`) और हर call पर generic दिया। यही सही रास्ता था।
+
+**Tag:** `verified/004` → `ea0bfba`
+
+---
+
+## #005 (server bootstrap) + #006 (frontend shell) — 🟡 चालू साबित, पर **LOCKED नहीं**
+
+**क्या साबित हुआ (मैंने खुद चलाकर देखा, दावा नहीं):**
+```
+backend:  9 modules चढ़े, 1 गिरा · listening on :3000
+          /healthz 200 · /readyz 200 · /api/v1/company 401 · /nope 404
+frontend: VITE ready in 274ms · / → HTML · /src/main.tsx 200 · /src/App.tsx 200 · कोई error नहीं
+```
+
+**फिर certificate क्यों नहीं दे रहा — 3 वजहें (यही "नकली certificate मत दो" का पालन है):**
+1. **यह कोड मैंने ख़ुद लिखा है** — अपने ही काम पर अपनी मुहर लगाना समीक्षा नहीं कहलाती।
+   इसे **DeepSeek से स्वतंत्र रूप से चलवाकर** पुष्टि करा रहा हूँ, फिर lock होगा।
+2. **कोई automated test नहीं चला** — मैंने हाथ से endpoints देखे। blueprint का LOCK PRINCIPLE
+   कहता है कि Tests भी पूरे होने चाहिए।
+3. **आधा काम बाक़ी है** — 20 में से 9 modules ही चढ़ते हैं; M13 गिरता है, 10 बाक़ी हैं।
+   अधूरे को "पूरा" कहकर lock करना ठीक वही होता जो करने से मना किया गया है।
+
+**यह इस वक़्त की सच्ची हालत है:** ढाँचा बना और चलता है ✅ — पर **locked नहीं।**
 
 ---

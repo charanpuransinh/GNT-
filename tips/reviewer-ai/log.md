@@ -630,3 +630,31 @@ backend tsc : 997 → 994   frontend tsc : 286 → 286
 - **M05/M06/M09/M10/M16/M17/M19/M20** — अपने-अपने task के इंतज़ार में (registry में वजह लिखी है)
 - **frontend shell चलाकर नहीं देखा** — `npm run dev` (vite) अभी नहीं चलाया, सिर्फ़ compile जाँचा।
   वो अगली बार, और तभी #006 का certificate बनेगा। **इसलिए अभी न #005 का certificate है, न #006 का।**
+
+---
+
+### सत्र नोट — 2026-09-02 — समीक्षक AI (Claude)
+
+✅ **पूरा हुआ (नाप के साथ):**
+- **टास्क #004 VERIFIED** — खुद चलाया: Team A frontend `m01–m04 = 0` ✅, पूरा frontend 295→286,
+  backend 994 अपरिवर्तित, **कोड में `as any`/`@ts-ignore` = 0** (grep के 2 hits log.md के text में थे,
+  खोलकर जाँचे — सिर्फ़ गिनती देखकर reject करना ग़लत होता)। Tag `verified/004`, CERT-004 लिखा।
+- **FIRST LIGHT (#005)** — backend पहली बार चला: 9 modules चढ़े, `/healthz` 200, `/readyz` 200,
+  `/api/v1/company` 401 (auth चला), `/nope` 404.
+- **Frontend shell (#006) चलकर दिखा** — `vite ready in 274ms`, `/` HTML, `/src/main.tsx` 200,
+  `/src/App.tsx` 200, कोई error नहीं।
+- चलाने पर 3 असली गड़बड़ें पकड़ीं और ठीक कीं (tsc में कभी नहीं दिखतीं): runtime `@/` alias,
+  M07 का टूटा `export default router`, M18 की टूटी import।
+- **AUDIT-02** (M16–M20, 18 findings) + 5 task फाइलें (#011–#015) तैयार।
+- AUDIT-01 की अपनी गलती सुधारी: गायब models **21 नहीं, 58**।
+
+🔧 **अधूरा:**
+- **#005/#006 का certificate जान-बूझकर नहीं दिया** — कोड मैंने ख़ुद लिखा है, कोई automated
+  test नहीं चला, और 20 में से सिर्फ़ 9 modules चढ़ते हैं। इसे "locked" कहना नकली मुहर होती।
+  → DeepSeek से स्वतंत्र पुष्टि माँगी है; उसके बाद ही lock।
+- M13 अब भी नहीं चढ़ता; M07/M14 को composition चाहिए; 10 modules बाक़ी।
+
+⛔ **रुकावट:** कोई नहीं। (DeepSeek के लिए भी नहीं — #013 तैयार है।)
+
+➡️ **अगला:** DeepSeek → #013 (M18 सुरक्षा) + मेरे ढाँचे की स्वतंत्र पुष्टि।
+मैं → उसकी पुष्टि आते ही #005/#006 lock, और साथ में #007 (M05) का rough ढाँचा बनाना।
