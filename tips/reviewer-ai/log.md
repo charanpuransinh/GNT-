@@ -476,3 +476,49 @@ Table में generic `columns/data` API जोड़नी होगी (ड�
 ### माँग
 इन दोनों को **#004 के दायरे में गिनने की लिखित अनुमति** दें (जैसे #003 में rate-limit.ts की दी थी),
 या बताएँ कि अलग task बनाएँ। **अनुमति मिलते ही बचे 90 errors का काम मिनटों में होगा** — सब कुछ पढ़ा-परखा हुआ तैयार है।
+
+---
+
+## Entry 9 — नया काम का तरीक़ा (ROUGH→भरो→POLISH) + #004 का blocker मैंने खुद खोला
+तारीख: 2026-09-02
+
+पूरन सिंह ने काम का तरीक़ा तय किया: **QUALITY + STANDARDS + SPEED**, और भूमिका बँटी —
+**ढाँचा (rough) मैं दूँगा, DeepSeek भरेगा, फिर मैं polish/test करके certificate दूँगा।**
+`/root/charanpuransinh/CLOUD_TASK.txt` में उनका मूल निर्देश रखा है; दोनों guides में नियम जोड़ा।
+
+### तुरंत लागू किया — DeepSeek #004 पर मेरी अनुमति के इंतज़ार में अटका था
+उसने सही पहचाना था कि बचे 90 errors की जड़ें `m01–m04` के **बाहर** दो shared फाइलों में हैं।
+नए नियम के मुताबिक यह **मेरा** काम था, इसलिए इंतज़ार कराने के बजाय मैंने खुद rough लिख दिया:
+
+**1. `frontend/src/core/api-client.ts` (नया rough)**
+पुराना एक bare GET function था, जबकि पूरे frontend में 130 जगह `.get/.post/...` और `r.data` चलता है।
+अब object-shape client: `get/post/put/patch/delete` → `{ data, status }`, `ApiError` class,
+auth/tenant header localStorage से (try/catch में), `/api/v1` base, double-prefix से बचाव।
+**Default export भी रखा** (named के साथ) — पुराने दोनों तरह के imports न टूटें।
+
+**2. 6 shared UI components को rough props दिए** (सब backward-compatible, कुछ हटाया नहीं):
+`Button` (variant/size/loading), `Input` (label/error/hint), `Badge` (variant),
+`Modal` (isOpen + पुराना open दोनों, title, onClose, footer), `LoadingOverlay` (message),
+`Table` (generic `columns/data`, **दोनों शैलियाँ** `{key,header,render}` और `{header,accessor}`,
+`rowKey`, `emptyMessage`; `children` वाला पुराना रास्ता भी चलता रहेगा)।
+Union types में `(string & {})` रखा ताकि m05–m20 के दूसरे variant मान न टूटें।
+
+### मैंने खुद माप कर देखा (rough छोड़ा नहीं, जाँचा)
+```
+npx tsc -p tsconfig.frontend.json --noEmit
+पूरा frontend:   389 → 295   (94 errors घटे)
+Team A m01–m04:   90 → 9
+मेरी 6 फाइलों में:        0 errors
+m05–m20 में regression:  कोई नहीं (बचे errors पुराने ही हैं — StockBadge/undefined, missing modules)
+```
+
+### बचे हुए 9 — सब एक ही फाइल में, DeepSeek के लिए
+`m04-company-management/services/company.service.ts` — सारे `TS18046: 'r.data' is of type 'unknown'`।
+वजह साफ़ है: calls में generic नहीं दिया गया। `apiClient.get('/company')` → `apiClient.get<Company>('/company')`.
+यह #004 के दायरे में है, DeepSeek को बता दिया।
+
+### दर्ज करने वाली बात (जोखिम, जिसे मैं मान रहा हूँ)
+अब मैं ख़ुद कोड लिख रहा हूँ और ख़ुद ही verify भी करता हूँ — यानी अपने काम का समीक्षक ख़ुद।
+इसे संभालने का तरीक़ा: (1) हर rough फाइल के सिर पर `ROUGH SCAFFOLDING` लिखा है,
+(2) rough को कभी अपने आप verified नहीं मानूँगा — certificate तभी जब वो **चलकर** पास हो,
+(3) माप हमेशा commands से दूँगा (ऊपर की तरह), अपनी राय से नहीं।
