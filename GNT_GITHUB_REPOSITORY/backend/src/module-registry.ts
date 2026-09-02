@@ -43,7 +43,8 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   { load: async () => (await import('./modules/m15-sync')).default, code: 'M15', path: '/api/v1/sync',          mounted: true },
   { code: 'M16', path: '/api/v1/notifications', mounted: true,
     load: async () => (await import('./modules/m16-notification')).notificationRoutes },
-  { code: 'M17', path: '/api/v1/reports',       mounted: false, blockedBy: 'टास्क #012 अधूरा — 3 services गायब (Inventory/Accounting/HR) + pdfkit/uuid @types (design/package फैसला समीक्षक का)' },
+  { code: 'M17', path: '/api/v1/reports',       mounted: true,
+    load: async () => (await import('./modules/m17-reporting')).reportRoutes },
   { code: 'M18', path: '/api/v1/integrations',  mounted: true,
     load: async () => {
       const [{ createIntegrationRoutes }, { IntegrationController }, { WebhookController },

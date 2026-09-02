@@ -14,6 +14,7 @@ export interface DateRangeFilter {
 }
 
 export interface SalesReportFilters extends DateRangeFilter {
+  companyId?: string;
   productId?: string;
   customerId?: string;
   salesPersonId?: string;
@@ -21,12 +22,14 @@ export interface SalesReportFilters extends DateRangeFilter {
 }
 
 export interface PurchaseReportFilters extends DateRangeFilter {
+  companyId?: string;
   supplierId?: string;
   poStatus?: 'draft' | 'sent' | 'partial' | 'received' | 'closed' | 'cancelled';
   productId?: string;
 }
 
 export interface InventoryReportFilters {
+  companyId?: string;
   warehouseId?: string;
   productId?: string;
   categoryId?: string;
@@ -35,18 +38,21 @@ export interface InventoryReportFilters {
 }
 
 export interface GSTReportFilters extends DateRangeFilter {
+  companyId?: string;
   gstin?: string;
   taxRate?: number;
   hsnCode?: string;
 }
 
 export interface AccountingReportFilters extends DateRangeFilter {
+  companyId?: string;
   ledgerId?: string;
   voucherType?: string;
   branchId?: string;
 }
 
 export interface HRReportFilters extends DateRangeFilter {
+  companyId?: string;
   departmentId?: string;
   employeeId?: string;
   month?: string;

@@ -61,8 +61,12 @@ export class ReportService {
   ): Promise<ReportResponse<unknown>> {
     const { reportType, filters } = request;
 
-    // Build report via query builder (cross-module READ ONLY calls)
-    const data = await this.queryBuilder.buildReport(reportType, filters);
+    // Build report via query builder (cross-module READ ONLY calls) — companyId भी filters के साथ पहुंचता है
+    const filtersWithCompany = {
+      ...(typeof filters === 'object' && filters !== null ? (filters as Record<string, unknown>) : {}),
+      companyId,
+    };
+    const data = await this.queryBuilder.buildReport(reportType, filtersWithCompany);
 
     // Calculate row count based on report type
     let rowCount = 0;

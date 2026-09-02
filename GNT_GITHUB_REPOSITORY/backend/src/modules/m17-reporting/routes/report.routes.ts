@@ -6,39 +6,30 @@ import { Router } from 'express';
 import { ReportController } from '../controllers/report.controller';
 import { ReportService } from '../services/report.service';
 import { ReportRepository } from '../repositories/report.repository';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 
-// Import cross-module services (READ ONLY access) — public contract (index.ts) से ही
-// These are injected into ReportService via the query builder
-import { InventoryService } from '@/modules/m06-inventory';
-import { PurchaseService } from '@/modules/m07-purchase';
-import { SalesService } from '@/modules/m08-sales';
-import { GSTService } from '@/modules/m09-gst';
-import { AccountingService } from '@/modules/m10-accounting';
-import { HRService } from '@/modules/m12-hr';
+// Cross-module adapters — public contract से डेटा, M17 अपने आकार में ढालता है
+// (टास्क #012 का फैसला: M17 ← M06/M07/.../M12, adapter M17 के अंदर)
+import { InventoryAdapter } from '../services/adapters/inventory.adapter';
+import { PurchaseAdapter } from '../services/adapters/purchase.adapter';
+import { SalesAdapter } from '../services/adapters/sales.adapter';
+import { GSTAdapter } from '../services/adapters/gst.adapter';
+import { AccountingAdapter } from '../services/adapters/accounting.adapter';
+import { HRAdapter } from '../services/adapters/hr.adapter';
 
 const router = Router();
-const prisma = new PrismaClient();
 
-// Initialize repository and services
+// साझा prisma (अलग connection pool नहीं खोलना)
 const reportRepository = new ReportRepository(prisma);
-
-// Cross-module service instances (injected for READ ONLY operations)
-const inventoryService = new InventoryService();
-const purchaseService = new PurchaseService();
-const salesService = new SalesService();
-const gstService = new GSTService();
-const accountingService = new AccountingService();
-const hrService = new HRService();
 
 const reportService = new ReportService(
   reportRepository,
-  inventoryService,
-  purchaseService,
-  salesService,
-  gstService,
-  accountingService,
-  hrService,
+  new InventoryAdapter(),
+  new PurchaseAdapter(),
+  new SalesAdapter(),
+  new GSTAdapter(),
+  new AccountingAdapter(),
+  new HRAdapter(),
   process.env.EXPORT_DIR || '/tmp/exports'
 );
 

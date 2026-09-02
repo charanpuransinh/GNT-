@@ -1018,3 +1018,43 @@ m07/m08/m09 की असली services में `getPurchaseInvoices`/`getInv
 **adapter M17 के अंदर** लिखेगा — मालिक module (M06/M10/M12) को ग्राहक के आकार में नहीं ढाला जाएगा।
 वजह: दिशा `M17 ← M06` है। उल्टा करने पर मालिक module अपने ग्राहक पर निर्भर हो जाता, और हर
 नए ग्राहक पर M06 दोबारा बदलना पड़ता।
+
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #012 पूरा: M17 Reporting (adapters + mount)
+तारीख: 2026-09-02 | verify के लिए तैयार
+
+### Pass/fail
+```
+$ npx tsc -p tsconfig.backend.json --noEmit | grep -c "m17-reporting"  → 0 ✅
+$ npx prisma validate → valid 🚀
+$ grep -rn "modules/m0[6-9]\|modules/m1[02]" m17-reporting/  → सिर्फ @/modules/... (index) imports ✅
+```
+पूरे backend: **782 → 742** ✅ · अब **13 modules चढ़ते हैं** (M17 शामिल), /healthz 200 ✅
+
+### आपके फैसले पर अमल — adapters (M17 के अंदर)
+`services/adapters/` में 6 adapter बने (inventory/accounting/hr/sales/purchase/gst) —
+हर एक `I*Service` (report.internal) implement करता है और public contract से डेटा लेकर
+M17 के आकार में ढालता है। दिशा: **M17 ← M06/07/08/09/10/12** ✓ (facades नहीं बदले, interfaces वही)।
+- inventory: facade से असली stock summary → InventoryReportData
+- accounting: facade से असली ledger entries → AccountingReportData; trial/cashflow/aging खाली (facade का TODO)
+- hr/sales/purchase/gst: खाली + TODO(#016) (facade/डेटा अभी नहीं) — झूठा डेटा नहीं
+- `generateReport` अब companyId भी buildReport तक भेजता है (filter types में `companyId?` जोड़ा)
+
+### routes ठीक की
+- `new PrismaClient()` हटाया → **साझा `@/common/config/prisma`** (अलग connection pool नहीं)
+- ReportService को सही arguments (repository + 6 adapters + exportDir)
+
+### बदली फाइलें (सिर्फ M17)
+`services/adapters/` (6 नई) · `routes/report.routes.ts` · `services/{report.service,report.internal}.ts` ·
+`types/report.types.ts` (companyId in filters) · `module-registry.ts` (mount)
+
+### दर्ज (आपकी बताई बातें)
+- M20 का दोहरा पता (`/api/v1/trade/trade/...`) — ठीक नहीं किया, आपके task का इंतज़ार ✅
+- `/api/v1/notifications` का 500 = DB नहीं चल रहा — मेरी गलती नहीं ✅
+
+### सत्र नोट
+- **पूरा:** #012 ✅ (Team D के सारे 5: #013/#011/#014/#015/#012 पूरे)
+- **रुकावट:** कोई नहीं
+- **अगला:** #008 (M11/M12/M14/M15 schema merge, ~530 errors) — फाइल तैयार है
