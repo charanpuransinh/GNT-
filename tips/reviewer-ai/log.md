@@ -1243,3 +1243,88 @@ M15_Sync.prisma में `SyncJob.syncConfig` का back-relation (`SyncConfig
 - **अधूरा:** कुछ नहीं — बचे हुए 624 errors अगले tasks (#016 के बाद वाले) के हैं
 - **रुकावट:** कोई नहीं (invoice/webhook वाले फैसले आपके — log में दर्ज, वहीं रुका जैसा आपने कहा था)
 - **अगला:** #016 (M06–M10 हरा + mount, 62 errors) — अभी शुरू कर रहा हूँ
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #016 पूरा: M06/M07/M08/M10 tsc 0 + mount (16 चढ़े)
+तारीख: 2026-09-03 (रात, ~01:10)
+
+### गिनती (exact)
+```
+tsc backend: 624 → 563
+  m09-gst:        1 बाक़ी  ← ⛔ cess_rate schema गैप (नीचे)
+  m10-accounting: 0 ✅
+  m06-inventory:  0 ✅
+  m08-sales:      0 ✅
+  m07-purchase:   0 ✅
+चारों के बाहर: कुछ नहीं टूटा (M13 के 75 पुराने ज्यों-के-त्यों)
+```
+
+### कैसे ठीक हुए (सब असली type से — एक भी as any/@ts-ignore नहीं जोड़ा)
+- **`string | string[]` (~40 errors):** green modules (M16/M17/M20) का चला हुआ तरीक़ा अपनाया —
+  `String(req.params.id)` / `String(req.query.x)`
+- **M10 voucher `items` गायब वाली पहेली:** जड़ मिली — `where: { id: req.params.id }` के type error से
+  Prisma का generic गिरकर **बिना-include वाले overload** पर चला जाता था, इसलिए result type में
+  items दिखता ही नहीं था। where ठीक करते ही include वापस आ गया। (यही सीख लॉग में दर्ज रखो —
+  Prisma call की किसी भी arg में error हो तो उस call का पूरा result type बदल जाता है)
+- **M06 stock.service avgPrice:** `Decimal | number | null` असली type दिया (Decimal import किया)
+- **M06 movement_type:** DTO union में 'addition' | 'reduction' जोड़े — DB column free-text String है
+  और कोड यही दो मान लिखता था (रनटाइम बदला नहीं, सिर्फ type सही किया)
+- **M06 filter dates:** zod से string आती है, MovementFilter को Date चाहिए — `new Date(...)` से बदला
+- **M07 DTO null:** zod `.nullable()` देता है पर DTO नहीं लेता था — `due_date`/`delivery_date` में
+  `| null` जोड़ा (Create/Update दोनों)
+- **M07 calc:** `let calc;` (implicit any) → `InvoiceCalculationResult` असली type
+- **M08:** `notificationService: NotificationService | undefined` (guard पहले से मौजूद है),
+  `SalesInvoiceCreateInput` → `SalesInvoiceUncheckedCreateInput` (salesOrderId scalar के लिए —
+  checked input सिर्फ relation लेता है)
+
+### Step 2 — index.ts public contracts
+- m07/m08/m09/m10: services/types/validators/routes भरे (पहले सिर्फ 1-1 service था)
+- **m06 के तीनों repository exports हटाए** (ProductRepository/StockRepository/CategoryRepository) —
+  जाँचा: कोई बाहर वाला इन्हें import नहीं करता (सिर्फ M17 का adapter `inventoryService` लेता है — service, ठीक)
+
+### Step 3 — M07 composition (M18 वाला तरीक़ा)
+module-registry के load() में पूरी composition: PurchaseController/PurchaseOrderController →
+PurchaseService/PurchaseOrderService → PurchaseEventHandlers → eventBus (shared `@/common/events/event-bus`)।
+
+**🔴 एक गैप जो मुझे मिला और दर्ज किया (आपका फैसला चाहिए):** PurchaseEventHandlers m06/m09/m10 की
+जिस object-style API से बुलाता है (`addStock({product_id, quantity, rate, reference})`,
+`calculateInputTax({invoice_id, items})`, `createPurchaseEntry({...})`), **वो API असली services में
+है ही नहीं** — असली वाले positional args + company_id मांगते हैं। यह business-logic गैप है जो #016
+के दायरे से बाहर है। मैंने **typed adapters** दिए जो ज़ोर से fail करते हैं (साफ़ error message के साथ) —
+चुपचाप ग़लत डेटा कभी नहीं। असली wiring अगले task में होनी चाहिए।
+
+### Step 4 — mount
+M06 (`/api/v1/inventory`), M07 (`/api/v1/purchase`), M10 (`/api/v1/accounting`) → `mounted: true`।
+**M09 mount नहीं किया** — tsc 1 बाक़ी है (नियम: 0 पर ही mount)।
+
+**⛔ M09 का बचा 1 error — schema गैप (आपका फैसला चाहिए):**
+`gst.repository.ts:16` — `tax_rate_master` में `cess_rate` field है ही नहीं। जाँचा: canonical में नहीं,
+side-file (`schema__M09M10.prisma`) के `tax_rate_master` में भी नहीं (सिर्फ `hsn_master` में है)।
+यानी कोड एक ऐसा field मांगता है जो किसी भी schema source में था ही नहीं। M09 का पूरा GST calc
+(gst.internal.ts) `cess_rate` पर टिका है — इसलिए ख़ुद कुछ नहीं जोड़ा, जैसा task ने कहा था।
+
+### Step 5 — चलाकर देखा (exact output)
+```
+[GNT] modules — चढ़े: 16 | गिरे: 1 | बाक़ी: 4     ← पहले 13 चढ़ते थे
+[GNT] ❌ M13 /api/v1/automation — Cannot find module .../m13-automation/queue/queue.names (पुराना)
+[GNT] ⏭  M05 (ख़ाली) · M09 (cess_rate) · M14 (router नहीं) · M21 (फैसले बाक़ी)
+
+curl: /api/v1/inventory → 401 | /api/v1/purchase → 401 | /api/v1/purchase/invoices → 401
+      /api/v1/purchase/orders → 401 | /api/v1/accounting → 401 | /api/v1/accounting/ledger → 401
+      /api/v1/sales → 401 | /healthz → 200
+(401 सबूत नहीं — auth गेट; route की परिभाषा कोड से: purchase.routes.ts:7 router.get('/invoices',
+ purchase.routes.ts:22 router.get('/orders', accounting.routes.ts:14 router.get('/accounts',
+ inventory.routes.ts:17-19 router.post/get('/products') — सब mounted हुए)
+```
+
+### एक साफ़ सूचना (आपके verify के लिए)
+M06/M07/M08 controllers में पुराने `(req as any).tenant?.company_id` (snake_case) अभी भी हैं —
+tenant-middleware camelCase (`req.tenant.companyId`) देता है, यानी runtime पर undefined मिलेगा।
+ye pre-existing हैं और #016 का दायरा type-level था, इसलिए नहीं छुए — पर अगला task इन्हें उठाए।
+
+### सत्र नोट
+- **पूरा:** #016 (M06/M07/M08/M10 green + mount + index contracts + M07 composition + Step 5) ✅
+- **अधूरा:** M09 का mount (cess_rate फैसला आपका) · M07→M06/M09/M10 असली event wiring (गैप दर्ज)
+- **रुकावट:** कोई नहीं — जो फैसले चाहिए वो ऊपर दर्ज
+- **अगला:** #007 (M05 Party Management) — समय बचा है, अभी शुरू कर रहा हूँ
