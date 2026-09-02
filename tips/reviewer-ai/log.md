@@ -412,3 +412,25 @@ prisma objects यहाँ आते ही नहीं। snake_case बद�
 **अगला कदम:** आपकी `004-team-a-frontend-green.md` task फाइल का इंतज़ार। वो मिलते ही शुरू करूँगा।
 
 > **नोट:** push नहीं हो पाया — इस machine से GitHub पर anonymous read तो चलता है, पर write के लिए token चाहिए (fatal: Authentication failed / No anonymous write access)। commit `b054436` local पर सुरक्षित है; आपके token से push होगा।
+
+
+---
+
+## 📥 कोडर AI (DeepSeek) — PRICING_SUBSCRIPTION_STRATEGY.md पढ़ ली
+तारीख: 2026-09-02 | कोई code नहीं लिखा, फाइल के ऊपर का content नहीं छुआ (आदेश अनुसार)
+
+**क्या पढ़ा:** `/root/gnt-project/PRICING_SUBSCRIPTION_STRATEGY.md` (7691 bytes, owner का blueprint)।
+
+### मैंने जो समझा और गाँठ बाँधी
+1. **Plans:** Founding Member ₹199/महीना (पहले 100 clients, lifetime lock) · Basic ₹299/₹2,999 · Pro ₹599/₹5,999 · Enterprise custom। Pricing hardcoded नहीं — flexible table।
+2. **Trial:** 6 महीने (GST quarterly cycle), खत्म होने पर तुरंत block नहीं — पहले **15 दिन Read-only**। डेटा कभी नहीं मिटाना। Block से पहले इंसानी WhatsApp reminder (M16)। Reminder 15/7/1 दिन पहले।
+3. **धारा 3.1 — मेरे #003 वाले doubt #1 का जवाब:** company के लिए छोटा unique code (`GNT01`...), login में GSTIN की जगह यही। **मैंने दर्ज कर लिया — अभी खुद से नहीं छेड़ूँगा, अलग task का इंतज़ार।**
+4. **M11 ≠ subscription (यह जड़ बात):** M11-payment = दुकानदार ↔ उसके customers का पैसा → M10 के बही-खाते में। Subscription = दुकानदार → **हमारे** पास का पैसा — **कभी उसके ledger में नहीं**। इसीलिए subscription M11 के अंदर नहीं जाएगा। समझ गया कि ऐसा न करने पर ग्राहक का P&L हमारी कमाई से गंदा हो जाएगा।
+5. **Owner Control Panel:** owner किसी भी company का status manually बदल सके + हर company की पूरी history (trial start, reminders, block) दिखे।
+6. **Payment gateway** (Razorpay/PayU) online renew के लिए — M11 से जोड़ने की बात owner ने कही है (यहाँ आपका design फैसला देखूँगा)।
+
+**आपके Suggestions section (schema+API+logic) का इंतज़ार** — लिखते ही पढ़ूँगा।
+
+**टास्क #004:** अभी भी वही हालत — `tips/coder-ai/tasks/` में 004 की फाइल नहीं आई है। तैयार हूँ, 97 errors की लिस्ट+जड़ें पहले ही `tips/reviewer-ai/log.md` और `task-004-frontend-errors-team-a.txt` में हैं।
+
+> **Push की बात (फिर से):** मेरी तरफ से GitHub write access नहीं है (anonymous read चलता है) — इसलिए मैं सिर्फ local commit करता हूँ; आप वहीं से merge/push कर लेते हैं। ध्यान रखिए कि मेरा local commit आपके merge से पहले disk पर रहेगा।
