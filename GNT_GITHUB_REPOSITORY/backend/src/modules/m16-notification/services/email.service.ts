@@ -10,19 +10,17 @@ import { notificationRepository } from '../repositories/notification.repository'
 class EmailService {
   /**
    * Send notification via Email
+   *
+   * नोट: M18 GatewayService में अभी सिर्फ sendWhatsApp/sendSMS हैं — email adapter नहीं है।
+   * इसलिए email fail-closed रहता है (चुपचाप नहीं गिरता, delivery log में दर्ज होता है)।
    */
   async send(notificationId: string, payload: SendNotificationPayload): Promise<void> {
-    const emailPayload = {
-      to: payload.userId, // Would resolve to email via M05
-      subject: payload.title,
-      body: this.buildEmailBody(payload),
-      html: this.buildEmailHtml(payload),
-      from: 'notifications@gnt.app',
-    };
     try {
-      // M18 is the sole external-gateway owner. This adapter intentionally fails closed
-      // until M18 is bound through the canonical application composition root.
-      throw new Error('M18 gateway adapter is not bound for email; configure an active M18 provider before enabling delivery');
+      if (!payload.toAddress) {
+        throw new Error('Recipient address (toAddress) missing — fail-closed (userId को email नहीं माना गया)');
+      }
+      // M18 email gateway अभी नहीं बना है — fail-closed
+      throw new Error('M18 email gateway not implemented — email delivery unavailable (fail-closed)');
     } catch (error) {
       await notificationRepository.createDeliveryLog(
         notificationId,

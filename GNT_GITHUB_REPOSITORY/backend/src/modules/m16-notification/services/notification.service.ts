@@ -59,7 +59,7 @@ class NotificationService {
     }
 
     // 3. Emit event for audit trail (M19)
-    eventBus.emit('notification.sent', {
+    eventBus.publish('notification.sent', {
       notificationId: notification.id,
       userId: payload.userId,
       companyId: payload.companyId,

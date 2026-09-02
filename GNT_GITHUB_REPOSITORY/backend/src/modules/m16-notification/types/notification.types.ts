@@ -26,6 +26,7 @@ export interface NotificationMaster {
   entityId?: string;
   priority: NotificationPriority;
   status: NotificationStatus;
+  toAddress?: string;
   readAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -53,6 +54,7 @@ export interface SendNotificationPayload {
   entityId?: string;
   priority?: NotificationPriority;
   channels?: NotificationChannel[]; // Multi-channel support
+  toAddress?: string; // recipient का असली पता (phone/email) — userId नहीं
 }
 
 export interface NotificationFilter {
@@ -62,8 +64,8 @@ export interface NotificationFilter {
   status?: NotificationStatus;
   entityType?: NotificationEntityType;
   priority?: NotificationPriority;
-  startDate?: Date;
-  endDate?: Date;
+  startDate?: Date | string;
+  endDate?: Date | string;
   isRead?: boolean;
   page?: number;
   limit?: number;

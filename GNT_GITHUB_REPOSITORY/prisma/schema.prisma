@@ -1117,3 +1117,59 @@ model webhook_log {
   @@map("webhook_log")
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TEAM D — M16 NOTIFICATION ENGINE
+// SOURCE: team-d/M16-Notification-Engine/database/notification_master.sql + notification_delivery_log.sql
+// टास्क #011: camelCase model नाम (code इसी से बुलाता है) + @@map से snake_case table/columns।
+// ⚠️ Step 3 के लिए to_address column जोड़ा गया (source SQL में नहीं था — reviewer के फैसले का इंतज़ार)।
+// ═══════════════════════════════════════════════════════════════
+
+model NotificationMaster {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  companyId  String   @map("company_id")
+  title      String
+  message    String
+  type       String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  priority   String   @default("normal")
+  status     String   @default("pending")
+  toAddress  String?  @map("to_address")
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  deliveryLogs NotificationDeliveryLog[]
+
+  @@index([userId, companyId])
+  @@index([status])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("notification_master")
+
+  // CHECK: type IN ('in_app','whatsapp','sms','email') — app layer में validate होगा
+  // CHECK: entity_type IN ('sales_invoice','purchase_invoice','payment','stock','gst_return','employee_salary','general')
+  // CHECK: priority IN ('low','normal','high','urgent') · status IN ('pending','sent','delivered','failed','read')
+}
+
+model NotificationDeliveryLog {
+  id               String   @id @default(uuid())
+  notificationId   String   @map("notification_id")
+  channel          String
+  status           String
+  providerResponse String?  @map("provider_response")
+  attemptedAt      DateTime @default(now()) @map("attempted_at")
+  deliveredAt      DateTime? @map("delivered_at")
+  failedAt         DateTime? @map("failed_at")
+  errorMessage     String?  @map("error_message")
+
+  notification NotificationMaster @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([channel, status])
+  @@map("notification_delivery_log")
+
+  // CHECK: channel IN ('in_app','whatsapp','sms','email') · status IN ('sent','delivered','failed')
+}
+

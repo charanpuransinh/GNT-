@@ -5,27 +5,24 @@
 
 import { SendNotificationPayload } from '../types/notification.types';
 import { notificationRepository } from '../repositories/notification.repository';
+import { notificationGateway } from './gateway.binding';
 
 
 class WhatsAppService {
   /**
-   * Send notification via WhatsApp Business API
+   * Send notification via WhatsApp Business API (M18 GatewayService)
    */
   async send(notificationId: string, payload: SendNotificationPayload): Promise<void> {
-    const message = {
-      to: payload.userId, // Would resolve to phone via M05 party.service.ts
-      templateName: 'notification_alert',
-      parameters: {
-        title: payload.title,
-        message: payload.message,
-        entityType: payload.entityType,
-        entityId: payload.entityId,
-      },
-    };
     try {
-      // M18 is the sole external-gateway owner. This adapter intentionally fails closed
-      // until M18 is bound through the canonical application composition root.
-      throw new Error('M18 gateway adapter is not bound for whatsapp; configure an active M18 provider before enabling delivery');
+      if (!payload.toAddress) {
+        throw new Error('Recipient address (toAddress) missing — fail-closed (userId को phone नहीं माना गया)');
+      }
+      await notificationGateway.sendWhatsApp(payload.companyId, {
+        phone: payload.toAddress,
+        message: this.formatTemplate(payload.title, payload.message),
+        template_name: 'notification_alert',
+      });
+      await notificationRepository.createDeliveryLog(notificationId, 'whatsapp', 'delivered');
     } catch (error) {
       await notificationRepository.createDeliveryLog(
         notificationId,

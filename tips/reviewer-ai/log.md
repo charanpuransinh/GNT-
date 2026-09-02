@@ -753,3 +753,53 @@ Razorpay `x-razorpay-event-id`/payload.event, Stripe payload.id → `webhook_log
 - **अधूरा:** कुछ नहीं अटका
 - **रुकावट:** कोई नहीं (push मेरे पास write access नहीं — आपका काम)
 - **अगला:** #011 M16 Notification
+
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #011 पूरा: M16 Notification Engine
+तारीख: 2026-09-02 | verify के लिए तैयार
+
+### Pass/fail
+```
+$ npx prisma validate --schema prisma/schema.prisma  → "valid 🚀" ✅
+$ npx tsc -p tsconfig.backend.json --noEmit | grep -c "m16-notification"  → 0 ✅
+```
+पूरे backend: **956 → 917** (घटी ✅)
+
+### Step 1 — 2 models (camelCase + @@map, M19 के pattern जैसा)
+`NotificationMaster` (→ `notification_master`) + `NotificationDeliveryLog` (→ `notification_delivery_log`)।
+सारे columns `@map("snake_case")`, relations `deliveryLogs` + `notification` (findById में `include: { deliveryLogs }` चाहिए था)।
+**⚠️ Step 3 के लिए `toAddress` (@map "to_address") column जोड़ा — source SQL में नहीं था** (reviewer का फैसला चाहिए)।
+
+### Step 2 — M18 gateway binding
+नई `services/gateway.binding.ts`: M18 की **public contract** (index.ts) से `GatewayService` + `IntegrationRepository` लिया —
+internal M18 file import नहीं। whatsapp/sms अब सच में `notificationGateway.sendWhatsApp/sendSMS` बुलाते हैं
+(no provider होने पर GatewayService खुद throw करता है = fail-closed बना रहता है)।
+**⚠️ email:** M18 GatewayService में अभी सिर्फ sendWhatsApp/sendSMS हैं, **sendEmail नहीं** — इसलिए email
+fail-closed रहा (साफ़ error + delivery log)। M18 में email adapter अलग task/fैसला चाहिए।
+
+### Step 3 — to: अब असली पता (userId नहीं)
+`SendNotificationPayload.toAddress` जोड़ा (validator में भी), `notification_master.to_address` में saved।
+whatsapp/sms/email अब `payload.toAddress` इस्तेमाल करते हैं; न मिले तो fail-closed (userId को phone/email नहीं माना)।
+
+### Step 4 — mount
+`module-registry.ts`: M16 `mounted: true` + load → अब **10 modules चढ़ते हैं** (M16 शामिल)।
+Boot smoke: `/healthz` 200, `/api/v1/notifications` पहुँचता है (500 = auth नहीं लगा, वो #009 है — mount ठीक)।
+
+### बदली फाइलें (M16 + schema + registry + express.d.ts)
+`prisma/schema.prisma` · `types/notification.types.ts` · `validators/notification.schema.ts` (zod-v4 + import path fix) ·
+`repositories/notification.repository.ts` · `services/{gateway.binding,whatsapp,sms,email,notification.service}.ts` ·
+`events/notification.handlers.ts` (`eventBus.on`→`subscribe`) · `models/notification.model.ts` (Prisma extension context fix) ·
+`controllers/notification.controller.ts` · `module-registry.ts` · `m04/types/express.d.ts` (`req.user` typing जोड़ी)
+
+### नोट
+- `as any`/`@ts-ignore`/`@ts-expect-error`: **0**। (eventBus Handler का `payload: any` core/event-bus का पुराना signature है, मैंने नहीं लिखा)
+- `eventBus.on/emit` → `subscribe/publish` (core/event-bus की असली API) — यह मिलान किया।
+- runtime DB-test नहीं (local Postgres नहीं) — असली send/round-trip आपके पास DB के साथ।
+
+### सत्र नोट
+- **पूरा:** #013 M18 ✅ · #011 M16 ✅ (M16 tsc 0, mount हुआ)
+- **अधूरा:** कुछ नहीं
+- **रुकावट:** email channel (M18 sendEmail नहीं) — flag किया, आगे बढ़ गया
+- **अगला:** #014 M19 audit trail

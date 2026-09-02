@@ -5,22 +5,24 @@
 
 import { SendNotificationPayload } from '../types/notification.types';
 import { notificationRepository } from '../repositories/notification.repository';
+import { notificationGateway } from './gateway.binding';
 
 
 class SMSService {
   /**
-   * Send notification via SMS Gateway
+   * Send notification via SMS Gateway (M18 GatewayService)
    */
   async send(notificationId: string, payload: SendNotificationPayload): Promise<void> {
-    const smsPayload = {
-      to: payload.userId, // Would resolve to phone via M05
-      message: this.truncateMessage(`${payload.title}: ${payload.message}`, 160),
-      senderId: 'GNTALERT',
-    };
     try {
-      // M18 is the sole external-gateway owner. This adapter intentionally fails closed
-      // until M18 is bound through the canonical application composition root.
-      throw new Error('M18 gateway adapter is not bound for sms; configure an active M18 provider before enabling delivery');
+      if (!payload.toAddress) {
+        throw new Error('Recipient address (toAddress) missing — fail-closed (userId को phone नहीं माना गया)');
+      }
+      await notificationGateway.sendSMS(payload.companyId, {
+        phone: payload.toAddress,
+        message: this.truncateMessage(`${payload.title}: ${payload.message}`, 160),
+        sender_id: 'GNTALERT',
+      });
+      await notificationRepository.createDeliveryLog(notificationId, 'sms', 'delivered');
     } catch (error) {
       await notificationRepository.createDeliveryLog(
         notificationId,

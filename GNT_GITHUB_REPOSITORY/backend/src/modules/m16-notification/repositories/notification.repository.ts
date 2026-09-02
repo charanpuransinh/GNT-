@@ -44,6 +44,7 @@ export class NotificationRepository {
         entityId: payload.entityId,
         priority: payload.priority ?? 'normal',
         status: 'pending',
+        toAddress: payload.toAddress,
       },
     });
 

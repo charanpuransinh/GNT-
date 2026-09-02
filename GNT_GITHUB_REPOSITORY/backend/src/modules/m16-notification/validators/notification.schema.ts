@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { NotificationChannel, NotificationPriority, NotificationEntityType } from './notification.types';
+import { NotificationChannel, NotificationPriority, NotificationEntityType } from '../types/notification.types';
 
 export const notificationChannelSchema = z.enum(['in_app', 'whatsapp', 'sms', 'email']);
 export const notificationPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent']);
@@ -29,6 +29,7 @@ export const sendNotificationSchema = z.object({
   entityId: z.string().uuid().optional(),
   priority: notificationPrioritySchema.default('normal'),
   channels: z.array(notificationChannelSchema).optional(),
+  toAddress: z.string().max(255).optional(),
 });
 
 export const notificationFilterSchema = z.object({
@@ -60,7 +61,7 @@ export const deliveryLogSchema = z.object({
 
 export const eventNotificationSchema = z.object({
   eventName: z.string().min(1),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
   targetUserIds: z.array(z.string().uuid()).optional(),
   targetRoles: z.array(z.string()).optional(),
   companyId: z.string().uuid(),

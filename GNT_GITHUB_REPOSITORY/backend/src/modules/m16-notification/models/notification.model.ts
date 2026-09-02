@@ -14,13 +14,13 @@ export const notificationMasterExtension = Prisma.defineExtension({
         const skip = (page - 1) * limit;
 
         const [data, total] = await Promise.all([
-          Prisma.getExtensionContext(this).notificationMaster.findMany({
+          Prisma.getExtensionContext(this).findMany({
             where: { userId, companyId },
             orderBy: { createdAt: 'desc' },
             skip,
             take: limit,
           }),
-          Prisma.getExtensionContext(this).notificationMaster.count({
+          Prisma.getExtensionContext(this).count({
             where: { userId, companyId },
           }),
         ]);
@@ -29,14 +29,14 @@ export const notificationMasterExtension = Prisma.defineExtension({
       },
 
       async markAsRead(notificationId: string) {
-        return Prisma.getExtensionContext(this).notificationMaster.update({
+        return Prisma.getExtensionContext(this).update({
           where: { id: notificationId },
           data: { status: 'read', readAt: new Date() },
         });
       },
 
       async getUnreadCount(userId: string, companyId: string) {
-        return Prisma.getExtensionContext(this).notificationMaster.count({
+        return Prisma.getExtensionContext(this).count({
           where: {
             userId,
             companyId,
@@ -46,7 +46,7 @@ export const notificationMasterExtension = Prisma.defineExtension({
       },
 
       async findPendingNotifications() {
-        return Prisma.getExtensionContext(this).notificationMaster.findMany({
+        return Prisma.getExtensionContext(this).findMany({
           where: { status: 'pending' },
           include: { deliveryLogs: true },
           orderBy: { priority: 'desc' },
@@ -60,7 +60,7 @@ export const notificationDeliveryLogExtension = Prisma.defineExtension({
   model: {
     notificationDeliveryLog: {
       async createLog(notificationId: string, channel: string, status: string, providerResponse?: string, errorMessage?: string) {
-        return Prisma.getExtensionContext(this).notificationDeliveryLog.create({
+        return Prisma.getExtensionContext(this).create({
           data: {
             notificationId,
             channel,
@@ -73,7 +73,7 @@ export const notificationDeliveryLogExtension = Prisma.defineExtension({
       },
 
       async getDeliveryHistory(notificationId: string) {
-        return Prisma.getExtensionContext(this).notificationDeliveryLog.findMany({
+        return Prisma.getExtensionContext(this).findMany({
           where: { notificationId },
           orderBy: { attemptedAt: 'desc' },
         });

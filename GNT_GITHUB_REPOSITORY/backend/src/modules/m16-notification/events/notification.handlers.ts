@@ -31,7 +31,7 @@ class NotificationEventHandlers {
 
   private registerHandlers(): void {
     // M08 → M16: Sales Invoice Created
-    eventBus.on(NotificationEvents.SALES_INVOICE_CREATED, async (payload) => {
+    eventBus.subscribe(NotificationEvents.SALES_INVOICE_CREATED, async (payload) => {
       console.log('[M16] Handling sales.invoice.created:', payload);
       await notificationService.handleEventNotification({
         eventName: NotificationEvents.SALES_INVOICE_CREATED,
@@ -42,7 +42,7 @@ class NotificationEventHandlers {
     });
 
     // M07 → M16: Purchase Invoice Approved
-    eventBus.on(NotificationEvents.PURCHASE_INVOICE_APPROVED, async (payload) => {
+    eventBus.subscribe(NotificationEvents.PURCHASE_INVOICE_APPROVED, async (payload) => {
       console.log('[M16] Handling purchase.invoice.approved:', payload);
       await notificationService.handleEventNotification({
         eventName: NotificationEvents.PURCHASE_INVOICE_APPROVED,
@@ -53,7 +53,7 @@ class NotificationEventHandlers {
     });
 
     // M11 → M16: Payment Received
-    eventBus.on(NotificationEvents.PAYMENT_RECEIVED, async (payload) => {
+    eventBus.subscribe(NotificationEvents.PAYMENT_RECEIVED, async (payload) => {
       console.log('[M16] Handling payment.received:', payload);
       await notificationService.handleEventNotification({
         eventName: NotificationEvents.PAYMENT_RECEIVED,
@@ -64,7 +64,7 @@ class NotificationEventHandlers {
     });
 
     // M06 → M13 → M16: Low Stock Alert
-    eventBus.on(NotificationEvents.STOCK_LOW, async (payload) => {
+    eventBus.subscribe(NotificationEvents.STOCK_LOW, async (payload) => {
       console.log('[M16] Handling stock.low:', payload);
       await notificationService.handleEventNotification({
         eventName: NotificationEvents.STOCK_LOW,
@@ -75,7 +75,7 @@ class NotificationEventHandlers {
     });
 
     // M09 → M16: GST Return Due
-    eventBus.on(NotificationEvents.GST_RETURN_DUE, async (payload) => {
+    eventBus.subscribe(NotificationEvents.GST_RETURN_DUE, async (payload) => {
       console.log('[M16] Handling gst.return.due:', payload);
       await notificationService.handleEventNotification({
         eventName: NotificationEvents.GST_RETURN_DUE,
@@ -86,7 +86,7 @@ class NotificationEventHandlers {
     });
 
     // M12 → M16: Employee Salary Processed
-    eventBus.on(NotificationEvents.EMPLOYEE_SALARY_PROCESSED, async (payload) => {
+    eventBus.subscribe(NotificationEvents.EMPLOYEE_SALARY_PROCESSED, async (payload) => {
       console.log('[M16] Handling employee.salary.processed:', payload);
       await notificationService.handleEventNotification({
         eventName: NotificationEvents.EMPLOYEE_SALARY_PROCESSED,
@@ -97,7 +97,7 @@ class NotificationEventHandlers {
     });
 
     // Internal: Track delivery
-    eventBus.on(NotificationEvents.SENT, async (payload) => {
+    eventBus.subscribe(NotificationEvents.SENT, async (payload) => {
       console.log('[M16] Notification sent event:', payload);
       // M19 audit consumption hook
     });

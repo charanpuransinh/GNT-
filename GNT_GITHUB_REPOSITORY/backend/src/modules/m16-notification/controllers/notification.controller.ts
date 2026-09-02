@@ -106,7 +106,7 @@ export class NotificationController {
    */
   async getDeliveryLog(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const result = await notificationService.trackDelivery(id);
       res.status(200).json({
         success: true,

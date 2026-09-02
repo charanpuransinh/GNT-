@@ -8,6 +8,7 @@ export {};
 declare global {
   namespace Express {
     interface Request {
+      user?: { id: string; companyId?: string };
       tenant: { companyId: string; branchId?: string };
       requestId: string;
     }
