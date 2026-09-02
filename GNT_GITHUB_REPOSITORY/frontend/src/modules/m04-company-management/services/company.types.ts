@@ -20,3 +20,10 @@ export interface User {
 export interface Permission {
   id: string; module: string; resource: string; action: string; name: string;
 }
+
+// backend का response envelope (res.json({ success, data, meta }) वाला आकार)
+export interface ApiEnvelope<T> {
+  success: boolean;
+  data: T;
+  meta?: { requestId?: string; timestamp?: string };
+}

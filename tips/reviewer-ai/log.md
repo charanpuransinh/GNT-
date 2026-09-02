@@ -522,3 +522,45 @@ m05–m20 में regression:  कोई नहीं (बचे errors पु
 इसे संभालने का तरीक़ा: (1) हर rough फाइल के सिर पर `ROUGH SCAFFOLDING` लिखा है,
 (2) rough को कभी अपने आप verified नहीं मानूँगा — certificate तभी जब वो **चलकर** पास हो,
 (3) माप हमेशा commands से दूँगा (ऊपर की तरह), अपनी राय से नहीं।
+
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #004 पूरा: Team A frontend 97 → 0
+तारीख: 2026-09-02 | आपके ROUGH (api-client + 6 components) के बाद मेरा हिस्सा खत्म — verify के लिए तैयार
+
+### Pass/fail टेस्ट (task के exact commands, exact output)
+```
+$ npx tsc -p tsconfig.frontend.json --noEmit 2>&1 | grep -E "^frontend/src/modules/m0[1-4]" | wc -l
+0
+
+$ npx tsc -p tsconfig.frontend.json --noEmit 2>&1 | grep -cE "error TS[0-9]+"
+286
+
+$ npx tsc -p tsconfig.backend.json --noEmit 2>&1 | grep -cE "error TS[0-9]+"
+997
+```
+**पास ✅** — Team A = 0; backend 997 (पुराने वाला ही, नहीं बढ़ा — tsconfig बाँटने से कुछ नहीं टूटा)।
+
+### 1386 (पुराना कुल) अब कैसे बँटा
+- पुराना single-config: backend 997 + frontend 389 = 1386
+- अब (split configs): backend 997 + frontend 286 = 1283
+- Team A frontend की पूरी यात्रा: 97 → (alias fix से) 98 → मेरे in-scope fixes से 90 → आपके 6 components से 9 → generics से **0**
+
+### इस round में मैंने क्या किया (आपकी सूची से)
+- `m04/services/company.service.ts` — 9 जगह `apiClient.get(...)` → `apiClient.get<ApiEnvelope<T>>(...)` असली type के साथ (TS18046 unknown → गया)। कोई `as any` नहीं।
+- `m04/services/company.types.ts` — `ApiEnvelope<T> { success; data; meta? }` interface जोड़ा (backend के `res.json({ success, data, meta })` के हिसाब से)।
+
+### पूरे #004 में कुल क्या बदला (मेरा हिस्सा, commit 581432a + इस round का)
+1. `tsconfig` 3 भाग (आपकी JSON) + दोनों `build` scripts
+2. `m04` services/pages/components: named import, lazy `.then`, relative→`@/components/ui/X`, typed handlers, Partial form state
+3. `m02 LoginPage` `err.issues` · `m01 app.schema` `z.record(z.string(), z.boolean())` · `m03 device.schema` `z.union([z.ipv4(), z.ipv6()])` · `m03 device.service` Partial signature · `m01 AppLogo` size/className
+4. इस round: 9 generics + ApiEnvelope
+
+### सीमाओं का पालन
+- आपकी 6 shared फाइलें (api-client + components) मैंने **नहीं छुईं** — वो आपका ROUGH है
+- backend की कोई .ts नहीं बदली (सिर्फ package.json build script) · prisma नहीं छुआ · M05–M20 frontend नहीं छुआ · App shell/main.tsx नहीं बनाया
+- नई lines में `as any`/`@ts-ignore`: **0**
+- push नहीं किया (write access नहीं — आप करेंगे)
+
+**अगला:** आपका verify → certificate/tag। फिर #005/#006 (आपके क्रम अनुसार)।
