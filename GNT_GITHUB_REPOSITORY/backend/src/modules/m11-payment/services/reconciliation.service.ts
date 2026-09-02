@@ -98,7 +98,7 @@ export class ReconciliationService {
       .filter(i => i.statementType === 'DEBIT')
       .reduce((sum, i) => sum.add(i.statementAmount), new Decimal(0));
 
-    await this.prisma.reconciliation.update({
+    await this.prisma.paymentReconciliation.update({
       where: { id },
       data: {
         statementCredits,

@@ -200,23 +200,23 @@ export class ImportService {
   async listTemplates(tenantId: string, entityType?: string) {
     const where: any = { tenantId };
     if (entityType) where.entityType = entityType;
-    return prisma.importTemplate.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return prisma.importMapping.findMany({ where, orderBy: { createdAt: 'desc' } });
   }
 
   async getTemplate(tenantId: string, id: string) {
-    return prisma.importTemplate.findFirst({ where: { id, tenantId } });
+    return prisma.importMapping.findFirst({ where: { id, tenantId } });
   }
 
   async createTemplate(data: Partial<ImportTemplate>) {
-    return prisma.importTemplate.create({ data: data as any });
+    return prisma.importMapping.create({ data: data as any });
   }
 
   async updateTemplate(tenantId: string, id: string, updates: Partial<ImportTemplate>) {
-    return prisma.importTemplate.update({ where: { id }, data: updates as any });
+    return prisma.importMapping.update({ where: { id }, data: updates as any });
   }
 
   async deleteTemplate(tenantId: string, id: string) {
-    await prisma.importTemplate.deleteMany({ where: { id, tenantId } });
+    await prisma.importMapping.deleteMany({ where: { id, tenantId } });
   }
 
   // ── PRIVATE HELPERS ──

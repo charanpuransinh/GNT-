@@ -1,14 +1,14 @@
 // M11 Payment Module - Ledger Entry Repository
 // Links to M10 Finance module via PUBLIC API only
 
-import { PrismaClient, Prisma, LedgerEntry } from '@prisma/client';
+import { PrismaClient, Prisma, PaymentLedgerEntry } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class LedgerRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async findByTransaction(transactionId: string, tenantId: string): Promise<LedgerEntry[]> {
-    return this.prisma.ledgerEntry.findMany({
+  async findByTransaction(transactionId: string, tenantId: string): Promise<PaymentLedgerEntry[]> {
+    return this.prisma.paymentLedgerEntry.findMany({
       where: { transactionId, tenantId },
       orderBy: { createdAt: 'asc' },
     });
@@ -23,7 +23,7 @@ export class LedgerRepository {
     entryDate: Date;
     fiscalYearId?: string;
   }[], tenantId: string, userId: string): Promise<Prisma.BatchPayload> {
-    return this.prisma.ledgerEntry.createMany({
+    return this.prisma.paymentLedgerEntry.createMany({
       data: entries.map(entry => ({
         tenantId,
         transactionId: entry.transactionId,
@@ -40,7 +40,7 @@ export class LedgerRepository {
   }
 
   async getAccountBalance(accountCode: string, tenantId: string, fiscalYearId?: string): Promise<Decimal> {
-    const result = await this.prisma.ledgerEntry.aggregate({
+    const result = await this.prisma.paymentLedgerEntry.aggregate({
       where: { accountCode, tenantId, fiscalYearId: fiscalYearId || undefined },
       _sum: { debitAmount: true, creditAmount: true },
     });

@@ -1453,3 +1453,1357 @@ model ReportTemplate {
   // CHECK: template_type IN ('pdf','excel','html','csv')
 }
 
+// ────────────────────────────────────────────────────────────
+// GNT M11 — PAYMENT MODULE
+// Source: database/schema/M11_Payment.prisma (Team C, Session 2)
+// टास्क #008: side-file से ज्यों-के-त्यों उठाए गए; @@map ज्यों-के-त्यों।
+//   - PaymentReconciliationItem नया model है (code बुलाता था, side-file में नहीं था)
+//   - PaymentReconciliation में items back-relation जोड़ा गया (नए model के लिए ज़रूरी)
+// ────────────────────────────────────────────────────────────
+
+model PaymentMethod {
+  id              String   @id @default(cuid())
+  code            String   @unique // CASH, BANK_TRANSFER, UPI, CARD, CHEQUE, WALLET
+  name            String
+  description     String?
+  isActive        Boolean  @default(true)
+  configJson      Json?    // Provider-specific config (Stripe keys, Razorpay, etc.)
+
+  // Provider linkage
+  providerCode    String?  // stripe, razorpay, paypal, internal
+  providerConfig  Json?
+
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String
+  updatedBy       String
+  tenantId        String   @map("tenant_id")
+
+  // Relations
+  transactions    PaymentTransaction[]
+  schedules       PaymentSchedule[]
+
+  @@index([tenantId, isActive])
+  @@index([code, tenantId])
+  @@map("m11_payment_methods")
+}
+
+model PaymentTransaction {
+  id                  String   @id @default(cuid())
+  transactionNumber   String   @unique // TXN-2026-000001
+
+  // Party info (generic — can be customer, vendor, employee)
+  partyType           String   // CUSTOMER, VENDOR, EMPLOYEE, SYSTEM
+  partyId             String   // External ID from respective module
+  partyName           String
+  partyContact        String?
+
+  // Amount
+  amount              Decimal  @db.Decimal(18, 4)
+  currency            String   @default("INR")
+  exchangeRate        Decimal  @default(1.0) @db.Decimal(18, 6)
+  baseAmount          Decimal  @db.Decimal(18, 4) // amount * exchangeRate
+
+  // Direction
+  direction           String   // IN (receipt), OUT (payment)
+
+  // Status lifecycle
+  status              String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED, REFUNDED
+  statusHistory       Json[]   // [{status, at, by, reason}]
+
+  // Method
+  paymentMethodId     String
+  paymentMethod       PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  // Reference linking (to invoices, bills, payroll, etc.)
+  referenceType       String?  // INVOICE, BILL, PAYROLL, ORDER, JOURNAL
+  referenceId         String?
+  referenceNumber     String?
+
+  // Provider tracking
+  providerRef         String?  // Stripe payment_intent_id, Razorpay order_id
+  providerResponse    Json?
+  providerWebhookData Json?
+
+  // Bank/Reconciliation
+  bankAccountId       String?
+  reconciled          Boolean  @default(false)
+  reconciledAt        DateTime?
+  reconciliationId    String?
+
+  // Narration
+  narration           String?
+  internalNotes       String?
+
+  // Dates
+  transactionDate     DateTime
+  valueDate           DateTime?
+  settledAt           DateTime?
+
+  // Audit
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  createdBy           String
+  updatedBy           String
+  tenantId            String   @map("tenant_id")
+
+  // Relations
+  refunds             Refund[]
+  allocations         PaymentAllocation[]
+  ledgerEntries       PaymentLedgerEntry[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, transactionDate])
+  @@index([partyType, partyId])
+  @@index([referenceType, referenceId])
+  @@index([providerRef])
+  @@map("m11_payment_transactions")
+}
+
+model PaymentAllocation {
+  id              String   @id @default(cuid())
+  transactionId   String
+  transaction     PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  // What is being paid
+  targetType      String   // INVOICE, BILL, ORDER, ACCOUNT
+  targetId        String
+  targetNumber    String?
+
+  allocatedAmount Decimal  @db.Decimal(18, 4)
+
+  // For partial allocations
+  isFullPayment   Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@index([transactionId])
+  @@index([targetType, targetId])
+  @@map("m11_payment_allocations")
+}
+
+model PaymentSchedule {
+  id              String   @id @default(cuid())
+  scheduleNumber  String   @unique
+
+  // Source
+  sourceType      String   // INVOICE, BILL, SUBSCRIPTION, LOAN
+  sourceId        String
+
+  // Schedule details
+  totalAmount     Decimal  @db.Decimal(18, 4)
+  paidAmount      Decimal  @default(0) @db.Decimal(18, 4)
+  pendingAmount   Decimal  @db.Decimal(18, 4)
+
+  frequency       String?  // ONCE, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  installments    Int      @default(1)
+
+  // Dates
+  startDate       DateTime
+  endDate         DateTime?
+  nextDueDate     DateTime?
+
+  // Status
+  status          String   @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED, OVERDUE
+
+  paymentMethodId String?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+
+  // Child installments
+  installmentsList PaymentInstallment[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@index([tenantId, status])
+  @@index([sourceType, sourceId])
+  @@map("m11_payment_schedules")
+}
+
+model PaymentInstallment {
+  id              String   @id @default(cuid())
+  scheduleId      String
+  schedule        PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  installmentNo   Int
+  amount          Decimal  @db.Decimal(18, 4)
+  dueDate         DateTime
+  paidDate        DateTime?
+
+  status          String   @default("PENDING") // PENDING, PAID, OVERDUE, WAIVED
+  transactionId   String?
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@index([scheduleId])
+  @@map("m11_payment_installments")
+}
+
+model Refund {
+  id              String   @id @default(cuid())
+  refundNumber    String   @unique
+
+  originalTxnId   String
+  originalTxn     PaymentTransaction @relation(fields: [originalTxnId], references: [id])
+
+  amount          Decimal  @db.Decimal(18, 4)
+  reason          String
+  status          String   @default("PENDING") // PENDING, APPROVED, PROCESSED, REJECTED
+
+  processedAt     DateTime?
+  providerRef     String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@index([originalTxnId])
+  @@map("m11_refunds")
+}
+
+model PaymentLedgerEntry {
+  id              String   @id @default(cuid())
+  transactionId   String
+  transaction     PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  entryType       String   // DEBIT, CREDIT
+  accountCode     String   // Chart of accounts code (from M10 Finance — PUBLIC API only)
+  amount          Decimal  @db.Decimal(18, 4)
+
+  // For double-entry
+  contraAccount   String?
+
+  fiscalYear      String
+  period          String   // MM-YYYY
+
+  postedAt        DateTime @default(now())
+  tenantId        String
+
+  @@index([transactionId])
+  @@index([tenantId, fiscalYear])
+  @@map("m11_payment_ledger_entries")
+}
+
+model PaymentReconciliation {
+  id              String   @id @default(cuid())
+  reconNumber     String   @unique
+
+  bankAccountId   String
+  statementDate   DateTime
+  openingBalance  Decimal  @db.Decimal(18, 4)
+  closingBalance  Decimal  @db.Decimal(18, 4)
+
+  // Summary
+  matchedCount    Int      @default(0)
+  unmatchedCount  Int      @default(0)
+  matchedAmount   Decimal  @default(0) @db.Decimal(18, 4)
+  unmatchedAmount Decimal  @default(0) @db.Decimal(18, 4)
+
+  status          String   @default("DRAFT") // DRAFT, IN_PROGRESS, RECONCILED, VARIANCE
+
+  // Upload reference
+  statementFileId String?
+
+  // Items (टास्क #008 — नया relation, code `include: { items: true }` बुलाता है)
+  items           PaymentReconciliationItem[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@map("m11_payment_reconciliations")
+}
+
+// टास्क #008 — नया model (code में prisma.reconciliationItem था, side-file में नहीं था)
+// फील्ड code के असली इस्तेमाल से लिए गए हैं (reconciliation.repository.ts)
+model PaymentReconciliationItem {
+  id               String                @id @default(cuid())
+  reconciliationId String
+  reconciliation   PaymentReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+
+  transactionId    String?
+  statementDate    DateTime
+  statementDesc    String
+  statementAmount  Decimal               @db.Decimal(18, 4)
+  statementType    String
+
+  isMatched        Boolean               @default(false)
+  matchConfidence  Decimal?              @db.Decimal(5, 2)
+  varianceAmount   Decimal?              @db.Decimal(18, 4)
+  resolutionNotes  String?
+  resolvedBy       String?
+  resolvedAt       DateTime?
+
+  createdBy        String
+  updatedBy        String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  tenantId         String
+
+  @@index([reconciliationId])
+  @@index([tenantId, isMatched])
+  @@map("payment_reconciliation_item")
+}
+
+model BankAccount {
+  id              String   @id @default(cuid())
+  accountCode     String   @unique
+  accountName     String
+  bankName        String
+  accountNumber   String   // Masked storage
+  ifscCode        String?
+  branch          String?
+
+  accountType     String   // CURRENT, SAVINGS, CASH, WALLET
+  currency        String   @default("INR")
+
+  openingBalance  Decimal  @default(0) @db.Decimal(18, 4)
+  currentBalance  Decimal  @default(0) @db.Decimal(18, 4)
+
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+
+  // For auto-sync
+  syncConfig      Json?
+  lastSyncedAt    DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@index([tenantId, isActive])
+  @@map("m11_bank_accounts")
+}
+
+// ────────────────────────────────────────────────────────────
+// GNT M12 — HR MODULE
+// Source: database/schema/M12_HR.prisma (Team C, Session 2)
+// टास्क #008: side-file से ज्यों-के-त्यों; @@map ज्यों-के-त्यों।
+//   - LeaveBalance और HREventLog नए models (code बुलाता था, side-file में नहीं थे)
+//   - LeaveBalance के फील्ड code के असली इस्तेमाल से (leave.service.ts):
+//     employeeId_year compound unique + annual/sick/casual/unpaid/used
+//     (task के field-list में leave_type_id/entitled/balance थे — कोड उन्हें नहीं बुलाता,
+//      इसलिए leaveTypeId/entitled/balance optional रखे, ज़रूरी वही जो कोड चाहता है)
+// ────────────────────────────────────────────────────────────
+
+model Employee {
+  id              String   @id @default(cuid())
+  employeeCode    String   @unique // EMP-2026-0001
+
+  // Personal
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  alternatePhone  String?
+  dateOfBirth     DateTime?
+  gender          String?  // MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY
+  bloodGroup      String?
+
+  // Identity
+  panNumber       String?
+  aadhaarNumber   String?  // Encrypted at application layer
+  uanNumber       String?  // Universal Account Number (PF)
+  esicNumber      String?
+
+  // Employment
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  designationId   String
+  designation     Designation @relation(fields: [designationId], references: [id])
+
+  employmentType  String   @default("FULL_TIME") // FULL_TIME, PART_TIME, CONTRACT, INTERN
+  employmentStatus String  @default("ACTIVE") // ACTIVE, PROBATION, NOTICE_PERIOD, RESIGNED, TERMINATED
+
+  dateOfJoining   DateTime
+  dateOfExit      DateTime?
+
+  // Reporting
+  reportingToId   String?
+  reportingTo     Employee? @relation("EmployeeReporting", fields: [reportingToId], references: [id])
+  subordinates    Employee[] @relation("EmployeeReporting")
+
+  // Compensation (monthly)
+  basicSalary     Decimal  @db.Decimal(18, 4)
+  salaryStructure Json?    // Breakdown: HRA, DA, TA, etc.
+
+  // Bank
+  bankAccountName String?
+  bankAccountNo   String?  // Encrypted
+  bankIfsc        String?
+  bankName        String?
+
+  // Work
+  shiftId         String?
+  shift           Shift?   @relation(fields: [shiftId], references: [id])
+  workLocation    String?
+
+  // Documents
+  documents       EmployeeDocument[]
+
+  // Relations
+  attendances     Attendance[]
+  leaves          Leave[]
+  payrolls        Payroll[]
+  leaveBalances   LeaveBalance[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@index([tenantId, employmentStatus])
+  @@index([departmentId])
+  @@index([reportingToId])
+  @@map("m12_employees")
+}
+
+model Department {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  description     String?
+
+  parentId        String?
+  parent          Department? @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children        Department[] @relation("DeptHierarchy")
+
+  costCenterCode  String?  // Links to M10 Finance
+  isActive        Boolean  @default(true)
+
+  employees       Employee[]
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m12_departments")
+}
+
+model Designation {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  level           Int      @default(1) // 1=Junior, 5=Executive
+  description     String?
+  isActive        Boolean  @default(true)
+
+  employees       Employee[]
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m12_designations")
+}
+
+model EmployeeDocument {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  documentType    String   // RESUME, OFFER_LETTER, AADHAAR, PAN, CONTRACT, EXPERIENCE
+  documentName    String
+  fileUrl         String
+  fileKey         String   // S3/Storage key
+  mimeType        String
+  fileSize        Int
+
+  expiryDate      DateTime?
+  isVerified      Boolean  @default(false)
+  verifiedBy      String?
+  verifiedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@index([employeeId])
+  @@map("m12_employee_documents")
+}
+
+model Shift {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+
+  startTime       String   // "09:00"
+  endTime         String   // "18:00"
+  breakDuration   Int      @default(60) // minutes
+
+  workingDays     String[] // ["MON","TUE","WED","THU","FRI"]
+
+  gracePeriod     Int      @default(15) // minutes
+  halfDayAfter    Int      @default(240) // minutes after start
+
+  isNightShift    Boolean  @default(false)
+  isActive        Boolean  @default(true)
+
+  employees       Employee[]
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m12_shifts")
+}
+
+model Attendance {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date            DateTime @db.Date
+
+  // Punch times
+  checkIn         DateTime?
+  checkOut        DateTime?
+
+  // Geo
+  checkInLocation Json?    // {lat, lng, address}
+  checkOutLocation Json?
+
+  // Device
+  checkInDevice   String?  // WEB, MOBILE, BIOMETRIC, MANUAL
+  checkOutDevice  String?
+
+  // Calculated
+  totalHours      Decimal? @db.Decimal(4, 2)
+  breakHours      Decimal? @db.Decimal(4, 2)
+  workingHours    Decimal? @db.Decimal(4, 2)
+  overtimeHours   Decimal? @db.Decimal(4, 2)
+
+  // Status
+  status          String   @default("PRESENT") // PRESENT, ABSENT, HALF_DAY, ON_LEAVE, WFH, HOLIDAY, WEEKLY_OFF
+  lateByMinutes   Int      @default(0)
+  earlyExitMinutes Int     @default(0)
+
+  // Remarks
+  remarks         String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@unique([employeeId, date])
+  @@index([tenantId, date])
+  @@index([employeeId, status])
+  @@map("m12_attendance")
+}
+
+model LeaveType {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  description     String?
+
+  // Entitlement
+  annualQuota     Decimal  @db.Decimal(5, 2) // days per year
+  maxCarryForward Decimal  @default(0) @db.Decimal(5, 2)
+  encashable      Boolean  @default(false)
+
+  // Rules
+  minDaysPerRequest Int    @default(1)
+  maxDaysPerRequest Int?
+  noticeDaysRequired Int   @default(0)
+
+  // Pay rules
+  isPaid          Boolean  @default(true)
+  payPercentage   Decimal  @default(100) @db.Decimal(5, 2)
+
+  isActive        Boolean  @default(true)
+
+  leaves          Leave[]
+  leaveBalances   LeaveBalance[]
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m12_leave_types")
+}
+
+model Leave {
+  id              String   @id @default(cuid())
+  leaveNumber     String   @unique // LEV-2026-0001
+
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  leaveTypeId     String
+  leaveType       LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  // Dates
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+  daysRequested   Decimal  @db.Decimal(5, 2)
+  daysApproved    Decimal? @db.Decimal(5, 2)
+
+  // Reason
+  reason          String
+  attachmentUrl   String?
+
+  // Workflow
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  // Half-day support
+  isHalfDay       Boolean  @default(false)
+  halfDayType     String?  // FIRST_HALF, SECOND_HALF
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@index([employeeId, status])
+  @@index([tenantId, startDate])
+  @@map("m12_leaves")
+}
+
+model Holiday {
+  id              String   @id @default(cuid())
+  name            String
+  date            DateTime @db.Date
+  holidayType     String   @default("PUBLIC") // PUBLIC, RESTRICTED, COMPANY
+  description     String?
+  isRecurring     Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@unique([tenantId, date, name])
+  @@map("m12_holidays")
+}
+
+model Payroll {
+  id              String   @id @default(cuid())
+  payrollNumber   String   @unique // PAY-2026-04-0001
+
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Period
+  month           Int      // 1-12
+  year            Int
+  periodStart     DateTime
+  periodEnd       DateTime
+
+  // Attendance summary (denormalized for performance)
+  daysWorked      Decimal  @db.Decimal(5, 2)
+  daysLeave       Decimal  @db.Decimal(5, 2)
+  daysAbsent      Decimal  @db.Decimal(5, 2)
+  daysHoliday     Decimal  @db.Decimal(5, 2)
+  overtimeHours   Decimal  @default(0) @db.Decimal(5, 2)
+
+  // Earnings
+  basicSalary     Decimal  @db.Decimal(18, 4)
+  hra             Decimal  @default(0) @db.Decimal(18, 4)
+  da              Decimal  @default(0) @db.Decimal(18, 4)
+  conveyance      Decimal  @default(0) @db.Decimal(18, 4)
+  medical         Decimal  @default(0) @db.Decimal(18, 4)
+  specialAllowance Decimal @default(0) @db.Decimal(18, 4)
+  overtimePay     Decimal  @default(0) @db.Decimal(18, 4)
+  bonus           Decimal  @default(0) @db.Decimal(18, 4)
+  otherEarnings   Decimal  @default(0) @db.Decimal(18, 4)
+  totalEarnings   Decimal  @db.Decimal(18, 4)
+
+  // Deductions
+  pfEmployee      Decimal  @default(0) @db.Decimal(18, 4)
+  pfEmployer      Decimal  @default(0) @db.Decimal(18, 4)
+  esiEmployee     Decimal  @default(0) @db.Decimal(18, 4)
+  esiEmployer     Decimal  @default(0) @db.Decimal(18, 4)
+  tds             Decimal  @default(0) @db.Decimal(18, 4)
+  professionalTax Decimal  @default(0) @db.Decimal(18, 4)
+  advanceRecovery Decimal  @default(0) @db.Decimal(18, 4)
+  otherDeductions Decimal  @default(0) @db.Decimal(18, 4)
+  totalDeductions Decimal  @db.Decimal(18, 4)
+
+  // Net
+  netPay          Decimal  @db.Decimal(18, 4)
+
+  // Status
+  status          String   @default("DRAFT") // DRAFT, REVIEWED, APPROVED, PAID
+
+  // Payment linkage (M11 Payment PUBLIC API)
+  paymentTransactionId String?
+  paidAt          DateTime?
+  paidBy          String?
+
+  // Payslip
+  payslipGeneratedAt DateTime?
+  payslipUrl      String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@unique([employeeId, month, year])
+  @@index([tenantId, month, year])
+  @@index([status])
+  @@map("m12_payrolls")
+}
+
+model PayrollTemplate {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+
+  // Components
+  components      Json[]   // [{type: EARNING|DEDUCTION, name, formula, isMandatory}]
+
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m12_payroll_templates")
+}
+
+// टास्क #008 — नया model (code prisma.leaveBalance बुलाता था)
+// employeeId_year compound unique कोड के findUnique के लिए ज़रूरी है
+model LeaveBalance {
+  id          String     @id @default(cuid())
+  employeeId  String
+  employee    Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  leaveTypeId String?
+  leaveType   LeaveType? @relation(fields: [leaveTypeId], references: [id])
+
+  year        Int
+  // task के field-list से (कोड अभी नहीं बुलाता — optional रखे)
+  entitled    Int?
+  balance     Int?
+  // कोड के असली इस्तेमाल से (leave.service.ts)
+  annual      Int        @default(0)
+  sick        Int        @default(0)
+  casual      Int        @default(0)
+  unpaid      Int        @default(0)
+  used        Int        @default(0)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([employeeId, year])
+  @@index([leaveTypeId])
+  @@map("m12_leave_balances")
+}
+
+// टास्क #008 — नया model (code prisma.hrEventLog बुलाता था; hr.events.ts)
+// processed/module फील्ड कोड के असली इस्तेमाल से हैं
+model HREventLog {
+  id         String   @id @default(cuid())
+  employeeId String?
+  eventType  String
+  payload    Json?
+  module     String?
+  processed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([processed])
+  @@map("m12_hr_event_log")
+}
+
+// ────────────────────────────────────────────────────────────
+// GNT M14 — IMPORT/EXPORT MODULE
+// Source: database/schema/M14_ImportExport.prisma (Team C, Session 2)
+// टास्क #008: सातों models ज्यों-के-त्यों; @@map ज्यों-के-त्यों।
+//   कोड में prisma.importTemplate था — ImportMapping ही वही चीज़ है (rename code में होगा)।
+// ────────────────────────────────────────────────────────────
+
+model ImportJob {
+  id              String   @id @default(cuid())
+  jobNumber       String   @unique // IMP-2026-000001
+
+  name            String
+  description     String?
+
+  // Target
+  targetModule    String   // M05_ITEM, M06_PARTY, M07_SALE, M08_PURCHASE, M12_EMPLOYEE
+  targetEntity    String   // ITEM, CUSTOMER, SUPPLIER, INVOICE, EMPLOYEE
+
+  // Source file
+  fileName        String
+  fileUrl         String
+  fileKey         String
+  fileSize        Int
+  fileType        String   // CSV, XLSX, JSON, XML
+
+  // Mapping
+  mappingId       String?
+  mapping         ImportMapping? @relation(fields: [mappingId], references: [id])
+  columnMapping   Json?    // { "A": "itemCode", "B": "itemName" }
+
+  // Processing
+  totalRows       Int      @default(0)
+  processedRows   Int      @default(0)
+  successRows     Int      @default(0)
+  failedRows      Int      @default(0)
+  skippedRows     Int      @default(0)
+
+  // Status
+  status          String   @default("QUEUED") // QUEUED, VALIDATING, PROCESSING, COMPLETED, FAILED, CANCELLED
+
+  // Validation
+  validationReport Json?   // {errors: [], warnings: []}
+
+  // Strategy
+  importStrategy  String   @default("UPSERT") // INSERT, UPDATE, UPSERT
+  duplicateHandling String @default("SKIP") // SKIP, UPDATE, FAIL
+
+  // Results
+  resultFileUrl   String?  // Download link for failed rows
+  resultFileKey   String?
+
+  // Schedule
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  // Error log
+  errorLog        ImportErrorLog[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String
+  tenantId        String
+
+  @@index([tenantId, status])
+  @@index([targetModule, targetEntity])
+  @@map("m14_import_jobs")
+}
+
+model ImportMapping {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+
+  targetModule    String
+  targetEntity    String
+
+  // Column mappings
+  mappings        Json[]   // [{sourceColumn, targetField, transform, isRequired, defaultValue}]
+
+  // Validation rules
+  validationRules Json[]   // [{field, rule, params, errorMessage}]
+
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+
+  importJobs      ImportJob[]
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m14_import_mappings")
+}
+
+model ImportErrorLog {
+  id              String   @id @default(cuid())
+  importJobId     String
+  importJob       ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  rowNumber       Int
+  rowData         Json     // The raw row data
+
+  errorType       String   // VALIDATION, DUPLICATE, SYSTEM, PERMISSION
+  errorField      String?
+  errorMessage    String
+  errorCode       String?
+
+  // Resolution
+  isResolved      Boolean  @default(false)
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      String?
+
+  tenantId        String
+
+  @@index([importJobId])
+  @@map("m14_import_error_logs")
+}
+
+model ExportJob {
+  id              String   @id @default(cuid())
+  jobNumber       String   @unique // EXP-2026-000001
+
+  name            String
+  description     String?
+
+  // Source
+  sourceModule    String
+  sourceEntity    String
+
+  // Filter criteria
+  filters         Json?    // {dateFrom, dateTo, status, departmentId}
+
+  // Output
+  format          String   // CSV, XLSX, PDF, JSON, XML
+  templateId      String?
+  template        ExportTemplate? @relation(fields: [templateId], references: [id])
+
+  // Columns to export
+  columns         Json[]   // [{field, header, width, format}]
+
+  // Status
+  status          String   @default("QUEUED") // QUEUED, PROCESSING, COMPLETED, FAILED
+
+  // Results
+  totalRecords    Int?
+  fileUrl         String?
+  fileKey         String?
+  fileSize        Int?
+  expiresAt       DateTime?
+
+  // Schedule
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  // For recurring exports
+  isRecurring     Boolean  @default(false)
+  cronExpression  String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String
+  tenantId        String
+
+  @@index([tenantId, status])
+  @@map("m14_export_jobs")
+}
+
+model ExportTemplate {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+
+  sourceModule    String
+  sourceEntity    String
+
+  // Template config
+  format          String   // CSV, XLSX, PDF
+  columns         Json[]   // [{field, header, width, format, formula}]
+
+  // Styling (for PDF/Excel)
+  headerStyle     Json?
+  rowStyle        Json?
+  footerConfig    Json?
+
+  // Filters (default)
+  defaultFilters  Json?
+
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+
+  exportJobs      ExportJob[]
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m14_export_templates")
+}
+
+model DataTransform {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+
+  // Transform type
+  transformType   String   // FIELD_MAP, CONCATENATE, SPLIT, CALCULATE, LOOKUP, CONDITIONAL
+
+  // Config
+  sourceFields    String[]
+  targetField     String
+  transformConfig Json     // {delimiter, formula, lookupTable, conditions}
+
+  // Usage
+  usedInMappings  String[] // ImportMapping IDs
+
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@map("m14_data_transforms")
+}
+
+model FileUpload {
+  id              String   @id @default(cuid())
+  uploadCode      String   @unique
+
+  originalName    String
+  fileName        String   // Stored name
+  fileUrl         String
+  fileKey         String
+  mimeType        String
+  fileSize        Int
+
+  // Context
+  module          String   // M14, M11, M07, etc.
+  entityType      String?  // IMPORT_JOB, EXPORT_JOB, PAYMENT_RECEIPT, EMPLOYEE_DOC
+  entityId        String?
+
+  // Meta
+  checksum        String?  // SHA-256
+  metadata        Json?    // {width, height, pages}
+
+  // Lifecycle
+  expiresAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?
+
+  createdAt       DateTime @default(now())
+  createdBy       String
+  tenantId        String
+
+  @@index([tenantId, module])
+  @@index([entityType, entityId])
+  @@map("m14_file_uploads")
+}
+
+// ────────────────────────────────────────────────────────────
+// GNT M15 — SYNC MODULE
+// Source: database/schema/M15_Sync.prisma (Team C, Session 2)
+// टास्क #008: सातों models ज्यों-के-त्यों; @@map ज्यों-के-त्यों।
+//   - SyncQueueItem, BackupJob, RestoreJob नए models (code बुलाता था; फील्ड code के
+//     असली इस्तेमाल से — sync-queue.service.ts / backup.service.ts)
+//   - webhookEndpoint/webhookDelivery ⛔ नहीं बने (M18 का विषय — reviewer का फैसला बाक़ी)
+// ────────────────────────────────────────────────────────────
+
+model SyncConfig {
+  id              String   @id @default(cuid())
+  configCode      String   @unique // SYNC-TALLY, SYNC-ZOHO
+  name            String
+  description     String?
+
+  // Source system
+  sourceSystem    String   // INTERNAL, TALLY, ZOHO_BOOKS, QUICKBOOKS, SALESFORCE, SHOPIFY
+  sourceVersion   String?
+
+  // Direction
+  syncDirection   String   // BIDIRECTIONAL, TO_EXTERNAL, FROM_EXTERNAL
+
+  // Entities to sync
+  entityConfigs   SyncEntityConfig[]
+  jobs            SyncJob[]
+
+  // Connection
+  connectionType  String   // API, DATABASE, FILE, WEBHOOK, SFTP
+  connectionConfig Json    // {baseUrl, authType, credentials, headers}
+
+  // Schedule
+  syncMode        String   @default("MANUAL") // MANUAL, SCHEDULED, REALTIME
+  cronExpression  String?
+
+  // Status
+  status          String   @default("ACTIVE") // ACTIVE, PAUSED, ERROR, DISABLED
+
+  // Last sync info
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?  // SUCCESS, PARTIAL, FAILED
+  lastSyncJobId   String?
+
+  // Error tracking
+  consecutiveErrors Int    @default(0)
+  errorThreshold  Int      @default(5) // Auto-pause after N consecutive errors
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@map("m15_sync_configs")
+}
+
+model SyncEntityConfig {
+  id              String   @id @default(cuid())
+  syncConfigId    String
+  syncConfig      SyncConfig @relation(fields: [syncConfigId], references: [id], onDelete: Cascade)
+
+  // Entity mapping
+  internalEntity  String   // ITEM, CUSTOMER, INVOICE, PAYMENT
+  externalEntity  String   // Products, Contacts, Invoices, Payments
+
+  // Field mapping
+  fieldMappings   Json[]   // [{internalField, externalField, transform, isKey}]
+
+  // Sync rules
+  syncDirection   String   @default("BIDIRECTIONAL") // TO_EXTERNAL, FROM_EXTERNAL, BIDIRECTIONAL
+
+  // Filters
+  sourceFilter    Json?    // {activeOnly: true, dateFrom: "2026-01-01"}
+  targetFilter    Json?
+
+  // Conflict
+  conflictResolution String @default("INTERNAL_WINS") // INTERNAL_WINS, EXTERNAL_WINS, TIMESTAMP_WINS, MANUAL
+
+  // Schedule override
+  syncMode        String?  // Override parent config
+  cronExpression  String?
+
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@index([syncConfigId])
+  @@map("m15_sync_entity_configs")
+}
+
+model SyncJob {
+  id              String   @id @default(cuid())
+  jobNumber       String   @unique // SYN-2026-000001
+
+  syncConfigId    String
+  syncConfig      SyncConfig @relation(fields: [syncConfigId], references: [id])
+
+  // Trigger
+  triggeredBy     String   // USER, SCHEDULE, WEBHOOK, RETRY
+  triggeredByUser String?
+
+  // Scope
+  entityType      String?  // If single entity sync
+
+  // Status
+  status          String   @default("QUEUED") // QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED
+
+  // Progress
+  totalEntities   Int      @default(0)
+  processedEntities Int    @default(0)
+  createdCount    Int      @default(0)
+  updatedCount    Int      @default(0)
+  deletedCount    Int      @default(0)
+  skippedCount    Int      @default(0)
+  errorCount      Int      @default(0)
+  conflictCount   Int      @default(0)
+
+  // Timing
+  startedAt       DateTime?
+  completedAt     DateTime?
+  durationMs      Int?
+
+  // Results
+  resultSummary   Json?
+  errorSummary    Json?
+
+  // Child logs
+  entityLogs      SyncEntityLog[]
+  conflicts       SyncConflict[]
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@index([syncConfigId, status])
+  @@index([tenantId, createdAt])
+  @@map("m15_sync_jobs")
+}
+
+model SyncEntityLog {
+  id              String   @id @default(cuid())
+  syncJobId       String
+  syncJob         SyncJob @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+
+  entityType      String
+  internalId      String?
+  externalId      String?
+
+  // Action
+  action          String   // CREATE, UPDATE, DELETE, SKIP, CONFLICT
+  direction       String   // TO_EXTERNAL, FROM_EXTERNAL
+
+  // Data snapshots
+  internalData    Json?
+  externalData    Json?
+
+  // Result
+  status          String   // SUCCESS, FAILED, CONFLICT
+  errorMessage    String?
+  errorCode       String?
+
+  // Timing
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+
+  tenantId        String
+
+  @@index([syncJobId, entityType])
+  @@index([status])
+  @@map("m15_sync_entity_logs")
+}
+
+model SyncConflict {
+  id              String   @id @default(cuid())
+  syncJobId       String
+  syncJob         SyncJob @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+
+  entityType      String
+  internalId      String
+  externalId      String
+
+  // Conflict details
+  conflictType    String   // UPDATE_BOTH, DELETE_UPDATE, CREATE_DUPLICATE
+  conflictField   String?  // Specific field in conflict
+
+  // Data
+  internalValue   Json?
+  externalValue   Json?
+  internalVersion String?
+  externalVersion String?
+
+  // Resolution
+  resolution      String?  // INTERNAL_WINS, EXTERNAL_WINS, MERGED, MANUAL
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  mergedValue     Json?
+
+  status          String   @default("PENDING") // PENDING, RESOLVED, AUTO_RESOLVED
+
+  createdAt       DateTime @default(now())
+  tenantId        String
+
+  @@index([syncJobId, status])
+  @@index([entityType, status])
+  @@map("m15_sync_conflicts")
+}
+
+model ExternalIntegration {
+  id              String   @id @default(cuid())
+  integrationCode String   @unique
+  name            String
+  description     String?
+
+  // Provider
+  provider        String   // TALLY, ZOHO, QUICKBOOKS, SALESFORCE, RAZORPAY, GST_PORTAL
+  providerVersion String?
+
+  // Auth
+  authType        String   // OAUTH2, API_KEY, BASIC, CERTIFICATE
+  authConfig      Json     // Encrypted tokens, keys
+
+  // Endpoints
+  baseUrl         String?
+  apiVersion      String?
+  endpoints       Json?    // {auth, refresh, entities}
+
+  // Status
+  status          String   @default("ACTIVE")
+
+  // Health
+  lastHealthCheck DateTime?
+  healthStatus    String?  // HEALTHY, DEGRADED, DOWN
+
+  // Rate limits
+  rateLimitConfig Json?    // {requestsPerMinute, burstLimit}
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@map("m15_external_integrations")
+}
+
+model SyncState {
+  id              String   @id @default(cuid())
+
+  syncConfigId    String
+  entityType      String
+
+  // Sync cursor / watermark
+  lastSyncAt      DateTime
+  lastSyncJobId   String
+
+  // Watermark for incremental sync
+  watermark       Json?    // {lastId, lastModified, lastSequence}
+
+  // Entity counts
+  totalSynced     Int      @default(0)
+  lastBatchSize   Int      @default(0)
+
+  // Checksum for integrity
+  checksum        String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenantId        String
+
+  @@unique([syncConfigId, entityType])
+  @@map("m15_sync_states")
+}
+
+// टास्क #008 — नया model (code prisma.syncQueueItem बुलाता था; sync-queue.service.ts)
+// फील्ड code के असली इस्तेमाल से: tenantId/syncJobId/entityType/entityId/operation/
+// payload/status/retryCount/maxRetries/errorMessage/processedAt
+model SyncQueueItem {
+  id           String   @id @default(cuid())
+  tenantId     String
+  syncJobId    String?
+  entityType   String?
+  entityId     String?
+  operation    String
+  payload      Json?
+  status       String   @default("pending") // pending, processing, completed, failed, conflict
+  retryCount   Int      @default(0)
+  maxRetries   Int      @default(3)
+  errorMessage String?
+  processedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@map("m15_sync_queue_items")
+}
+
+// टास्क #008 — नया model (code prisma.backupJob बुलाता था; backup.service.ts)
+model BackupJob {
+  id            String    @id @default(cuid())
+  tenantId      String
+  name          String
+  description   String?
+  backupType    String    // full, incremental, differential
+  status        String    @default("scheduled") // scheduled, running, completed, failed
+  storageType   String?
+  storagePath   String?
+  fileSize      BigInt?
+  checksum      String?
+  tablesIncluded String[]
+  retentionDays Int       @default(30)
+  expiresAt     DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  errorMessage  String?
+  metadata      Json?
+
+  restores      RestoreJob[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@map("m15_backup_jobs")
+}
+
+// टास्क #008 — नया model (code prisma.restoreJob बुलाता था; backup.service.ts)
+// backupJob relation कोड के include { backupJob: { select: { name, backupType } } } के लिए
+model RestoreJob {
+  id              String     @id @default(cuid())
+  tenantId        String
+  backupJobId     String
+  backupJob       BackupJob  @relation(fields: [backupJobId], references: [id], onDelete: Cascade)
+  status          String     @default("queued") // queued, running, completed, failed, rolled_back
+  tablesRestored  String[]
+  recordsRestored Int        @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?
+  rolledBackAt    DateTime?
+  rollbackReason  String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([backupJobId])
+  @@index([tenantId, status])
+  @@map("m15_restore_jobs")
+}
+

@@ -1,6 +1,6 @@
 // M11 Payment Module - Reconciliation Repository
 
-import { PrismaClient, Prisma, Reconciliation, ReconciliationItem } from '@prisma/client';
+import { PrismaClient, Prisma, PaymentReconciliation, PaymentReconciliationItem } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CreateReconciliationDto, UpdateReconciliationItemDto } from '../types';
 
@@ -8,17 +8,17 @@ export class ReconciliationRepository {
   constructor(private prisma: PrismaClient) {}
 
   async findById(id: string, tenantId: string) {
-    return this.prisma.reconciliation.findFirst({
+    return this.prisma.paymentReconciliation.findFirst({
       where: { id, tenantId },
       include: { items: true, bankAccount: true },
     });
   }
 
   async findAll(tenantId: string, bankAccountId?: string) {
-    const where: Prisma.ReconciliationWhereInput = { tenantId };
+    const where: Prisma.PaymentReconciliationWhereInput = { tenantId };
     if (bankAccountId) where.bankAccountId = bankAccountId;
 
-    return this.prisma.reconciliation.findMany({
+    return this.prisma.paymentReconciliation.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: { bankAccount: { select: { accountName: true, accountNumber: true } } },
@@ -26,7 +26,7 @@ export class ReconciliationRepository {
   }
 
   async create(dto: CreateReconciliationDto, tenantId: string, userId: string) {
-    return this.prisma.reconciliation.create({
+    return this.prisma.paymentReconciliation.create({
       data: {
         tenantId,
         bankAccountId: dto.bankAccountId,
@@ -42,7 +42,7 @@ export class ReconciliationRepository {
   }
 
   async addItems(reconciliationId: string, items: { statementDate: Date; statementDesc: string; statementAmount: Decimal; statementType: string }[], tenantId: string, userId: string) {
-    return this.prisma.reconciliationItem.createMany({
+    return this.prisma.paymentReconciliationItem.createMany({
       data: items.map(item => ({
         tenantId,
         reconciliationId,
@@ -58,7 +58,7 @@ export class ReconciliationRepository {
   }
 
   async updateItem(id: string, dto: UpdateReconciliationItemDto, tenantId: string, userId: string) {
-    return this.prisma.reconciliationItem.update({
+    return this.prisma.paymentReconciliationItem.update({
       where: { id },
       data: {
         transactionId: dto.transactionId || undefined,
@@ -74,7 +74,7 @@ export class ReconciliationRepository {
   }
 
   async updateStatus(id: string, status: string, tenantId: string, userId: string) {
-    return this.prisma.reconciliation.update({
+    return this.prisma.paymentReconciliation.update({
       where: { id },
       data: { status, updatedBy: userId },
     });

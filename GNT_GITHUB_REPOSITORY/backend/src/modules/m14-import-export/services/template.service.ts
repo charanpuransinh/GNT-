@@ -12,12 +12,12 @@ export class TemplateService {
     isDefault?: boolean; userId: string;
   }) {
     if (data.isDefault) {
-      await prisma.importTemplate.updateMany({
+      await prisma.importMapping.updateMany({
         where: { tenantId: data.tenantId, module: data.module, entityType: data.entityType, isDefault: true },
         data: { isDefault: false }
       });
     }
-    return prisma.importTemplate.create({
+    return prisma.importMapping.create({
       data: {
         tenantId: data.tenantId,
         name: data.name,
@@ -33,32 +33,32 @@ export class TemplateService {
   }
 
   async getTemplates(tenantId: string, module?: string, entityType?: string) {
-    return prisma.importTemplate.findMany({
+    return prisma.importMapping.findMany({
       where: { tenantId, ...(module && { module }), ...(entityType && { entityType }) },
       orderBy: { createdAt: 'desc' }
     });
   }
 
   async getTemplateById(id: string, tenantId: string) {
-    const t = await prisma.importTemplate.findFirst({ where: { id, tenantId } });
+    const t = await prisma.importMapping.findFirst({ where: { id, tenantId } });
     if (!t) throw new Error('Template not found');
     return t;
   }
 
   async getDefaultTemplate(tenantId: string, module: string, entityType: string) {
-    return prisma.importTemplate.findFirst({
+    return prisma.importMapping.findFirst({
       where: { tenantId, module, entityType, isDefault: true }
     });
   }
 
   async updateTemplate(id: string, tenantId: string, data: Partial<any>) {
     await this.getTemplateById(id, tenantId);
-    return prisma.importTemplate.update({ where: { id }, data });
+    return prisma.importMapping.update({ where: { id }, data });
   }
 
   async deleteTemplate(id: string, tenantId: string) {
     await this.getTemplateById(id, tenantId);
-    return prisma.importTemplate.delete({ where: { id } });
+    return prisma.importMapping.delete({ where: { id } });
   }
 
   // Export templates
