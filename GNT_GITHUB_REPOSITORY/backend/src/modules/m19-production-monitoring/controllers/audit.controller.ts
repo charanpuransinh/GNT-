@@ -17,7 +17,7 @@ export class AuditController {
       res.json(result);
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ error: 'Validation failed', details: error.errors });
+        res.status(400).json({ error: 'Validation failed', details: error.issues });
         return;
       }
       res.status(500).json({ error: 'Failed to fetch audit logs' });
@@ -33,7 +33,7 @@ export class AuditController {
       res.json(result);
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ error: 'Validation failed', details: error.errors });
+        res.status(400).json({ error: 'Validation failed', details: error.issues });
         return;
       }
       res.status(500).json({ error: 'Failed to fetch login history' });

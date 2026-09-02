@@ -803,3 +803,51 @@ Boot smoke: `/healthz` 200, `/api/v1/notifications` पहुँचता है
 - **अधूरा:** कुछ नहीं
 - **रुकावट:** email channel (M18 sendEmail नहीं) — flag किया, आगे बढ़ गया
 - **अगला:** #014 M19 audit trail
+
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #014 पूरा: M19 Audit Trail (असली)
+तारीख: 2026-09-02 | verify के लिए तैयार
+
+### Pass/fail
+```
+$ npx prisma validate --schema prisma/schema.prisma  → "valid 🚀" ✅
+$ npx tsc -p tsconfig.backend.json --noEmit | grep -c "m19-production-monitoring"  → 0 ✅
+```
+पूरे backend: **917 → 884** (घटी ✅) · अब **11 modules चढ़ते हैं** (M19 शामिल), /healthz 200 ✅
+
+### Step 1 — 4 models + 3 enums (ज्यों-के-त्यों, source से)
+`AuditLog`, `LoginHistory`, `SecurityEvent`, `SystemHealth` + `LoginStatus`/`Severity`/`HealthStatus` (PascalCase + `@@map` snake_case)।
+
+### Step 2 — दोनों सिस्टम जोड़े (दिल)
+- `common/logging/audit-logger.ts`: अब console.info **और** M19 `AuditService` (public contract से) से DB में append-only entry।
+  - fire-and-forget + catch (audit गड़बड़ ≠ business गड़बड़, और चूक खुद console.error में दर्ज)
+  - company_id अनिवार्य — context/entry से न मिले तो DB में गलत entry नहीं (console ही रहता है)
+- AsyncLocalStorage `auditContext` + नया `common/middleware/audit-context.ts` (global, app.ts में mount) ip/user-agent भरता है
+- `tenant-middleware`/`auth-middleware` store में companyId/userId जोड़ते हैं (route-level पर)
+- ⚠️ M01–M04 के `auditLogger.log({action,target})` की लिखावट **नहीं बदली**; mapping: action→action, target→resource/resourceId, module→(entry.module ?? 'core')।
+
+### Step 3 — append-only
+- कोड में `auditLog.update/delete` कहीं नहीं (AuditRepository में ILLEGAL_OPERATION throw पहले से) ✅
+- नई migration: `database/migrations/006_M19_audit_log_append_only.sql` (`REVOKE UPDATE, DELETE ON audit_log FROM <app_user>`) — **चलाई नहीं**, तैनाती के समय चलेगी (log में दर्ज)।
+
+### Step 4 — mount
+`module-registry.ts`: M19 `mounted: true` + `securityRoutes`।
+
+### बदली फाइलें
+`prisma/schema.prisma` · `common/logging/audit-logger.ts` · `common/middleware/audit-context.ts` (नई) ·
+`common/middleware/{tenant,auth}-middleware.ts` · `app.ts` · `module-registry.ts` ·
+`m19/validators/security.schema.ts` (zod-v4 + startDate/endDate) · `m19/controllers/{security,audit,health}.controller.ts` (`err.issues` + String(params)) · migration file (नई)
+
+### नोट / रुकावट (साफ़)
+- **runtime DB-test नहीं हुआ** (local Postgres नहीं) — "एक क्रिया पर audit_log में row" वाला सबूत आपके पास DB के साथ जाँचना। AsyncLocalStorage flow ठीक है, पर असली DB-write verified नहीं।
+- दायरे से बाहर छूई फाइलें (Step 2 की "middleware से लाओ" की ज़रूरत से): `common/middleware/audit-context.ts`, `tenant-middleware.ts`, `auth-middleware.ts`, `app.ts` — सब flag किए।
+- `module` field का default `'core'` रखा (M01–M04 की कॉल में module नहीं है — आपका design फैसला)।
+- `as any`/`@ts-ignore`/`@ts-expect-error`: **0**।
+
+### सत्र नोट
+- **पूरा:** #013 ✅ #011 ✅ #014 ✅ (M19 tsc 0, mount हुआ)
+- **अधूरा:** कुछ नहीं
+- **रुकावट:** runtime DB-test नहीं (no Postgres) — noted
+- **अगला:** #015 M20 tariff/duty

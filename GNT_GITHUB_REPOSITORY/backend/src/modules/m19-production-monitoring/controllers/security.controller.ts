@@ -17,7 +17,7 @@ export class SecurityController {
       res.json(result);
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ error: 'Validation failed', details: error.errors });
+        res.status(400).json({ error: 'Validation failed', details: error.issues });
         return;
       }
       res.status(500).json({ error: 'Failed to fetch security events' });
@@ -31,7 +31,7 @@ export class SecurityController {
       res.json(result);
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({ error: 'Validation failed', details: error.errors });
+        res.status(400).json({ error: 'Validation failed', details: error.issues });
         return;
       }
       res.status(500).json({ error: 'Anomaly check failed' });
@@ -40,7 +40,7 @@ export class SecurityController {
 
   async resolveEvent(req: Request, res: Response): Promise<void> {
     try {
-      const { eventId } = req.params;
+      const eventId = String(req.params.eventId);
       await this.securityService.resolveSecurityEvent(eventId);
       res.json({ success: true });
     } catch {

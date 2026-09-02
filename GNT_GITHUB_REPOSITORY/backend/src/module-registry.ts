@@ -66,7 +66,8 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
       const webhookService = new WebhookService(repo, gateway, integrationService, bus);
       return createIntegrationRoutes(new IntegrationController(integrationService), new WebhookController(webhookService));
     } },
-  { code: 'M19', path: '/api/v1/monitoring',    mounted: false, blockedBy: 'टास्क #014 — 4 tables गायब (AUDIT-02 File 14)' },
+  { code: 'M19', path: '/api/v1/monitoring', mounted: true,
+    load: async () => (await import('./modules/m19-production-monitoring')).securityRoutes },
   { code: 'M20', path: '/api/v1/trade',         mounted: false, blockedBy: 'टास्क #015 — tables + duty गणना (AUDIT-02 File 15)' },
 ];
 

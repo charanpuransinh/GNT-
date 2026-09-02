@@ -14,6 +14,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import cors from 'cors';
 import helmet from 'helmet';
 import { requestTracer } from './common/middleware/request-tracer';
+import { auditContextMiddleware } from './common/middleware/audit-context';
 import { MODULE_MOUNTS, type ModuleMount } from './module-registry';
 
 export const app = express();
@@ -28,6 +29,7 @@ app.use('/api/v1/integrations/webhook', express.raw({ type: '*/*', limit: '2mb' 
 
 app.use(express.json({ limit: '10mb' }));
 app.use(requestTracer);
+app.use(auditContextMiddleware);
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 

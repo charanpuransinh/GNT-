@@ -22,13 +22,15 @@ export const securityEventQuerySchema = z.object({
   companyId: z.string().min(1),
   severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   eventType: z.string().optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   resolved: z.coerce.boolean().optional(),
 });
 
 export const anomalyCheckSchema = z.object({
   companyId: z.string().min(1),
   eventType: z.string().min(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   ipAddress: z.string().optional(),
   userId: z.string().optional(),
 });
@@ -40,8 +42,8 @@ export const logActionSchema = z.object({
   module: z.string().min(1),
   resource: z.string().min(1),
   resourceId: z.string().optional(),
-  beforeData: z.record(z.unknown()).optional(),
-  afterData: z.record(z.unknown()).optional(),
+  beforeData: z.record(z.string(), z.unknown()).optional(),
+  afterData: z.record(z.string(), z.unknown()).optional(),
   ipAddress: z.string().optional(),
   userAgent: z.string().optional(),
 });
