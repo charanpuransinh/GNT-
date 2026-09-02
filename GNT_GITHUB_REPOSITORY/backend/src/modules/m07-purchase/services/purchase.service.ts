@@ -6,12 +6,14 @@
 import { PrismaClient } from '@prisma/client';
 import { PurchaseRepository } from '../repositories/purchase.repository';
 import { calculateInvoiceTotals, calculateReturnTotals, numberToWords } from './purchase.internal';
+import { InvoiceCalculationResult } from '../types/purchase.types';
 import { OCRService, TesseractOCRProvider } from './ocr.service';
 import { PurchaseEventHandlers } from '../events/purchase.handlers';
 import { PURCHASE_EVENTS } from '../events/purchase.events';
 import {
   CreatePurchaseInvoiceDTO,
   UpdatePurchaseInvoiceDTO,
+  PurchaseInvoiceItemDTO,
   PurchaseInvoiceQueryDTO,
   CreatePurchaseReturnDTO,
   PurchaseInvoiceApprovedEvent,
@@ -79,8 +81,8 @@ export class PurchaseService {
     if (!existing) throw new Error('Purchase invoice not found');
     if (existing.status !== 'draft') throw new Error('Only draft invoices can be updated');
 
-    let calc;
-    let enrichedItems;
+    let calc: InvoiceCalculationResult;
+    let enrichedItems: PurchaseInvoiceItemDTO[] | undefined;
     if (dto.items && dto.items.length > 0) {
       calc = calculateInvoiceTotals(dto.items, dto.round_off || Number(existing.round_off) || 0);
       enrichedItems = dto.items.map((item, idx) => ({

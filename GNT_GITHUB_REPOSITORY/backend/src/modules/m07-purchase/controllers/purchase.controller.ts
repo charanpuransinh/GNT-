@@ -39,7 +39,7 @@ export class PurchaseController {
 
   getInvoiceById = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       const invoice = await this.purchaseService.getPurchaseInvoiceById(id, company_id);
       res.status(200).json({ success: true, data: invoice });
@@ -50,7 +50,7 @@ export class PurchaseController {
 
   updateInvoice = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       const validated = updatePurchaseInvoiceSchema.parse(req.body);
       const invoice = await this.purchaseService.updatePurchaseInvoice(id, company_id, validated);
@@ -62,7 +62,7 @@ export class PurchaseController {
 
   deleteInvoice = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       await this.purchaseService.deletePurchaseInvoice(id, company_id);
       res.status(200).json({ success: true, message: 'Invoice deleted successfully' });
@@ -75,7 +75,7 @@ export class PurchaseController {
 
   approveInvoice = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       const approved_by = req.body.approved_by || req.user?.id;
       const result = await this.purchaseService.approvePurchaseInvoice(id, company_id, approved_by);
@@ -87,7 +87,7 @@ export class PurchaseController {
 
   postInvoice = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       const posted_by = req.body.posted_by || req.user?.id;
       const result = await this.purchaseService.postPurchaseInvoice(id, company_id, posted_by);
@@ -99,7 +99,7 @@ export class PurchaseController {
 
   cancelInvoice = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       await this.purchaseService.cancelPurchaseInvoice(id, company_id);
       res.status(200).json({ success: true, message: 'Invoice cancelled successfully' });
@@ -112,7 +112,7 @@ export class PurchaseController {
 
   uploadOCR = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
 
       if (!req.file) {
@@ -163,7 +163,7 @@ export class PurchaseController {
 
   getReturnById = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       const result = await this.purchaseService.getPurchaseReturnById(id, company_id);
       res.status(200).json({ success: true, data: result });
@@ -174,7 +174,7 @@ export class PurchaseController {
 
   approveReturn = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       const result = await this.purchaseService.approvePurchaseReturn(id, company_id);
       res.status(200).json({ success: true, data: result });
@@ -185,7 +185,7 @@ export class PurchaseController {
 
   postReturn = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = req.tenant.companyId;
       const posted_by = req.body.posted_by || req.user?.id;
       if (!posted_by) throw new Error('Posted-by user is required');

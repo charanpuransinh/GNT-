@@ -36,7 +36,7 @@ export class ReturnController {
   // ─── GET RETURN BY ID ───
   async getReturnById(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       const salesReturn = await returnService.getReturnById(id, companyId);
       if (!salesReturn) {
@@ -52,7 +52,7 @@ export class ReturnController {
   // ─── APPROVE RETURN ───
   async approveReturn(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       const salesReturn = await returnService.approveReturn(id, companyId);
       res.status(200).json({ success: true, data: salesReturn });
@@ -64,7 +64,7 @@ export class ReturnController {
   // ─── POST RETURN ───
   async postReturn(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       const salesReturn = await returnService.postReturn(id, companyId);
       res.status(200).json({ success: true, data: salesReturn });

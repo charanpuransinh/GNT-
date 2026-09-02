@@ -30,7 +30,7 @@ export const BRSController = {
 
   async reconcileItem(req: Request, res: Response) {
     try {
-      const { brs_id } = req.params;
+      const brs_id = String(req.params.brs_id);
       const { ledger_entry_id, statement_entry_id } = req.body;
       const result = await brsService.matchItem(brs_id, ledger_entry_id, statement_entry_id);
       res.json(result);
@@ -40,7 +40,7 @@ export const BRSController = {
   },
 
   async getReconciliationStatus(req: Request, res: Response) {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const status = await brsService.getStatus(id);
     res.json(status);
   },

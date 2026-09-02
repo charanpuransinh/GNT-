@@ -28,7 +28,7 @@ export interface CreatePurchaseInvoiceDTO {
   supplier_id: string;
   invoice_number: string;
   invoice_date: Date | string;
-  due_date?: Date | string;
+  due_date?: Date | string | null;
   po_id?: string | null;
   notes?: string;
   round_off?: number;
@@ -40,7 +40,7 @@ export interface UpdatePurchaseInvoiceDTO {
   supplier_id?: string;
   invoice_number?: string;
   invoice_date?: Date | string;
-  due_date?: Date | string;
+  due_date?: Date | string | null;
   po_id?: string | null;
   notes?: string;
   round_off?: number;
@@ -120,7 +120,7 @@ export interface CreatePurchaseOrderDTO {
   supplier_id: string;
   po_number: string;
   po_date: Date | string;
-  delivery_date?: Date | string;
+  delivery_date?: Date | string | null;
   notes?: string;
   terms_conditions?: string;
   items: PurchaseOrderItemDTO[];
@@ -131,7 +131,7 @@ export interface UpdatePurchaseOrderDTO {
   supplier_id?: string;
   po_number?: string;
   po_date?: Date | string;
-  delivery_date?: Date | string;
+  delivery_date?: Date | string | null;
   notes?: string;
   terms_conditions?: string;
   items?: PurchaseOrderItemDTO[];

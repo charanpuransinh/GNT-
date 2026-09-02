@@ -31,7 +31,7 @@ export const EInvoiceController = {
   },
 
   async getEInvoiceStatus(req: Request, res: Response) {
-    const { irn } = req.params;
+    const irn = String(req.params.irn);
     const status = await eInvoiceService.getStatus(irn);
     res.json(status);
   },

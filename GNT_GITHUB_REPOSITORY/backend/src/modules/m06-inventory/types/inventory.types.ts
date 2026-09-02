@@ -69,7 +69,7 @@ export interface StockMovementDTO {
   branch_id?: string | null;
   reference_type?: string | null;
   reference_id?: string | null;
-  movement_type: 'in' | 'out' | 'adjustment' | 'transfer';
+  movement_type: 'in' | 'out' | 'adjustment' | 'transfer' | 'addition' | 'reduction';
   quantity: number;
   rate?: number | null;
   amount?: number | null;

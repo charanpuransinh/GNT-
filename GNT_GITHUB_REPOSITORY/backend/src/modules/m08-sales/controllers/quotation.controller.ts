@@ -37,7 +37,7 @@ export class QuotationController {
   // ─── GET QUOTATION BY ID ───
   async getQuotationById(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       const quotation = await quotationService.getQuotationById(id, companyId);
       if (!quotation) {
@@ -53,7 +53,7 @@ export class QuotationController {
   // ─── UPDATE QUOTATION ───
   async updateQuotation(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       const dto = quotationSchema.partial().parse(req.body);
       const quotation = await quotationService.updateQuotation(id, companyId, dto);
@@ -66,7 +66,7 @@ export class QuotationController {
   // ─── SEND QUOTATION ───
   async sendQuotation(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       const quotation = await quotationService.sendQuotation(id, companyId);
       res.status(200).json({ success: true, data: quotation });
@@ -78,7 +78,7 @@ export class QuotationController {
   // ─── CONVERT QUOTATION TO ORDER ───
   async convertQuotationToOrder(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       const dto = salesOrderSchema.partial().parse(req.body);
       const order = await quotationService.convertQuotationToOrder(id, companyId, dto);
@@ -91,7 +91,7 @@ export class QuotationController {
   // ─── DELETE QUOTATION ───
   async deleteQuotation(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const companyId = req.tenant.companyId as string;
       await quotationService.deleteQuotation(id, companyId);
       res.status(200).json({ success: true, message: 'Quotation deleted' });

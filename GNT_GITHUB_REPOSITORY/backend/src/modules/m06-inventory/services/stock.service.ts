@@ -14,6 +14,7 @@ import {
   StockMovementDTO,
 } from '../types/inventory.types';
 import { stock_master, stock_movement } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { EventEmitter } from 'events';
 
 export const inventoryEvents = new EventEmitter();
@@ -140,8 +141,8 @@ export class StockService {
     const afterQty = beforeQty + quantity;
 
     // Calculate new average price if rate provided
-    let avgPrice = stockRecord.avg_purchase_price;
-    let lastPrice = stockRecord.last_purchase_price;
+    let avgPrice: Decimal | number | null = stockRecord.avg_purchase_price;
+    let lastPrice: Decimal | number | null = stockRecord.last_purchase_price;
     if (rate && rate > 0) {
       avgPrice = stockInternal.calculateAvgPrice(
         beforeQty,
@@ -149,7 +150,7 @@ export class StockService {
         quantity,
         rate
       );
-      lastPrice = rate as any;
+      lastPrice = rate;
     }
 
     const updatedStock = await stockRepo.updateAvgPrice(stockRecord.id, avgPrice as any, lastPrice as any, company_id);

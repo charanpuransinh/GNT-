@@ -41,7 +41,7 @@ export const VoucherController = {
 
   async getVoucherById(req: Request, res: Response) {
     const voucher = await prisma.voucher.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: { items: true },
     });
     if (!voucher) return res.status(404).json({ error: 'Not found' });
@@ -50,7 +50,7 @@ export const VoucherController = {
 
   async postVoucher(req: Request, res: Response) {
     const voucher = await prisma.voucher.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: { items: true },
     });
     if (!voucher || voucher.status !== 'draft') {
@@ -93,7 +93,7 @@ export const VoucherController = {
 
   async cancelVoucher(req: Request, res: Response) {
     await prisma.voucher.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: { status: 'cancelled' },
     });
     res.json({ message: 'Voucher cancelled' });

@@ -31,11 +31,76 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   { load: async () => (await import('./modules/m03-device-platform/routes/device.routes')).default, code: 'M03', path: '/api/v1/device',        mounted: true },
   { load: async () => (await import('./modules/m04-company-management/routes/company.routes')).default, code: 'M04', path: '/api/v1/company',       mounted: true },
   { code: 'M05', path: '/api/v1/parties',       mounted: false, blockedBy: 'टास्क #007 — module पूरी तरह खाली है (AUDIT-01 F3)' },
-  { code: 'M06', path: '/api/v1/inventory',     mounted: false, blockedBy: 'tsc errors बाक़ी; frontend इसी path को बुलाता है (AUDIT-01 F11)' },
-  { code: 'M07', path: '/api/v1/purchase',      mounted: false, blockedBy: 'createPurchaseRouter(controller, poController) की composition चाहिए — routes फाइल में default export टूटा था (हटाया गया)' },
+  { code: 'M06', path: '/api/v1/inventory', mounted: true,
+    load: async () => (await import('./modules/m06-inventory')).inventoryRoutes },
+  { code: 'M07', path: '/api/v1/purchase', mounted: true,
+    load: async () => {
+      // टास्क #016 — M07 की composition (M18 के load() वाला तरीक़ा)
+      // ⚠️ दर्ज: PurchaseEventHandlers m06/m09/m10 की जिस object-style API से बुलाता है
+      // (addStock({...}) / calculateInputTax({...}) / createPurchaseEntry({...})),
+      // असली services में वो API है ही नहीं (positional args + company_id मांगते हैं) —
+      // यह कोड-level गैप है जो #016 के दायरे से बाहर है (business logic छेड़ना मना)।
+      // इसलिए यहाँ typed adapters दिए जो ज़ोर से fail करते हैं — चुपचाप ग़लत डेटा कभी नहीं।
+      const [
+        { PurchaseController },
+        { PurchaseOrderController },
+        { PurchaseService },
+        { PurchaseOrderService },
+        { PurchaseEventHandlers },
+        { prisma },
+        { eventBus },
+        { createPurchaseRouter },
+      ] = await Promise.all([
+        import('./modules/m07-purchase/controllers/purchase.controller'),
+        import('./modules/m07-purchase/controllers/purchase-order.controller'),
+        import('./modules/m07-purchase/services/purchase.service'),
+        import('./modules/m07-purchase/services/po.service'),
+        import('./modules/m07-purchase/events/purchase.handlers'),
+        import('./common/config/prisma'),
+        import('./common/events/event-bus'),
+        import('./modules/m07-purchase/routes/purchase.routes'),
+      ]);
+
+      const stockServiceForHandlers = {
+        async addStock(data: { product_id: string; quantity: number; rate: number; batch_id?: string; reference: string }): Promise<void> {
+          void data;
+          throw new Error('M07→M06 stock wiring अभी बाक़ी है — handlers की object-API और असली StockService का मेल अगले task में होगा (टास्क #016 नोट)');
+        },
+        async deductStock(data: { product_id: string; quantity: number; reference: string }): Promise<void> {
+          void data;
+          throw new Error('M07→M06 stock wiring अभी बाक़ी है (टास्क #016 नोट)');
+        },
+      };
+      const gstServiceForHandlers = {
+        async calculateInputTax(data: { invoice_id: string; items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }> }): Promise<void> {
+          void data;
+          throw new Error('M07→M09 GST wiring अभी बाक़ी है (टास्क #016 नोट)');
+        },
+        async reverseInputTax(data: { return_id: string; items: Array<{ product_id: string; tax_amount: number }> }): Promise<void> {
+          void data;
+          throw new Error('M07→M09 GST wiring अभी बाक़ी है (टास्क #016 नोट)');
+        },
+      };
+      const ledgerServiceForHandlers = {
+        async createPurchaseEntry(data: { invoice_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
+          void data;
+          throw new Error('M07→M10 ledger wiring अभी बाक़ी है (टास्क #016 नोट)');
+        },
+        async createPurchaseReturnEntry(data: { return_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
+          void data;
+          throw new Error('M07→M10 ledger wiring अभी बाक़ी है (टास्क #016 नोट)');
+        },
+      };
+
+      const handlers = new PurchaseEventHandlers(stockServiceForHandlers, gstServiceForHandlers, ledgerServiceForHandlers, eventBus);
+      const purchaseService = new PurchaseService(prisma, handlers, eventBus);
+      const poService = new PurchaseOrderService(prisma, handlers, eventBus);
+      return createPurchaseRouter(new PurchaseController(purchaseService), new PurchaseOrderController(poService));
+    } },
   { load: async () => (await import('./modules/m08-sales/routes/sales.routes')).default, code: 'M08', path: '/api/v1/sales',         mounted: true },
-  { code: 'M09', path: '/api/v1/gst',           mounted: false, blockedBy: 'tsc errors बाक़ी' },
-  { code: 'M10', path: '/api/v1/accounting',    mounted: false, blockedBy: 'tsc errors बाक़ी' },
+  { code: 'M09', path: '/api/v1/gst',           mounted: false, blockedBy: 'tsc errors बाक़ी: 1 — tax_rate_master में cess_rate गायब (schema गैप; #016 में दर्ज, reviewer का फैसला चाहिए)' },
+  { code: 'M10', path: '/api/v1/accounting', mounted: true,
+    load: async () => (await import('./modules/m10-accounting')).accountingRoutes },
   { load: async () => (await import('./modules/m11-payment/routes')).default, code: 'M11', path: '/api/v1/payments',      mounted: true },
   { load: async () => (await import('./modules/m12-hr')).default, code: 'M12', path: '/api/v1/hr',            mounted: true },
   { load: async () => (await import('./modules/m13-automation')).initM13Module(), code: 'M13', path: '/api/v1/automation',    mounted: true },

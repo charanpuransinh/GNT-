@@ -30,7 +30,7 @@ export class SerialController {
 
   async updateSerialStatus(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const validated = serialUpdateSchema.parse(req.body);
       const company_id = (req as any).tenant?.company_id;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });

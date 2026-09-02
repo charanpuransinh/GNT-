@@ -7,6 +7,7 @@ import {
   availabilityCheckSchema,
   movementFilterSchema,
 } from '../validators/inventory.schema';
+import { MovementFilter } from '../types/inventory.types';
 
 const stockService = new StockService();
 
@@ -31,7 +32,7 @@ export class StockController {
 
   async getStockByProduct(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const company_id = (req as any).tenant?.company_id;
       const branch_id = req.query.branch_id as string | undefined;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
@@ -76,7 +77,12 @@ export class StockController {
       const company_id = (req as any).tenant?.company_id;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
-      const filter = movementFilterSchema.parse(req.query);
+      const parsed = movementFilterSchema.parse(req.query);
+      const filter: MovementFilter = {
+        ...parsed,
+        from_date: parsed.from_date ? new Date(parsed.from_date) : undefined,
+        to_date: parsed.to_date ? new Date(parsed.to_date) : undefined,
+      };
       const result = await stockService.getStockMovements(filter, company_id);
       return res.json({ success: true, ...result });
     } catch (err: any) {

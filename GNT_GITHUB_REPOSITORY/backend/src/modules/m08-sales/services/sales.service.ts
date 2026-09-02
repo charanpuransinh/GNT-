@@ -56,7 +56,7 @@ let stockService: StockService;
 let gstService: GstService;
 let ledgerService: LedgerService;
 let paymentService: PaymentService;
-let notificationService: NotificationService;
+let notificationService: NotificationService | undefined;
 
 export function injectDependencies(deps: {
   partyService: PartyService;
@@ -80,7 +80,7 @@ export class SalesService {
     const totals = calculateInvoiceTotals(dto.items);
     const invoiceNumber = dto.invoiceNumber || await salesRepository.getNextInvoiceNumber(dto.companyId);
 
-    const invoiceData: Prisma.SalesInvoiceCreateInput = {
+    const invoiceData: Prisma.SalesInvoiceUncheckedCreateInput = {
       companyId: dto.companyId,
       branchId: dto.branchId,
       customerId: dto.customerId,
