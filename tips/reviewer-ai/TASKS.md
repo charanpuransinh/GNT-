@@ -19,10 +19,11 @@
 | ✅ | **#014** M19 Audit trail | DeepSeek | 🟢 **VERIFIED** (`verified/014`) |
 | ✅ | **#015** M20 Customs duty | DeepSeek | 🟢 **VERIFIED** (`verified/015`) |
 | 1 | **#012** M17 Reporting — बचे 25 errors | DeepSeek | 🔧 **चल रहा** (blocker मैंने खोल दिया) |
-| 2 | **#008** M11/M12/M14/M15 schema merge (~530 errors) | DeepSeek | 📋 **फाइल तैयार** |
-| 3 | **#016** M06–M10 green + mount (62 errors) | DeepSeek | 📋 **फाइल तैयार** |
-| 4 | **#007** M05 Party Management — पूरा module | दोनों | ⬜ rough ढाँचा Claude देगा |
-| 5 | **#009** Security/Tenant middleware हर route पर | DeepSeek | ⬜ फाइल बननी है |
+| 2 | **#009** 🔴 **Tenant सुरक्षा** — कंपनी की पहचान header से नहीं, token से | DeepSeek | 📋 **फाइल तैयार — P0** |
+| 3 | **#008** M11/M12/M14/M15 schema merge (~530 errors) | DeepSeek | 📋 **फाइल तैयार** |
+| 4 | **#016** M06–M10 green + mount (62 errors) | DeepSeek | 📋 **फाइल तैयार** |
+| 5 | **#007** M05 Party Management — पूरा module | दोनों | ⬜ rough ढाँचा Claude देगा |
+| — | — | — | — |
 | 6 | **#010** M13 + tsconfig के exclude हटाना | DeepSeek | ⬜ मालिक का फ़ैसला चाहिए (3 schema) |
 | 7 | **#017** Tests चालू करना | दोनों | ⬜ |
 | 8 | **#018+** Subscription (Phase 0→4) | दोनों | ⬜ owner के फ़ैसलों के बाद |
