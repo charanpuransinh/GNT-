@@ -4,7 +4,7 @@
 **यह फाइल तीन जगह एक जैसी रखी गई है** — `tips/owner-puran-singh/OWNER_TASKS.md`,
 `tips/reviewer-ai/CLAUDE_TASKS.md`, `tips/reviewer-ai/TASKS.md` — ताकि session बदलने पर काम न छूटे।
 
-**आज की हालत:** 🔒 Locked **0/20 (0%)** · कुल प्रोजेक्ट **~34%**
+**हालत (2026-09-02 रात):** मुहर लगे काम **7** · backend errors **994 → 767** · M16/M18/M19/M20 सब **0**
 **अब तक जो verified है:** #002 (Prisma baseline), #003 (Team A backend), #004 (Team A frontend)
 **चालू साबित पर locked नहीं:** #005 backend bootstrap, #006 frontend shell
 
@@ -14,19 +14,18 @@
 
 | क्रम | टास्क | किसका | हालत |
 |---|---|---|---|
-| 1 | **#013** M18 सुरक्षा (webhook signature) | DeepSeek | 📋 फाइल तैयार — **अभी शुरू** |
-| 2 | **#005/#006 की स्वतंत्र पुष्टि** (मेरा ढाँचा DeepSeek चलाकर जाँचे) | DeepSeek | 📋 साथ-साथ |
-| 3 | **#011** M16 Notification (2 tables + gateway binding + mount) | DeepSeek | 📋 फाइल तैयार |
-| 4 | **#014** M19 Audit trail (4 tables + असली trail + mount) | DeepSeek | 📋 फाइल तैयार |
-| 5 | **#015** M20 Tariff (tables + SWS + ACD + customs_tariff अलगाव) | DeepSeek | 📋 फाइल तैयार |
-| 6 | **#012** M17 Reporting (2 tables + सीमा-उल्लंघन + mount) | DeepSeek | 📋 फाइल तैयार |
-| 7 | **#007** M05 Party Management — पूरा module | दोनों | ⬜ rough ढाँचा Claude देगा |
-| 8 | **#008** M11–M15 schema merge (कुल 58 गायब models) | DeepSeek | ⬜ फाइल बननी है |
-| 9 | **#009** Security/Tenant middleware हर route पर | DeepSeek | ⬜ फाइल बननी है |
-| 10 | **#010** M13 को ढाँचे में लाना + tsconfig के exclude हटाना | DeepSeek | ⬜ फाइल बननी है |
-| 11 | **#016** M06–M10 को compile + mount करना | DeepSeek | ⬜ फाइल बननी है |
-| 12 | **#017** Tests चालू करना (अभी सब जाँच से बाहर हैं) | दोनों | ⬜ |
-| 13 | **#018+** Subscription/Pricing (Phase 0→4) | दोनों | ⬜ owner के फ़ैसलों के बाद |
+| ✅ | **#013** M18 सुरक्षा | DeepSeek | 🟢 **VERIFIED** (`verified/013`) |
+| ✅ | **#011** M16 Notification | DeepSeek | 🟢 **VERIFIED** (`verified/011`) |
+| ✅ | **#014** M19 Audit trail | DeepSeek | 🟢 **VERIFIED** (`verified/014`) |
+| ✅ | **#015** M20 Customs duty | DeepSeek | 🟢 **VERIFIED** (`verified/015`) |
+| 1 | **#012** M17 Reporting — बचे 25 errors | DeepSeek | 🔧 **चल रहा** (blocker मैंने खोल दिया) |
+| 2 | **#008** M11/M12/M14/M15 schema merge (~530 errors) | DeepSeek | 📋 **फाइल तैयार** |
+| 3 | **#016** M06–M10 green + mount (62 errors) | DeepSeek | 📋 **फाइल तैयार** |
+| 4 | **#007** M05 Party Management — पूरा module | दोनों | ⬜ rough ढाँचा Claude देगा |
+| 5 | **#009** Security/Tenant middleware हर route पर | DeepSeek | ⬜ फाइल बननी है |
+| 6 | **#010** M13 + tsconfig के exclude हटाना | DeepSeek | ⬜ मालिक का फ़ैसला चाहिए (3 schema) |
+| 7 | **#017** Tests चालू करना | दोनों | ⬜ |
+| 8 | **#018+** Subscription (Phase 0→4) | दोनों | ⬜ owner के फ़ैसलों के बाद |
 
 ---
 
