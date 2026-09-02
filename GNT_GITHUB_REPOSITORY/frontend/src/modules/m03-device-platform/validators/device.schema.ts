@@ -6,7 +6,7 @@ export const deviceSessionSchema = z.object({
   deviceId: z.string().uuid(),
   deviceName: z.string().min(1).max(100),
   platform: z.enum(['ios', 'android', 'windows', 'macos', 'linux', 'web']),
-  ipAddress: z.string().ip(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]),
   location: z.string().optional(),
   userAgent: z.string(),
   status: z.enum(['active', 'idle', 'expired']),

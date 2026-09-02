@@ -1,5 +1,6 @@
 import React from "react";
-import { Card, Button } from "../../../components/ui";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 const PRESETS = [
   { name: "Default", primary: "#2563EB" },

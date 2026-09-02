@@ -1,5 +1,7 @@
 import React from "react";
-import { Card, Badge, Button } from "../../../components/ui";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 
 interface Props { branch: any; onDelete: (id: string) => void; }
 export const BranchCard: React.FC<Props> = ({ branch, onDelete }) => (

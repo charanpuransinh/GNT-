@@ -1,4 +1,4 @@
-import apiClient from "../../../core/api-client";
+import { apiClient } from "@/core/api-client";
 import { Company, Branch, FinancialYear, Role, User } from "./company.types";
 const BASE = "/api/v1/company";
 export const CompanyService = {

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["backend/src/*"] } },
+  "include": ["backend/src/**/*.ts"],
+  "exclude": ["**/*.test.ts", "**/tests/**",
+    "backend/src/modules/m13-automation/ActionRegistry.ts",
+    "backend/src/modules/m13-automation/SendEmailAction.ts",
+    "backend/src/modules/m13-automation/WorkflowEngine.ts",
+    "backend/src/modules/m13-automation/controllers/WebhookController.ts",
+    "backend/src/modules/m13-automation/controllers/WorkflowController.ts",
+    "backend/src/modules/m13-automation/events/EventSubscriber.ts",
+    "backend/src/modules/m13-automation/routes/index.ts",
+    "backend/src/modules/m13-automation/services/SchedulerService.ts",
+    "source-archives", "source-archives/**", "team-d", "team-d/**"]
+}

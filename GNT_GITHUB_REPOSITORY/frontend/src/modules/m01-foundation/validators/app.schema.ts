@@ -4,7 +4,7 @@ export const appConfigSchema = z.object({
   appName: z.string().min(1, 'App name is required').max(100, 'App name too long'),
   version: z.string().regex(/^\d+\.\d+\.\d+$/, 'Invalid version format (x.x.x)'),
   environment: z.enum(['development', 'staging', 'production']),
-  features: z.record(z.boolean()),
+  features: z.record(z.string(), z.boolean()),
   maintenanceMode: z.boolean(),
   companyName: z.string().optional(),
   branding: z

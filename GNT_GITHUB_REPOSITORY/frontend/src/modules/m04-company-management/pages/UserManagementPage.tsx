@@ -1,6 +1,10 @@
 import React, { useEffect } from "react";
 import { useCompanyStore } from "../state/company.store";
-import { Card, Button, Input, Table, Badge } from "../../../components/ui";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Table } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
 
 export const UserManagementPage: React.FC = () => {
   const { users, roles, loading, fetchUsers, createUser, toggleUserStatus } = useCompanyStore();
@@ -12,9 +16,9 @@ export const UserManagementPage: React.FC = () => {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
       <Card className="space-y-3 max-w-xl">
-        <Input label="Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-        <Input label="Email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-        <select className="w-full border rounded px-3 py-2" value={form.roleId} onChange={e => setForm({...form, roleId: e.target.value})}>
+        <Input label="Name" value={form.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({...form, name: e.target.value})} />
+        <Input label="Email" value={form.email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({...form, email: e.target.value})} />
+        <select className="w-full border rounded px-3 py-2" value={form.roleId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({...form, roleId: e.target.value})}>
           <option value="">Select Role</option>
           {roles.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>

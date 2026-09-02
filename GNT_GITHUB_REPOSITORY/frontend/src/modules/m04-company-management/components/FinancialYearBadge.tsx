@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge } from "../../../components/ui";
+import { Badge } from "@/components/ui/Badge";
 interface Props { fy: any; isActive: boolean; }
 export const FinancialYearBadge: React.FC<Props> = ({ fy, isActive }) => (
   <Badge variant={isActive ? "success" : "secondary"}>

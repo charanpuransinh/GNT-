@@ -1,6 +1,10 @@
 import React, { useEffect } from "react";
 import { useCompanyStore } from "../state/company.store";
-import { Card, Button, Input, Table, Badge } from "../../../components/ui";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Table } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
 
 export const BranchManagementPage: React.FC = () => {
   const { branches, loading, fetchBranches, createBranch, deleteBranch } = useCompanyStore();
@@ -12,7 +16,7 @@ export const BranchManagementPage: React.FC = () => {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Branch / Godown Management</h1>
       <Card className="flex gap-2">
-        <Input placeholder="New branch name" value={name} onChange={e => setName(e.target.value)} />
+        <Input placeholder="New branch name" value={name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} />
         <Button variant="primary" onClick={() => { createBranch({ name }); setName(""); }} disabled={loading}>
           Add Branch
         </Button>

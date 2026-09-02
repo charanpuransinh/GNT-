@@ -1,20 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Toggle } from '@/components/ui/Toggle';
 import { useDeviceStore } from '../state/device.store';
 import { deviceService } from '../services/device.service';
+import { DeploymentSettings } from '../services/device.types';
 
 export const DeploymentSettingsPage = () => {
-  const { settings, setSettings, setLoading, setError, clearError } = useDeviceStore();
+  const { settings, setLoading, setError, clearError } = useDeviceStore();
+  const [form, setForm] = useState<Partial<DeploymentSettings>>(settings ?? {});
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (settings) setForm(settings);
+  }, [settings]);
 
   const handleSave = async () => {
     setSaving(true);
     clearError();
     try {
-      await deviceService.updateDeploymentSettings(settings);
+      await deviceService.updateDeploymentSettings(form);
       // Show success toast
     } catch (err: any) {
       setError(err.message || 'Failed to save settings');
@@ -37,8 +43,8 @@ export const DeploymentSettingsPage = () => {
                 <div className="text-sm text-[#64748B]">Download and install updates automatically</div>
               </div>
               <Toggle
-                checked={settings?.autoUpdate || false}
-                onChange={(v) => setSettings({ ...settings, autoUpdate: v })}
+                checked={form.autoUpdate ?? false}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, autoUpdate: e.target.checked })}
               />
             </div>
 
@@ -48,8 +54,8 @@ export const DeploymentSettingsPage = () => {
                 <div className="text-sm text-[#64748B]">Show notification when update is available</div>
               </div>
               <Toggle
-                checked={settings?.updateNotifications !== false}
-                onChange={(v) => setSettings({ ...settings, updateNotifications: v })}
+                checked={form.updateNotifications ?? true}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, updateNotifications: e.target.checked })}
               />
             </div>
           </div>
@@ -61,8 +67,8 @@ export const DeploymentSettingsPage = () => {
             <Input
               label="Session Timeout (minutes)"
               type="number"
-              value={settings?.sessionTimeout || 30}
-              onChange={(e) => setSettings({ ...settings, sessionTimeout: parseInt(e.target.value) })}
+              value={form.sessionTimeout ?? 30}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, sessionTimeout: parseInt(e.target.value) })}
               min={5}
               max={120}
             />
@@ -73,8 +79,8 @@ export const DeploymentSettingsPage = () => {
                 <div className="text-sm text-[#64748B]">Allow only one active session per user</div>
               </div>
               <Toggle
-                checked={settings?.forceSingleSession || false}
-                onChange={(v) => setSettings({ ...settings, forceSingleSession: v })}
+                checked={form.forceSingleSession ?? false}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, forceSingleSession: e.target.checked })}
               />
             </div>
           </div>
@@ -89,16 +95,16 @@ export const DeploymentSettingsPage = () => {
                 <div className="text-sm text-[#64748B]">Allow data entry when offline</div>
               </div>
               <Toggle
-                checked={settings?.offlineSync || false}
-                onChange={(v) => setSettings({ ...settings, offlineSync: v })}
+                checked={form.offlineSync ?? false}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, offlineSync: e.target.checked })}
               />
             </div>
 
             <Input
               label="Sync Interval (minutes)"
               type="number"
-              value={settings?.syncInterval || 15}
-              onChange={(e) => setSettings({ ...settings, syncInterval: parseInt(e.target.value) })}
+              value={form.syncInterval ?? 15}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, syncInterval: parseInt(e.target.value) })}
               min={1}
               max={60}
             />

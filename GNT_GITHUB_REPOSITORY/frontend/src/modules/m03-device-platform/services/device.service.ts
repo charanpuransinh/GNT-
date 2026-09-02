@@ -47,7 +47,7 @@ export const deviceService = {
     return response.data.data;
   },
 
-  async updateDeploymentSettings(settings: DeploymentSettings): Promise<void> {
+  async updateDeploymentSettings(settings: Partial<DeploymentSettings>): Promise<void> {
     await apiClient.put(`${BASE_PATH}/settings`, settings);
   },
 };

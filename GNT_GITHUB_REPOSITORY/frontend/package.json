@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p ../../tsconfig.json --noEmit",
+    "build": "tsc -p ../tsconfig.frontend.json --noEmit",
     "test": "node --test"
   },
   "dependencies": {

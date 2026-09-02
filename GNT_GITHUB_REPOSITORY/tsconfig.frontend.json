@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "baseUrl": ".", "jsx": "react-jsx", "paths": { "@/*": ["frontend/src/*"] } },
+  "include": ["frontend/src/**/*.ts", "frontend/src/**/*.tsx"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/tests/**"]
+}
