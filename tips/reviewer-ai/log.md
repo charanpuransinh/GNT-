@@ -1106,3 +1106,69 @@ GET  /healthz           → 200
 
 **स्थिति:** #009 का काम **लगभग पूरा और अब चलने लायक** — पर **मुहर नहीं लगाई**, क्योंकि पूरा tsc
 अभी चल रहा है और DeepSeek की अपनी रिपोर्ट/सत्र-नोट बाक़ी है (balance आने पर देगा)।
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #009 पूरा: Step 5 (tenant-scope जाँच) + पूरा pass/fail
+तारीख: 2026-09-03 (रात, ~00:30)
+
+### क्या किया (आपके निर्देश के हिसाब से)
+1. **Step 5 की जाँच-script पूरी की** — `tools/check-tenant-scope.mjs` (पुराना rough था, अब असली चलने वाला):
+   - हर repository फाइल (45) में `findMany/findFirst/updateMany/deleteMany` ढूँढता है
+   - हर call के **balanced-brace argument ब्लॉक** के अंदर ही scope निशान देखता है
+     (पुराने वाले का 1200-char window झूठे हिट/मिस दे रहा था — `user.repository.ts` की
+     `company_master.gstin` वाली query बिना company_id के भी pass हो जाती थी, क्योंकि
+     window में अगले method का `findByCompanyId` नाम आ जाता था)
+   - `.test.ts` फाइलें अब बाहर; `tenantId/tenant_id` अलग सूची B में (नाम अलग, scope है)
+
+2. **नतीजा (exact output):**
+```
+repository फाइलें जाँची गईं: 45
+company_id/companyId से scoped: 68
+A) कोई scope निशान नहीं (सबसे ख़तरनाक): — 39
+B) सिर्फ़ tenantId/tenant_id से scoped: — 12
+```
+   सूची A (39) के बड़े हिट: m16 notification.repository (4 — `where: {status:'pending'}` पूरी तरह
+   खुला), m11 payment.repository:71 `findAll` (where चर में tenantId जुड़ता ही नहीं!),
+   m02 role/user, m03 device (user_id से — company scope नहीं), m18/m19/m20, m07/m08/m10 के कई।
+   **पूरी सूची स्क्रिप्ट चलाने पर मिलेगी — 39 + 12 लाइनें।**
+
+3. **स्क्रिप्ट की सीमाएँ साफ़ लिखी हैं (छिपाई नहीं):**
+   - चर में बना `where` (जैसे m19 audit.repository:41 — असल में `companyId: filters.companyId` से
+     scoped है, पर स्क्रिप्ट को कॉल के अंदर नहीं दिखता) → **झूठा हिट**
+   - `company_master.gstin` relation से scoping (user.repository:19) → सूची A में है पर असल में
+     कंपनी-स्तर पर scoped है
+   - यानी सूची A = **शुरुआती नक्शा**; हर लाइन हाथ से देखने पर ही फैसला (अगले task का काम —
+     यहाँ सिर्फ़ गिनती/सूची चाहिए थी, ठीक नहीं करना था, वैसा ही किया)
+
+### पूरा pass/fail (ख़ुद चलाकर, body सहित — आपका नियम)
+```
+grep -rn "x-company-id" backend/src --include=*.ts | wc -l   → 1
+   (वो 1 = m08-sales/tests/api/sales.api.test.ts — test फाइल, tsconfig से बाहर; कोड में 0)
+
+npx tsc -p tsconfig.backend.json --noEmit | grep -cE "error TS"  → 742
+   (#012 के बाद वाली 742 ही — न बढ़ी, न घटी; #009 ने कुछ नहीं तोड़ा)
+
+server चला: 13 modules चढ़े | M13 गिरा (queue.names — पुराना जाना हुआ) | 7 बाक़ी (जाने हुए)
+
+curl -w "%{http_code}" http://localhost:3000/api/v1/company
+   → 401  body: {"success":false,"error":"Authentication required"}
+curl -H "x-company-id: OTHER-CO" http://localhost:3000/api/v1/company
+   → 401  body: {"success":false,"error":"Authentication required"}   ← छेद बंद का सबूत
+curl -X POST -d '{}' http://localhost:3000/api/v1/auth/login
+   → 400  body: zod error (username/password/companyCode expected)      ← छूट काम कर रही
+curl http://localhost:3000/healthz
+   → 200  body: {"ok":true}
+```
+
+### दर्ज (आपके लिए दो बातें)
+- **login के 400 body में `companyCode` field** — CERT-003 की शर्त 1 वाली अस्थायी चीज़
+  (gstin/companyCode) — मैंने नहीं छेड़ी, आपके task का इंतज़ार।
+- **suppressions:** इस रात #009 में एक भी `as any` / `@ts-ignore` / `@ts-expect-error` नहीं जोड़ा।
+  repo में जो 296 हैं वो सब पहले से (गिनकर रखा है)।
+
+### सत्र नोट
+- **पूरा:** #009 का बचा हुआ हिस्सा (Step 5 script + सूची/गिनती + pass/fail + दोनों log) ✅
+- **अधूरा:** कुछ नहीं — आपका verify + मुहर बाक़ी (वो आपका काम)
+- **रुकावट:** कोई नहीं
+- **अगला:** #008 (M11/M12/M14/M15 schema merge, ~530 errors) — अभी शुरू कर रहा हूँ
