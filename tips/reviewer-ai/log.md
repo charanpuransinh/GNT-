@@ -1328,3 +1328,37 @@ ye pre-existing हैं और #016 का दायरा type-level था, 
 - **अधूरा:** M09 का mount (cess_rate फैसला आपका) · M07→M06/M09/M10 असली event wiring (गैप दर्ज)
 - **रुकावट:** कोई नहीं — जो फैसले चाहिए वो ऊपर दर्ज
 - **अगला:** #007 (M05 Party Management) — समय बचा है, अभी शुरू कर रहा हूँ
+
+---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #007 पूरा: M05 Party Management (सत्र 2 — stream error के बाद)
+तारीख: 2026-09-03 (सुबह ~05:16–05:50) | आपके निर्देश पर अधूरा #007 वहीं से उठाकर पूरा किया
+
+### जो हुआ (माप सहित)
+- रात का बचा काम (9 नई + 5 बदली files) working tree से जाँचकर पूरा किया; backend ढाँचा, M08 fix, mount पहले से थे
+- **1 tsc error ठीक किया:** `party.service.ts` — Prisma `Decimal` vs DTO `number` (TS2352); `toParty()` mapper जोड़ा (`Number(...)`, कोई `as any` नहीं)
+- **Step 5 (frontend) पूरा:** 3 पेज + types + `routes.tsx` में `/parties`, `/parties/:id` (FinancialYearPage जैसी rough शैली)
+- **Mount साबित:** server चलाया → `[GNT] modules — चढ़े: 17 | गिरे: 1 | बाक़ी: 3` (M05 जुड़ा; M13 पुराना गिरा; M09 cess_rate इंतज़ार)
+
+### पास/फेल (exact)
+```
+npx prisma validate → valid 🚀
+npx tsc -p tsconfig.backend.json --noEmit | grep -c "m05-party"  → 0
+npx tsc -p tsconfig.backend.json --noEmit | grep -cE "error TS"   → 563 (कल रात के बराबर — कोई नई error नहीं)
+npx tsc -p tsconfig.frontend.json --noEmit | grep -c "m05-party"  → 0
+npx tsc -p tsconfig.frontend.json --noEmit | grep -cE "error TS"  → 286 (पुराना ही)
+```
+
+### Commits (main; push नहीं किया) — task के नियम अनुसार अलग-अलग
+- `1f0f252` schema (party_master + relation, 47 lines)
+- `1bf57ce` wiring: module-registry mount + M08 fix (getCompanyById→companyService.getProfile, M04 का असला contract) + m05 index
+- `f0f009e` 9 नई backend files (605 lines)
+- `df55604` frontend 3 पेज + types + routes (389 lines)
+
+### दर्ज की गई बातें (छिपाई नहीं)
+1. **M08 की `injectDependencies`/`injectReturnDependencies` कहीं call नहीं होती** — pre-existing गैप; असली wiring का अलग task चाहिए (M07 composition जैसा)
+2. frontend पेज rough हैं — सुंदर बाद में; बकाया की जगह खाली (M10 से आएगा, TODO #016)
+3. git identity repo में set नहीं है — commits `-c` से "Trishul Pro <trishulpro2@gmail.com>" (पिछली रात वाली); स्थायी config का फ़ैसला आपका
+4. आपकी modified files (docs/CODER-AI-GUIDE.md, NIGHT-QUEUE.md, SPEC-REVIEW-M20-M21.md) छुईं नहीं, commit नहीं कीं
+
+**आपके verify/मुहर का इंतज़ार है।** सुबह 6:00 का नियम माना — सब कुछ committed है, uncommitted कुछ नहीं।
