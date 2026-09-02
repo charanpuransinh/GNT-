@@ -27,24 +27,30 @@ interface LedgerService {
 }
 interface PartyService {
   getCustomerById(id: string): Promise<any>;
-  getCompanyById(id: string): Promise<any>;
+}
+// टास्क #007 Step 4 — company M04 की चीज़ है, M05 से नहीं
+interface CompanyService {
+  getProfile(companyId: string): Promise<any>;
 }
 
 let stockService: StockService;
 let gstService: GstService;
 let ledgerService: LedgerService;
 let partyService: PartyService;
+let companyService: CompanyService;
 
 export function injectReturnDependencies(deps: {
   stockService: StockService;
   gstService: GstService;
   ledgerService: LedgerService;
   partyService: PartyService;
+  companyService: CompanyService;
 }) {
   stockService = deps.stockService;
   gstService = deps.gstService;
   ledgerService = deps.ledgerService;
   partyService = deps.partyService;
+  companyService = deps.companyService;
 }
 
 export class ReturnService {
@@ -116,9 +122,9 @@ export class ReturnService {
     const invoice = await salesRepository.getInvoiceById(salesReturn.salesInvoiceId, companyId);
     if (!invoice) throw new Error('Original invoice not found');
 
-    if (!stockService || !gstService || !ledgerService || !partyService) throw new Error('M08 return dependencies are not fully wired');
+    if (!stockService || !gstService || !ledgerService || !partyService || !companyService) throw new Error('M08 return dependencies are not fully wired');
     const customer = await partyService.getCustomerById(invoice.customerId);
-    const company = await partyService.getCompanyById(invoice.companyId);
+    const company = await companyService.getProfile(invoice.companyId);
     if (!customer || !company) throw new Error('Customer or company master data not found');
 
     await prisma.$transaction(async (tx) => {

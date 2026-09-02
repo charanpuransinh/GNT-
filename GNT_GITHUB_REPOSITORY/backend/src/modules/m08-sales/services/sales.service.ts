@@ -28,8 +28,11 @@ const prisma = new PrismaClient();
 // ─── M05/M06/M09/M10/M11 PUBLIC CONTRACT INTERFACES (Design-Expansion stubs) ───
 interface PartyService {
   getCustomerById(id: string): Promise<any>;
-  getCompanyById(id: string): Promise<any>;
   checkCreditLimit(customerId: string, amount: number): Promise<{ allowed: boolean; limit: number; used: number }>;
+}
+// टास्क #007 Step 4 — company M04 की चीज़ है, M05 से नहीं (getCompanyById हटाया)
+interface CompanyService {
+  getProfile(companyId: string): Promise<any>;
 }
 interface StockService {
   checkAvailability(productId: string, branchId: string, quantity: number): Promise<{ available: boolean; stock: number }>;
@@ -52,6 +55,7 @@ interface NotificationService {
 
 // These will be injected via dependency container in production
 let partyService: PartyService;
+let companyService: CompanyService;
 let stockService: StockService;
 let gstService: GstService;
 let ledgerService: LedgerService;
@@ -60,6 +64,7 @@ let notificationService: NotificationService | undefined;
 
 export function injectDependencies(deps: {
   partyService: PartyService;
+  companyService: CompanyService;
   stockService: StockService;
   gstService: GstService;
   ledgerService: LedgerService;
@@ -67,6 +72,7 @@ export function injectDependencies(deps: {
   notificationService?: NotificationService;
 }) {
   partyService = deps.partyService;
+  companyService = deps.companyService;
   stockService = deps.stockService;
   gstService = deps.gstService;
   ledgerService = deps.ledgerService;
@@ -219,11 +225,11 @@ export class SalesService {
     if (!invoice) throw new Error('Invoice not found');
     if (invoice.status !== 'approved') throw new Error('Invoice must be approved before posting');
 
-    if (!partyService || !stockService || !gstService || !ledgerService || !paymentService) {
+    if (!partyService || !companyService || !stockService || !gstService || !ledgerService || !paymentService) {
       throw new Error('M08 posting dependencies are not fully wired');
     }
     const customer = await partyService.getCustomerById(invoice.customerId);
-    const company = await partyService.getCompanyById(invoice.companyId);
+    const company = await companyService.getProfile(invoice.companyId);
     const customerState = customer?.state;
     const companyState = company?.state;
     if (!customerState || !companyState) throw new Error('Customer/company state is required for GST calculation');
@@ -334,9 +340,9 @@ export class SalesService {
     const invoice = await salesRepository.getInvoiceById(invoiceId, companyId);
     if (!invoice) throw new Error('Invoice not found');
 
-    if (!partyService) throw new Error('Party/company service is not wired');
+    if (!partyService || !companyService) throw new Error('Party/company service is not wired');
     const customer = await partyService.getCustomerById(invoice.customerId);
-    const company = await partyService.getCompanyById(invoice.companyId);
+    const company = await companyService.getProfile(invoice.companyId);
     if (!customer || !company) throw new Error('Customer or company master data not found');
 
     const printData = preparePrintData(invoice as any, customer, company, invoice.items as any);
