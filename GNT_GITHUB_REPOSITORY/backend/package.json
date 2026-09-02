@@ -4,8 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p ../tsconfig.backend.json --noEmit",
-    "start": "tsx src/app.ts",
-    "test": "node --test"
+    "start": "tsx --tsconfig ../tsconfig.backend.json src/server.ts",
+    "test": "node --test",
+    "dev": "tsx watch --tsconfig ../tsconfig.backend.json src/server.ts",
+    "typecheck": "tsc -p ../tsconfig.backend.json --noEmit"
   },
   "dependencies": {
     "express": "^5.1.0",

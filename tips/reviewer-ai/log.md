@@ -564,3 +564,69 @@ $ npx tsc -p tsconfig.backend.json --noEmit 2>&1 | grep -cE "error TS[0-9]+"
 - push नहीं किया (write access नहीं — आप करेंगे)
 
 **अगला:** आपका verify → certificate/tag। फिर #005/#006 (आपके क्रम अनुसार)।
+
+---
+
+## Entry 10 — 🎉 FIRST LIGHT: GNT का backend पहली बार चालू हुआ
+तारीख: 2026-09-02
+
+मालिक के "बना दो" पर #005 (server bootstrap) और #006 (frontend shell) का rough ढाँचा बनाया —
+और **सिर्फ़ लिखकर नहीं छोड़ा, चलाकर देखा।**
+
+### असली नतीजा (चलाकर, अंदाज़े से नहीं)
+```
+$ npx tsx --tsconfig tsconfig.backend.json backend/src/server.ts
+[GNT] modules — चढ़े: 9 | गिरे: 1 | बाक़ी: 10
+[GNT] backend listening on http://0.0.0.0:3000
+
+/healthz         → 200   {"ok":true}
+/readyz          → 200   (हर module की हालत के साथ)
+/api/v1/company  → 401   ← route चढ़ा है और auth middleware काम कर रहा है
+/nope            → 404   ← मेरा नया 404 handler
+```
+**AUDIT-01 की F1 बंद।** पहली बार एक request end-to-end चली।
+
+### क्या-क्या बनाया
+1. **`backend/src/server.ts`** — entry point (था ही नहीं)। graceful shutdown (SIGTERM/SIGINT),
+   10s की आख़िरी सीमा, unhandledRejection पकड़ना।
+2. **`backend/src/module-registry.ts`** — 20 modules का एक ही सच: कौन किस path पर, चढ़ा या नहीं,
+   और न चढ़ा हो तो **किस task के इंतज़ार में**। हर mounted module का अपना `load()` (dynamic import)।
+3. **`app.ts` दोबारा लिखा** — helmet + cors + requestTracer + 404 + error handler (AUDIT-01 F8),
+   webhook route JSON-parse से पहले `express.raw` (AUDIT-02 M18-3 की तैयारी), और सबसे ज़रूरी:
+   **हर module dynamic import + try/catch से चढ़ता है।**
+4. **Frontend shell** — `index.html`, `vite.config.ts` (alias + `/api` proxy), `main.tsx`,
+   `App.tsx` (router + sidebar), `routes.tsx` (15 पेज lazy, named export वाली शैली)।
+5. **package.json scripts** — frontend में `dev`/`preview` थे ही नहीं; backend `app.ts` की जगह
+   अब `server.ts` चलाता है।
+
+### 🔴 सबसे बड़ी सीख — यही बताता है कि "चलाकर देखना" क्यों ज़रूरी है
+**tsc हरा हो जाना काफ़ी नहीं। तीन गड़बड़ें सिर्फ़ चलाने पर मिलीं:**
+
+1. **tsconfig बाँटने से runtime पर `@/` alias टूट गया।** tsx cwd का `tsconfig.json` पढ़ता है,
+   और वो अब सिर्फ़ references वाली खाली फाइल है — इसलिए `@/common/...` resolve ही नहीं हुआ।
+   हल: scripts में `--tsconfig ../tsconfig.backend.json`। **यह मेरे ही #004 वाले फ़ैसले का
+   साइड-इफ़ेक्ट था, जो tsc में कभी नहीं दिखता।**
+2. **M07 में असली runtime bug:** `purchase.routes.ts` के आख़िर में `export default router;` था,
+   जबकि `router` उस function के **अंदर** की चीज़ है — बाहर मौजूद ही नहीं। यानी पुराना `app.ts`
+   अगर चलता भी, तो **import होते ही पूरा app गिर जाता।** वो line हटा दी + registry में सच लिखा।
+3. **M18 एक टूटी import पर अटका था** — `validators/integration.schema.ts` में
+   `./integration.types` (फाइल `../types/` में है)। एक line ठीक करते ही M18 चढ़ गया।
+
+### फ़ैसला जो मैंने लिया: एक module का गिरना पूरे app को नहीं गिराएगा
+पहले सारे modules `import` से सीधे चढ़ते थे — M13 के 44 टूटे imports में से **एक भी**
+पूरा server गिरा देता। अब हर module अलग से चढ़ता है; जो गिरे उसकी वजह `/readyz` पर और
+startup log में साफ़ लिखी आती है। इससे "क्या काम कर रहा है" पहली बार **मापने लायक** हो गया।
+
+### माप (कहीं कुछ टूटा नहीं)
+```
+backend tsc : 997 → 994   frontend tsc : 286 → 286
+मेरी सब नई/बदली फाइलों में: 0 errors
+```
+
+### अभी भी बाक़ी (साफ़ दर्ज)
+- **M13 नहीं चढ़ता** — `queue/queue.names` वग़ैरह मौजूद नहीं (टास्क #010)
+- **M07/M14 mount नहीं** — M07 को `createPurchaseRouter(...)` की composition चाहिए,
+  M14 का index router नहीं लौटाता
+- **M05/M06/M09/M10/M16/M17/M19/M20** — अपने-अपने task के इंतज़ार में (registry में वजह लिखी है)
+- **frontend shell चलाकर नहीं देखा** — `npm run dev` (vite) अभी नहीं चलाया, सिर्फ़ compile जाँचा।
+  वो अगली बार, और तभी #006 का certificate बनेगा। **इसलिए अभी न #005 का certificate है, न #006 का।**

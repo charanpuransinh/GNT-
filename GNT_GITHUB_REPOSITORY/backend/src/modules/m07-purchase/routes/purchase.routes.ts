@@ -30,4 +30,6 @@ export function createPurchaseRouter(controller: PurchaseController, poControlle
   return router;
 }
 
-export default router;
+// हटाया गया (समीक्षक AI, 2026-09-02): `router` इस function के अंदर की चीज़ है, बाहर मौजूद ही नहीं —
+// यह line runtime पर ReferenceError देती थी और पूरे app को गिरा देती थी। router पाने के लिए
+// `createPurchaseRouter(controller, poController)` बुलाओ (M18 की तरह composition चाहिए)।

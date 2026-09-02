@@ -1,74 +1,76 @@
-import express from 'express';
-import { EventEmitter } from 'node:events';
-import companyRouter from './modules/m04-company-management/routes/company.routes';
-import authRouter from './modules/m02-core-architecture/routes/auth.routes';
-import deviceRouter from './modules/m03-device-platform/routes/device.routes';
-import appRouter from './modules/m01-foundation/routes/app.routes';
-import purchaseRouter from './modules/m07-purchase/routes/purchase.routes';
-import salesRouter from './modules/m08-sales/routes/sales.routes';
-import hrRouter from './modules/m12-hr';
-import paymentRouter from './modules/m11-payment/routes';
-import { initM13Module } from './modules/m13-automation';
-import { importRoutes, exportRoutes } from './modules/m14-import-export';
-import syncRouter from './modules/m15-sync';
-import { createIntegrationRoutes } from './modules/m18-external-integration';
-import { IntegrationController } from './modules/m18-external-integration/controllers/integration.controller';
-import { WebhookController } from './modules/m18-external-integration/controllers/webhook.controller';
-import { IntegrationService } from './modules/m18-external-integration/services/integration.service';
-import { WebhookService } from './modules/m18-external-integration/services/webhook.service';
-import { IntegrationRepository } from './modules/m18-external-integration/repositories/integration.repository';
-import { GatewayService } from './modules/m18-external-integration/services/gateway.service';
-import { prisma } from './common/config/prisma';
+/**
+ * GNT — App shell (ROUGH SCAFFOLDING — समीक्षक AI, 2026-09-02)
+ *
+ * क्यों बदला (AUDIT-01 F1/F2/F8):
+ *  - पहले यहाँ हर module `import` से सीधे चढ़ता था — एक भी module टूटा तो **पूरा app** गिर जाता था
+ *    (M13 में अकेले 44 टूटे imports हैं)। इसलिए अब हर module अलग से, dynamic import से चढ़ता है:
+ *    जो नहीं चढ़ पाया वो साफ़ लिखा जाता है, बाक़ी app चलता रहता है।
+ *  - पहले कोई helmet/cors/error-handler/404 नहीं था — अब है।
+ *
+ * ROUGH है — auth/tenant guard हर route पर लगाना टास्क #009 में आएगा।
+ */
+
+import express, { type NextFunction, type Request, type Response } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { requestTracer } from './common/middleware/request-tracer';
+import { MODULE_MOUNTS, type ModuleMount } from './module-registry';
 
 export const app = express();
 
-// Middleware
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? true, credentials: true }));
+
+// ⚠️ Webhook signature असली bytes पर बनती है — यह route JSON-parse से पहले raw रहेगा
+// (टास्क #013 इसे पूरा करेगा; AUDIT-02 → M18-3)
+app.use('/api/v1/integrations/webhooks', express.raw({ type: '*/*', limit: '2mb' }));
+
 app.use(express.json({ limit: '10mb' }));
+app.use(requestTracer);
 
-// M01 — Foundation
-app.use('/api/v1/app', appRouter);
-
-// M02 — Core Architecture (Auth)
-app.use('/api/v1/auth', authRouter);
-
-// M03 — Device Platform
-app.use('/api/v1/device', deviceRouter);
-
-// M04 — Company Management
-app.use('/api/v1/company', companyRouter);
-
-// M07 — Purchase
-app.use('/api/v1/purchase', purchaseRouter);
-
-// M08 — Sales
-app.use('/api/v1/sales', salesRouter);
-
-// M11 — Payment
-app.use('/api/v1/payments', paymentRouter);
-
-// M12 — HR
-app.use('/api/v1/hr', hrRouter);
-
-// M13 — Automation
-app.use('/api/v1/automation', initM13Module());
-
-// M14 — Import/Export
-app.use('/api/v1/imports', importRoutes);
-app.use('/api/v1/exports', exportRoutes);
-
-// M15 — Sync
-app.use('/api/v1/sync', syncRouter);
-
-// M18 — External Integration
-const integrationRepository = new IntegrationRepository(prisma);
-const gatewayService = new GatewayService(integrationRepository);
-const integrationEventBus = new EventEmitter();
-const integrationService = new IntegrationService(integrationRepository, gatewayService, integrationEventBus);
-const webhookService = new WebhookService(integrationRepository, gatewayService, integrationService, integrationEventBus);
-const integrationController = new IntegrationController(integrationService);
-const webhookController = new WebhookController(webhookService);
-const integrationRouter = createIntegrationRoutes(integrationController, webhookController);
-app.use('/api/v1/integrations', integrationRouter);
-
-// Health check
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
+
+export interface MountResult {
+  code: string;
+  path: string;
+  status: 'mounted' | 'skipped' | 'failed';
+  reason?: string;
+}
+
+/** हर module अलग-अलग चढ़ता है — एक का गिरना दूसरे को नहीं गिराएगा */
+export async function registerModules(): Promise<MountResult[]> {
+  const results: MountResult[] = [];
+
+  for (const m of MODULE_MOUNTS as ModuleMount[]) {
+    if (!m.mounted || !m.load) {
+      results.push({ code: m.code, path: m.path, status: 'skipped', reason: m.blockedBy ?? 'अभी mount के लिए तैयार नहीं' });
+      continue;
+    }
+    try {
+      const router = await m.load();
+      app.use(m.path, router);
+      results.push({ code: m.code, path: m.path, status: 'mounted' });
+    } catch (err) {
+      results.push({ code: m.code, path: m.path, status: 'failed', reason: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  // यह पता हमेशा सच बताएगा कि इस वक़्त कौन चढ़ा, कौन नहीं
+  app.get('/readyz', (_req, res) => res.json({ ok: true, modules: results }));
+
+  // ── 404 — module routes के बाद ही आना चाहिए ──
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({ error: 'NOT_FOUND', path: req.originalUrl });
+  });
+
+  // ── आख़िरी error handler (4 arguments ज़रूरी — वरना express इसे नहीं पहचानता) ──
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    const requestId = (req as Request & { requestId?: string }).requestId;
+    // eslint-disable-next-line no-console
+    console.error('[GNT] unhandled error', { requestId, path: req.originalUrl, message: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', request_id: requestId });
+  });
+
+  return results;
+}

@@ -3,7 +3,7 @@
  * Owner: D4-DELTA
  */
 import { z } from 'zod';
-import { GatewayType, GatewayStatus, WebhookStatus } from './integration.types';
+import { GatewayType, GatewayStatus, WebhookStatus } from '../types/integration.types';
 
 export const createIntegrationSchema = z.object({
   company_id: z.string().uuid(),

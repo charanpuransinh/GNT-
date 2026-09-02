@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p ../tsconfig.frontend.json --noEmit",
+    "dev": "vite",
+    "build": "tsc -p ../tsconfig.frontend.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p ../tsconfig.frontend.json --noEmit",
     "test": "node --test"
   },
   "dependencies": {
