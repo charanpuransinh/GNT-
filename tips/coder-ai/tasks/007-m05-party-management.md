@@ -162,7 +162,17 @@ npx tsc -p tsconfig.backend.json --noEmit 2>&1 | grep -c "m05-party"           #
 npx tsc -p tsconfig.frontend.json --noEmit 2>&1 | grep -c "m05-party"          # → 0
 npx tsc -p tsconfig.backend.json --noEmit 2>&1 | grep -cE "error TS"           # घटे (M08 के भी कुछ जाएँगे)
 ```
-+ server का startup output (14 modules) + `curl /api/v1/parties` का status (401 = सही चढ़ा)
++ server का startup output (14 modules) + route की परिभाषा `grep` से दिखाओ
+> **⚠️ टेस्ट का तरीक़ा बदल गया (समीक्षक AI, 2026-09-02):** पहले मैंने लिखा था
+> *"401 आना = रास्ता मिल गया"*। **यह अब सही नहीं है।** टास्क #009 के बाद auth
+> `app.ts` में एक ही जगह लग गया है, इसलिए `/api/v1/*` के **हर** पते पर 401 आता है —
+> चाहे वहाँ कोई route हो या न हो (मैंने `/api/v1/reports/xyz-kuch-bhi-nahi` पर भी 401
+> देखकर पक्का किया)।
+> **रास्ता सच में मौजूद है या नहीं, यह साबित करने के 2 सही तरीक़े:**
+> 1. `curl` के साथ **असली token** भेजो (login से मिलेगा — DB चालू होने पर), या
+> 2. route की परिभाषा **कोड में पढ़कर** दिखाओ (`grep -n "router.get('/sales'" …`)
+>    और startup की mount-लाइन दिखाओ। **401 को सबूत मत मानना।**
+
 
 ## रिपोर्ट
 दोनों जगह + सत्र नोट। schema, contract और frontend — तीनों के लिए अलग commit।
