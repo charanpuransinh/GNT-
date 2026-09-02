@@ -85,6 +85,36 @@
 
 ---
 
+## 📊 M01–M20 मॉड्यूल स्थिति (2026-09-02, मापी हुई)
+
+| # | मॉड्यूल | हालत |
+|---|---|---|
+| M01 | Foundation | 🔧 चालू है — compile साफ़, ऐप में चढ़ा (test/lock बाक़ी) |
+| M02 | Core Architecture | 🔧 चालू है — compile साफ़, ऐप में चढ़ा (test/lock बाक़ी) |
+| M03 | Device & Platform | 🔧 चालू है — compile साफ़, ऐप में चढ़ा (test/lock बाक़ी) |
+| M04 | Company Management | 🔧 चालू है — compile साफ़, ऐप में चढ़ा (test/lock बाक़ी) |
+| M05 | Party Management | ⬜ शुरू नहीं — फोल्डर पूरी तरह खाली |
+| M06 | Inventory | ⬜ शुरू नहीं — कोड है, ऐप में नहीं चढ़ा |
+| M07 | Purchase | ⬜ शुरू नहीं — कोड है, ऐप में नहीं चढ़ा |
+| M08 | Sales & Billing | ⬜ शुरू नहीं — ऐप में चढ़ा, पर compile बाक़ी |
+| M09 | GST & Compliance | ⬜ शुरू नहीं — कोड है, ऐप में नहीं चढ़ा |
+| M10 | Accounting | ⬜ शुरू नहीं — कोड है, ऐप में नहीं चढ़ा |
+| M11 | Payment & Communication | ⬜ शुरू नहीं — ऐप में चढ़ा, टेबल+compile बाक़ी |
+| M12 | Employee & HR | ⬜ शुरू नहीं — ऐप में चढ़ा, टेबल+compile बाक़ी |
+| M13 | Smart Automation | ⬜ शुरू नहीं — ऐप में चढ़ने पर गिरता है |
+| M14 | Import/Export | ⬜ शुरू नहीं — ऐप में नहीं चढ़ा |
+| M15 | Data Storage & Sync | ⬜ शुरू नहीं — ऐप में चढ़ा, बाक़ी सब पेंडिंग |
+| M16 | Notification Engine | 🔧 काम तय — टास्क #011 तैयार |
+| M17 | Reporting & BI | 🔧 काम तय — टास्क #012 तैयार |
+| M18 | External Integration | 🔧 काम तय — टास्क #013 तैयार (ऐप में चढ़ा) |
+| M19 | Production & Monitoring | 🔧 काम तय — टास्क #014 तैयार |
+| M20 | International Trade | 🔧 काम तय — टास्क #015 तैयार |
+
+**🔒 Locked: 0 / 20 = 0%** · **कुल प्रोजेक्ट: ~34% पूरा**
+*(नाप का तरीक़ा — हर मॉड्यूल पर 4 जाँच: backend साफ़ · frontend साफ़ · डेटाबेस टेबल पूरे · ऐप में चलता है)*
+
+---
+
 ## 🔏 सच का रजिस्टर (CERTIFICATES)
 
 जो काम मैंने जांचकर पास किया है, उसकी पूरी सूची: `tips/reviewer-ai/CERTIFICATES.md`
