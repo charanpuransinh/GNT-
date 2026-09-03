@@ -6,7 +6,7 @@ export class CompanyRepository {
   async findById(id: string) { return this.prisma.company_master.findUnique({ where: { id } }); }
   async update(id: string, data: any) { return this.prisma.company_master.update({ where: { id }, data: { ...data, updatedAt: new Date() } }); }
   async findFinancialYears(companyId: string) { return this.prisma.financial_year.findMany({ where: { company_id: companyId }, orderBy: { start_date: "desc" } }); }
-  async createFY(data: any) { return this.prisma.financial_year.create({ data }); }
+  async createFY(data: any) { return this.prisma.financial_year.create({ data: { company_id: data.companyId, start_date: new Date(data.startDate), end_date: new Date(data.endDate), prefix: data.prefix, is_active: data.isActive ?? false } }); }
   async deactivateAllFY(companyId: string) { return this.prisma.financial_year.updateMany({ where: { company_id: companyId }, data: { is_active: false } }); }
   async activateFY(id: string) { return this.prisma.financial_year.update({ where: { id }, data: { is_active: true } }); }
   async findRoles(companyId: string) { return this.prisma.role_master.findMany({ where: { company_id: companyId }, include: { role_permission: { include: { permission_master: true } } } }); }
