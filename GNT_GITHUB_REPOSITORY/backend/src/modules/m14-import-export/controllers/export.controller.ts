@@ -1,6 +1,7 @@
 // M14 — Export Controller
 // Lock: LOCK_10_CONTROLLER
 import { Request, Response } from 'express';
+import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { ExportService } from '../services/export.service';
 
 const exportService = new ExportService();
@@ -9,8 +10,8 @@ export class ExportController {
   async create(req: Request, res: Response) {
     try {
       const { module, entityType, format, filters, columns, sort, templateId } = req.body;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const tenantId = requireTenant(req).companyId;
+      const userId = requireUser(req).id;
 
       const jobId = await exportService.createExportJob({
         module, entityType, format, filters, columns, sort, templateId,
@@ -25,7 +26,7 @@ export class ExportController {
   async getJob(req: Request, res: Response) {
     try {
       const { jobId } = req.params;
-      const tenantId = req.tenantId;
+      const tenantId = requireTenant(req).companyId;
       const job = await exportService.getExportJob(jobId, tenantId);
       res.json(job);
     } catch (err: any) {
@@ -35,7 +36,7 @@ export class ExportController {
 
   async listJobs(req: Request, res: Response) {
     try {
-      const tenantId = req.tenantId;
+      const tenantId = requireTenant(req).companyId;
       const { module, entityType, status } = req.query;
       const jobs = await exportService.listExportJobs(tenantId, {
         ...(module && { module: String(module) }),
@@ -51,7 +52,7 @@ export class ExportController {
   async cancel(req: Request, res: Response) {
     try {
       const { jobId } = req.params;
-      const tenantId = req.tenantId;
+      const tenantId = requireTenant(req).companyId;
       await exportService.cancelExportJob(jobId, tenantId);
       res.json({ success: true, message: 'Export cancelled' });
     } catch (err: any) {
@@ -62,7 +63,7 @@ export class ExportController {
   async download(req: Request, res: Response) {
     try {
       const { jobId } = req.params;
-      const tenantId = req.tenantId;
+      const tenantId = requireTenant(req).companyId;
       const file = await exportService.downloadExport(jobId, tenantId);
       res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
       res.setHeader('Content-Type', file.mimeType);

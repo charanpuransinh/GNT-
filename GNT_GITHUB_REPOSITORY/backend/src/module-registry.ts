@@ -114,7 +114,7 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   { load: async () => (await import('./modules/m11-payment/routes')).default, code: 'M11', path: '/api/v1/payments',      mounted: true },
   { load: async () => (await import('./modules/m12-hr')).default, code: 'M12', path: '/api/v1/hr',            mounted: true },
   { load: async () => (await import('./modules/m13-automation')).initM13Module(), code: 'M13', path: '/api/v1/automation',    mounted: true },
-  { code: 'M14', path: '/api/v1/imports',       mounted: false, blockedBy: 'index से जो मिलता है वो express router नहीं है (runtime: argument handler must be a function)' },
+  { load: async () => (await import('./modules/m14-import-export/routes')).default, code: 'M14', path: '/api/v1/imports',       mounted: true },
   { load: async () => (await import('./modules/m15-sync')).default, code: 'M15', path: '/api/v1/sync',          mounted: true },
   { code: 'M16', path: '/api/v1/notifications', mounted: true,
     load: async () => (await import('./modules/m16-notification')).notificationRoutes },

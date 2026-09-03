@@ -6,19 +6,17 @@ import { ImportController } from '../controllers/import.controller';
 import { ExportController } from '../controllers/export.controller';
 import { TemplateController } from '../controllers/template.controller';
 import { JobController } from '../controllers/job.controller';
-import { authMiddleware } from '../middleware/auth';
-import { tenantMiddleware } from '../middleware/tenant';
+// मुख्य app की chain (auth + tenant, टास्क #009) हर /api/v1 रास्ते पर पहले ही चलती है —
+// m14 के पुराने x-tenant-id वाले middleware यहाँ से हटा दिए (header पर भरोसा नहीं);
+// controllers अब requireTenant/requireUser से पहचान लेते हैं।
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 const importCtrl = new ImportController();
 const exportCtrl = new ExportController();
-const templateCtrl = new TemplateController();
+const templateCtrl = TemplateController; // static methods — class से ही बुलाते हैं
 const jobCtrl = new JobController();
-
-router.use(authMiddleware);
-router.use(tenantMiddleware);
 
 // Import Routes
 router.post('/imports/upload', upload.single('file'), importCtrl.upload);

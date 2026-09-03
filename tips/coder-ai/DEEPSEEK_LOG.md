@@ -60,6 +60,22 @@
 
 ---
 
+### अनुवर्ती — (req as any) सफाई (#016 का दर्ज काम) (22:06 → 22:25)
+- **कौन सा task मिला:** #024 के बाद मालिक का nonstop आदेश — अगला pending काम खुद उठाया: #016 में दर्ज "M06/M07/M08 controllers का पुराना (req as any).tenant?.company_id — अगला task"
+- **क्या किया:** पूरे backend (m13 excluded + tests छोड़कर) से `(req as any)` हटाया — 28 tenant पढ़ाई → `requireTenant(req)`, user पढ़ाई → `requireUser(req)` (नया helper, 401) / `req.user?.id`, m14 के पुराने x-tenant-id chain को ambient typing दी (`m14/types/express.d.ts` — व्यवहार वही, as any नहीं); device.controller का dead `(req as any).sessionId` → undefined (कहीं set ही नहीं होता)
+- **कौन सी files बनाईं/बदलीं:** बदलीं ~18 controllers/middleware + `common/types/express.d.ts`, `common/middleware/require-tenant.ts` (requireUser जोड़ा); नई `m14-import-export/types/express.d.ts`
+- **status:** पूरा — tsc **563 → 518** (45 कम — सुधार), mount 18, commit 408fab9; बचे as any सिर्फ tests (पहले से) + m13 middleware (excluded — #010 का इंतज़ार)
+
+---
+
+### अनुवर्ती 2 — M14 mount (22:26 → 22:45)
+- **कौन सा task मिला:** मालिक nonstop — अगला दर्ज गैप उठाया: #016 का "M14 router नहीं" (माउंट गिरता था)
+- **क्या किया:** M14 का असली router `routes/index.ts` से load किया (पहले index.ts से — वो router नहीं); माउंट गिरने की असली जड़ ढूँढी — `template.controller` के methods **static** हैं पर routes instance से बुला रहे थे (`templateCtrl.create` = undefined → "argument handler must be a function") — class से बुलाया; m14 के पुराने x-tenant-id middleware हटाए (मुख्य #009 chain पहले से चलती है) और 3 controllers को `requireTenant/requireUser` पर लाया
+- **कौन सी files बनाईं/बदलीं:** बदली `m14.../routes/index.ts`, `controllers/{import,export,job}.controller.ts`, `module-registry.ts`
+- **status:** पूरा — **19 modules चढ़े** (M14 जुड़ा), tsc **510**, commit अगली लाइन; बचे: M13 (#010 — मालिक का फैसला) + M09 (cess_rate — समीक्षक का फैसला)
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03
