@@ -1,3 +1,35 @@
+### टास्क #025-हिस्सा B4 — M11 Payment (22:42 → 22:56)
+- **कौन सा task मिला:** #025 का सबसे बड़ा हिस्सा — M11-payment को tsc 0 पर लाना (88 errors)
+- **क्या किया:** 6 controllers में `String(req.params.id)`/`String(req.tenantId ?? '')` (Express 5) · zod v4 `z.record(key,value)` + `ZodError.issues` · barrels (index.ts) ठीक · repos/services को असली Prisma fields से मिलाया (PaymentTransaction: transactionNumber/baseAmount/transactionDate/partyType; BankAccount: branch/accountCode, no updatedBy; PaymentMethod: code, no isDefault/sortOrder; Refund: refundNumber/originalTxnId; Reconciliation: reconNumber/statementDate/items, no bankAccount relation)
+- **कौन सी files बदलीं:** 6 controllers + `validators/schemas.ts` + `middleware/validate.middleware.ts` + 5 repositories (bankAccount/payment/paymentMethod/reconciliation/refund) + 3 services (reconciliation/refund/paymentMethod/payment) + `index.ts`
+- **status:** पूरा — m11 tsc 0, commit ec9917f, push नहीं
+
+---
+
+### टास्क #025-हिस्सा B1 — M12 HR (22:37 → 22:41)
+- **कौन सा task मिला:** #025 B1 — M12-hr को tsc 0 (baseline में 12 errors थे, summary में 0 गलत था)
+- **क्या किया:** Prisma field मेल — `status`→`employmentStatus`, `joinDate`→`dateOfJoining`, `workHours`→`workingHours`, `notes`→`remarks`, `location`→`checkInLocation`, payroll में required fields (payrollNumber/periodStart/periodEnd/daysWorked/…), leave Decimal→Number, tenantId (employee से)
+- **कौन सी files बदलीं:** `services/{attendance,department,employee,leave,payroll}.service.ts`
+- **status:** पूरा — m12 tsc 0, commit 62c5649, push नहीं
+
+---
+
+### टास्क #025-हिस्सा B2 — M14 Import/Export (22:34 → 22:37)
+- **कौन सा task मिला:** #025 B2 — M14-import-export को tsc 0 (16 errors)
+- **क्या किया:** Prisma field मेल (jobNumber/targetEntity/targetModule/validationReport/sourceModule/sourceEntity) · `CSVParser` class जोड़ी (csvParser में) · `ExportFormat` type जोड़ा · parser null-array fix · dead test ठीक (tests/export.test)
+- **कौन सी files बदलीं:** `utils/csvParser.ts`, `types/index.ts`, `import.processor.ts`, `export.processor.ts`, `services/{export,import,template,parser,exportService}.service.ts`, `tests/export.test.ts`
+- **status:** पूरा — m14 tsc 0, commit 8a5ce3d, push नहीं
+
+---
+
+### टास्क #025-हिस्सा B3 — M15 Sync (22:11 → 22:34)
+- **कौन सा task मिला:** #025 का हिस्सा B3 — M15-sync को tsc 0 पर लाना (baseline 131 errors)
+- **क्या किया:** types/sync.types.ts को असली Prisma schema (m15_sync_*) से मिलाया · conflict layer (controller+service+test) instance-based किया और Prisma field names (internalValue/externalValue/mergedValue, status PENDING/RESOLVED/AUTO_RESOLVED) पर लाया · sync.service/controller के field/param mismatch ठीक किए (states include हटाया, conflictResolution→resolution, String(req.params.id), tenantId bug) · zod v4 का z.record(key,value) fix (validators+schemas) · routes का AuthenticatedRequest contravariance fix · dead files हटाईं (backup/conflict/integration routes + routes/index + sync.repository + sync-state.repository + jobQueue.ts)
+- **कौन सी files बनाईं/बदलीं:** बदली `types/sync.types.ts`, `services/{sync,conflict,integration,sync-queue,webhook}.service.ts`, `controllers/{sync,conflict,integration}.controller.ts`, `routes/sync.routes.ts`, `services/conflict.service.test.ts`, `validators/sync.validators.ts`, `utils/sync.schemas.ts`; हटाईं 7 dead files (ऊपर लिखी)
+- **status:** पूरा — m15-sync tsc 0 (कुल 210→192), conflict.service.test 6/6 pass; commit f4484eb, push नहीं
+
+---
+
 ### टास्क #007 — M05 Party Management (05:16 → 05:28)
 - **कौन सा task मिला:** रात का stream-error से मरा अधूरा #007 वहीं से पूरा करना
 - **क्या किया:** बने काम की जाँच, 1 tsc error का fix (Decimal→Number mapper), frontend के 3 पेज + routes, mount verify (17 modules चढ़े)
