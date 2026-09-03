@@ -27,7 +27,7 @@ export class WebhookController {
   async updateEndpoint(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const endpoint = await this.webhookService.updateEndpoint(tenantId, req.params.id, req.body);
+      const endpoint = await this.webhookService.updateEndpoint(tenantId, String(req.params.id), req.body);
       res.json({ success: true, data: endpoint });
     } catch (err) { next(err); }
   }
@@ -35,7 +35,7 @@ export class WebhookController {
   async deleteEndpoint(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      await this.webhookService.deleteEndpoint(tenantId, req.params.id);
+      await this.webhookService.deleteEndpoint(tenantId, String(req.params.id));
       res.json({ success: true, data: null });
     } catch (err) { next(err); }
   }
@@ -43,7 +43,7 @@ export class WebhookController {
   async toggleEndpoint(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const endpoint = await this.webhookService.toggleEndpoint(tenantId, req.params.id);
+      const endpoint = await this.webhookService.toggleEndpoint(tenantId, String(req.params.id));
       res.json({ success: true, data: endpoint });
     } catch (err) { next(err); }
   }
@@ -53,7 +53,7 @@ export class WebhookController {
       const tenantId = req.headers['x-tenant-id'] as string;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
-      const result = await this.webhookService.getDeliveries(tenantId, req.params.id, { page, limit });
+      const result = await this.webhookService.getDeliveries(tenantId, String(req.params.id), { page, limit });
       res.json({ success: true, data: result.deliveries, meta: result.meta });
     } catch (err) { next(err); }
   }
@@ -61,7 +61,7 @@ export class WebhookController {
   async testEndpoint(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const result = await this.webhookService.testEndpoint(tenantId, req.params.id);
+      const result = await this.webhookService.testEndpoint(tenantId, String(req.params.id));
       res.json({ success: true, data: result });
     } catch (err) { next(err); }
   }

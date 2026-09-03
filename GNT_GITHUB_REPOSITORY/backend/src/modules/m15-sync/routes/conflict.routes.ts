@@ -1,13 +1,15 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
+import { AuthenticatedRequest } from '../middleware/tenant.middleware';
+
 import { ConflictController } from '../controllers/conflict.controller';
 
 const router = Router();
 
-router.get('/', ConflictController.listConflicts);
-router.get('/stats', ConflictController.getStats);
-router.get('/:id', ConflictController.getConflict);
-router.post('/:id/resolve', ConflictController.resolveConflict);
-router.post('/bulk-resolve', ConflictController.bulkResolve);
-router.post('/auto-resolve/:jobId', ConflictController.autoResolve);
+router.get('/', (req: AuthenticatedRequest, res: Response) => ConflictController.listConflicts(req, res));
+router.get('/stats', (req: AuthenticatedRequest, res: Response) => ConflictController.getStats(req, res));
+router.get('/:id', (req: AuthenticatedRequest, res: Response) => ConflictController.getConflict(req, res));
+router.post('/:id/resolve', (req: AuthenticatedRequest, res: Response) => ConflictController.resolveConflict(req, res));
+router.post('/bulk-resolve', (req: AuthenticatedRequest, res: Response) => ConflictController.bulkResolve(req, res));
+router.post('/auto-resolve/:jobId', (req: AuthenticatedRequest, res: Response) => ConflictController.autoResolve(req, res));
 
 export default router;

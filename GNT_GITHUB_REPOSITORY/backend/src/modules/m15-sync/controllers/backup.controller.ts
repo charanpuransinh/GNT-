@@ -21,7 +21,7 @@ export class BackupController {
   async getBackupById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const backup = await this.backupService.getBackupById(tenantId, req.params.id);
+      const backup = await this.backupService.getBackupById(tenantId, String(req.params.id));
       if (!backup) throw new AppError('BACKUP_NOT_FOUND', 'Backup not found', 404);
       res.json({ success: true, data: backup });
     } catch (err) { next(err); }
@@ -38,7 +38,7 @@ export class BackupController {
   async deleteBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      await this.backupService.deleteBackup(tenantId, req.params.id);
+      await this.backupService.deleteBackup(tenantId, String(req.params.id));
       res.json({ success: true, data: null });
     } catch (err) { next(err); }
   }
@@ -46,7 +46,7 @@ export class BackupController {
   async restoreBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const restoreJob = await this.backupService.restoreBackup(tenantId, req.params.id);
+      const restoreJob = await this.backupService.restoreBackup(tenantId, String(req.params.id));
       res.status(202).json({ success: true, data: restoreJob });
     } catch (err) { next(err); }
   }
@@ -64,7 +64,7 @@ export class BackupController {
   async rollbackRestore(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const job = await this.backupService.rollbackRestore(tenantId, req.params.id, req.body.reason);
+      const job = await this.backupService.rollbackRestore(tenantId, String(req.params.id), req.body.reason);
       res.json({ success: true, data: job });
     } catch (err) { next(err); }
   }
