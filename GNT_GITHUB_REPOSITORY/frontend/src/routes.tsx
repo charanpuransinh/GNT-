@@ -85,6 +85,21 @@ export const routes: ReadonlyArray<AppRoute> = [
   { path: '/accounting/cash-bank', label: 'रोकड़/बैंक बही',   element: page(() => import('./modules/m10-accounting/pages/CashBankBookPage'), 'CashBankBookPage') },
   { path: '/accounting/brs',       label: 'बैंक मिलान (BRS)', element: page(() => import('./modules/m10-accounting/pages/BRSPage'), 'BRSPage') },
 
+  // M11 — Payment (ROUGH पेज — DeepSeek)
+  { path: '/payments/entry',    label: 'भुगतान प्रविष्टि', element: page(() => import('./modules/m11-payment/pages/PaymentEntryPage'), 'PaymentEntryPage') },
+  { path: '/payments/receipt',  label: 'ग्राहक रसीद',     element: page(() => import('./modules/m11-payment/pages/ReceiptEntryPage'), 'ReceiptEntryPage') },
+  { path: '/payments/due',      label: 'बकाया ट्रैकर',    element: page(() => import('./modules/m11-payment/pages/DueTrackerPage'), 'DueTrackerPage') },
+  { path: '/payments/send',     label: 'बिल भेजें',       element: page(() => import('./modules/m11-payment/pages/CommunicationHubPage'), 'CommunicationHubPage') },
+
+  // M12 — HR (ROUGH पेज — DeepSeek)
+  { path: '/hr/employees',      label: 'कर्मचारी',        element: page(() => import('./modules/m12-hr/pages/EmployeeListPage'), 'EmployeeListPage') },
+
+  // M14 — Import/Export (ROUGH पेज — DeepSeek)
+  { path: '/import-export',     label: 'लाना-लेजाना',     element: page(() => import('./modules/m14-import-export/pages/ImportExportPage'), 'ImportExportPage') },
+
+  // M15 — Sync (ROUGH पेज — DeepSeek)
+  { path: '/sync',              label: 'मिलान (Sync)',    element: page(() => import('./modules/m15-sync/pages/SyncDashboardPage'), 'SyncDashboardPage') },
+
   // M16 — Notification (टास्क: M16–M21 पूरा — Claude, 2026-09-03)
   { path: '/notifications',          label: 'सूचनाएँ',        element: pageDefault(() => import('./modules/m16-notification/pages/NotificationCenterPage')) },
   { path: '/notifications/settings', label: 'सूचना सेटिंग',   element: pageDefault(() => import('./modules/m16-notification/pages/NotificationSettingsPage')) },
