@@ -10,7 +10,7 @@ export class ReconciliationRepository {
   async findById(id: string, tenantId: string) {
     return this.prisma.paymentReconciliation.findFirst({
       where: { id, tenantId },
-      include: { items: true, bankAccount: true },
+      include: { items: true },
     });
   }
 
@@ -21,7 +21,6 @@ export class ReconciliationRepository {
     return this.prisma.paymentReconciliation.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { bankAccount: { select: { accountName: true, accountNumber: true } } },
     });
   }
 
@@ -29,13 +28,13 @@ export class ReconciliationRepository {
     return this.prisma.paymentReconciliation.create({
       data: {
         tenantId,
+        reconNumber: `REC-${Date.now()}`,
         bankAccountId: dto.bankAccountId,
-        startDate: dto.startDate,
-        endDate: dto.endDate,
-        status: 'PENDING',
-        statementFileUrl: dto.statementFileUrl || null,
-        createdBy: userId,
-        updatedBy: userId,
+        statementDate: dto.startDate,
+        openingBalance: new Decimal(0),
+        closingBalance: new Decimal(0),
+        status: 'DRAFT',
+        statementFileId: dto.statementFileUrl || null,
       },
       include: { items: true },
     });
@@ -76,7 +75,7 @@ export class ReconciliationRepository {
   async updateStatus(id: string, status: string, tenantId: string, userId: string) {
     return this.prisma.paymentReconciliation.update({
       where: { id },
-      data: { status, updatedBy: userId },
+      data: { status },
     });
   }
 }

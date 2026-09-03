@@ -81,7 +81,7 @@ export class RefundService {
       await rRepo.update(id, { status: 'PROCESSING' }, tenantId, approverId);
 
       // Update payment status
-      const payment = await pRepo.findById(refund.transactionId, tenantId);
+      const payment = await pRepo.findById(refund.originalTxnId, tenantId);
       if (payment) {
         const totalRefunded = new Decimal(refund.amount);
         const paymentAmount = payment.amount as Decimal;
@@ -100,7 +100,7 @@ export class RefundService {
     this.eventBus.publish('refund.completed', {
       refundId: id,
       tenantId,
-      transactionId: refund.transactionId,
+      transactionId: refund.originalTxnId,
       amount: refund.amount.toString(),
       timestamp: new Date(),
     });
@@ -118,7 +118,7 @@ export class RefundService {
     this.eventBus.publish('refund.rejected', {
       refundId: id,
       tenantId,
-      transactionId: refund.transactionId,
+      transactionId: refund.originalTxnId,
       reason,
       timestamp: new Date(),
     });

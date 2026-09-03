@@ -1,6 +1,6 @@
 // M11 Payment Module - Bank Account Repository
 
-import { PrismaClient, Prisma, BankAccount, BankAccountType } from '@prisma/client';
+import { PrismaClient, Prisma, BankAccount } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CreateBankAccountDto, UpdateBankAccountDto } from '../types';
 import { toDecimal } from '../utils/decimal.helper';
@@ -11,7 +11,6 @@ export class BankAccountRepository {
   async findById(id: string, tenantId: string): Promise<BankAccount | null> {
     return this.prisma.bankAccount.findFirst({
       where: { id, tenantId },
-      include: { transactions: { take: 5, orderBy: { createdAt: 'desc' } } },
     });
   }
 
@@ -29,19 +28,17 @@ export class BankAccountRepository {
     return this.prisma.bankAccount.create({
       data: {
         tenantId,
+        accountCode: dto.accountNumber,
         accountName: dto.accountName,
         accountNumber: dto.accountNumber,
         ifscCode: dto.ifscCode || null,
         bankName: dto.bankName,
-        branchName: dto.branchName || null,
+        branch: dto.branchName || null,
         accountType: dto.accountType || 'CURRENT',
         openingBalance: dto.openingBalance ? toDecimal(dto.openingBalance) : new Decimal(0),
         currentBalance: dto.openingBalance ? toDecimal(dto.openingBalance) : new Decimal(0),
         isActive: dto.isActive ?? true,
         isDefault: dto.isDefault ?? false,
-        description: dto.description || null,
-        createdBy: userId,
-        updatedBy: userId,
       },
     });
   }
@@ -49,7 +46,15 @@ export class BankAccountRepository {
   async update(id: string, dto: UpdateBankAccountDto, tenantId: string, userId: string): Promise<BankAccount> {
     return this.prisma.bankAccount.update({
       where: { id },
-      data: { ...dto, updatedBy: userId },
+      data: {
+        ...(dto.accountName && { accountName: dto.accountName }),
+        ...(dto.ifscCode !== undefined && { ifscCode: dto.ifscCode }),
+        ...(dto.bankName && { bankName: dto.bankName }),
+        ...(dto.branchName !== undefined && { branch: dto.branchName }),
+        ...(dto.accountType && { accountType: dto.accountType }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        ...(dto.isDefault !== undefined && { isDefault: dto.isDefault }),
+      },
     });
   }
 
@@ -62,7 +67,7 @@ export class BankAccountRepository {
 
     return this.prisma.bankAccount.update({
       where: { id },
-      data: { currentBalance: newBalance, updatedBy: userId },
+      data: { currentBalance: newBalance },
     });
   }
 

@@ -203,7 +203,7 @@ export class PaymentService {
 
   // ==================== PUBLIC API: Dashboard Stats ====================
   async getDashboardStats(tenantId: string, startDate?: Date, endDate?: Date): Promise<PaymentDashboardStats> {
-    return this.paymentRepo.getDashboardStats(tenantId, startDate, endDate) as Promise<PaymentDashboardStats>;
+    return this.paymentRepo.getDashboardStats(tenantId, startDate, endDate) as unknown as Promise<PaymentDashboardStats>;
   }
 
   // ==================== PUBLIC API: Get Payment by Invoice ====================

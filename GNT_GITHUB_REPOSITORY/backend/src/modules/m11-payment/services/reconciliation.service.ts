@@ -35,36 +35,9 @@ export class ReconciliationService {
     const account = await this.bankRepo.findById(dto.bankAccountId, tenantId);
     if (!account) throw this.badRequest('Bank account not found');
 
-    // Get system transactions for period
-    const { data: transactions } = await this.paymentRepo.findAll({
-      page: 1,
-      limit: 1000,
-      startDate: dto.startDate,
-      endDate: dto.endDate,
-    }, tenantId);
-
-    const systemCredits = transactions
-      .filter(t => t.type === 'PAYMENT')
-      .reduce((sum, t) => sum.add(t.amount as Decimal), new Decimal(0));
-    const systemDebits = transactions
-      .filter(t => t.type === 'REFUND' || t.type === 'TRANSFER')
-      .reduce((sum, t) => sum.add(t.amount as Decimal), new Decimal(0));
-
     const recon = await this.prisma.$transaction(async (tx) => {
       const rRepo = new ReconciliationRepository(tx as any);
-      const created = await rRepo.create(dto, tenantId, userId);
-
-      // Update with system totals
-      await tx.reconciliation.update({
-        where: { id: created.id },
-        data: {
-          systemCredits,
-          systemDebits,
-          systemBalance: systemCredits.sub(systemDebits),
-        },
-      });
-
-      return created;
+      return rRepo.create(dto, tenantId, userId);
     });
 
     this.eventBus.publish('reconciliation.created', {
@@ -101,10 +74,7 @@ export class ReconciliationService {
     await this.prisma.paymentReconciliation.update({
       where: { id },
       data: {
-        statementCredits,
-        statementDebits,
-        statementBalance: statementCredits.sub(statementDebits),
-        variance: new Decimal(0), // Will be calculated after matching
+        closingBalance: statementCredits.sub(statementDebits),
       },
     });
 
@@ -118,8 +88,8 @@ export class ReconciliationService {
     const { data: transactions } = await this.paymentRepo.findAll({
       page: 1,
       limit: 1000,
-      startDate: recon.startDate,
-      endDate: recon.endDate,
+      startDate: recon.statementDate,
+      endDate: recon.statementDate,
     }, tenantId);
 
     let matchedCount = 0;

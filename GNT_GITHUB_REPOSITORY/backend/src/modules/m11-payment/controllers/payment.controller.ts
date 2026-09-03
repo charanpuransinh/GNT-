@@ -11,8 +11,8 @@ export class PaymentController {
 
   getPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
       const payment = await this.service.getPayment(id, tenantId);
       successResponse(res, payment);
     } catch (err) { next(err); }
@@ -20,7 +20,7 @@ export class PaymentController {
 
   listPayments = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
+      const tenantId = String(req.tenantId ?? '');
       const filter: PaymentFilter = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
@@ -44,8 +44,8 @@ export class PaymentController {
 
   createPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: CreatePaymentDto = req.body;
       const payment = await this.service.createPayment(dto, tenantId, userId);
       createdResponse(res, payment);
@@ -54,9 +54,9 @@ export class PaymentController {
 
   processPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const { gatewayRef, gatewayResponse } = req.body;
       const payment = await this.service.processPayment(id, tenantId, userId, gatewayRef, gatewayResponse);
       successResponse(res, payment);
@@ -65,9 +65,9 @@ export class PaymentController {
 
   failPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const { reason } = req.body;
       const payment = await this.service.failPayment(id, tenantId, userId, reason);
       successResponse(res, payment);
@@ -76,9 +76,9 @@ export class PaymentController {
 
   cancelPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const payment = await this.service.cancelPayment(id, tenantId, userId);
       successResponse(res, payment);
     } catch (err) { next(err); }
@@ -86,9 +86,9 @@ export class PaymentController {
 
   updatePayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: UpdatePaymentDto = req.body;
       const payment = await this.service.updatePayment(id, dto, tenantId, userId);
       successResponse(res, payment);
@@ -97,8 +97,8 @@ export class PaymentController {
 
   deletePayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
       await this.service.deletePayment(id, tenantId);
       successResponse(res, { deleted: true });
     } catch (err) { next(err); }
@@ -106,7 +106,7 @@ export class PaymentController {
 
   getDashboardStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
+      const tenantId = String(req.tenantId ?? '');
       const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
       const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
       const stats = await this.service.getDashboardStats(tenantId, startDate, endDate);

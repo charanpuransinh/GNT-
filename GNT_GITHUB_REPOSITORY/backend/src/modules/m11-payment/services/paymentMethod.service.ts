@@ -31,7 +31,7 @@ export class PaymentMethodService {
       methodId: method.id,
       tenantId,
       name: method.name,
-      type: method.type,
+      type: method.code,
       timestamp: new Date(),
     });
 

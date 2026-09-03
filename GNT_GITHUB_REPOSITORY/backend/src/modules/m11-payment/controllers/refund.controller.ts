@@ -10,8 +10,8 @@ export class RefundController {
 
   getRefund = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
       const refund = await this.service.getRefund(id, tenantId);
       successResponse(res, refund);
     } catch (err) { next(err); }
@@ -19,7 +19,7 @@ export class RefundController {
 
   listRefunds = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
+      const tenantId = String(req.tenantId ?? '');
       const filter: RefundFilter = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
@@ -33,8 +33,8 @@ export class RefundController {
 
   createRefund = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: CreateRefundDto = req.body;
       const refund = await this.service.createRefund(dto, tenantId, userId);
       createdResponse(res, refund);
@@ -43,9 +43,9 @@ export class RefundController {
 
   approveRefund = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const refund = await this.service.approveRefund(id, tenantId, userId);
       successResponse(res, refund);
     } catch (err) { next(err); }
@@ -53,9 +53,9 @@ export class RefundController {
 
   rejectRefund = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const { reason } = req.body;
       const refund = await this.service.rejectRefund(id, tenantId, userId, reason);
       successResponse(res, refund);
@@ -64,9 +64,9 @@ export class RefundController {
 
   updateRefund = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: UpdateRefundDto = req.body;
       const refund = await this.service.updateRefund(id, dto, tenantId, userId);
       successResponse(res, refund);
@@ -75,8 +75,8 @@ export class RefundController {
 
   deleteRefund = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
       await this.service.deleteRefund(id, tenantId);
       successResponse(res, { deleted: true });
     } catch (err) { next(err); }

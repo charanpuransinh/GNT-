@@ -41,6 +41,7 @@ export class RefundRepository {
     return this.prisma.refund.create({
       data: {
         tenantId,
+        refundNumber: `REF-${Date.now()}`,
         originalTxnId: dto.transactionId,
         amount: toDecimal(dto.amount),
         status: 'PENDING',
@@ -54,7 +55,6 @@ export class RefundRepository {
       where: { id },
       data: {
         ...(dto.status !== undefined ? { status: dto.status as RefundStatus } : {}),
-        ...(dto.reason !== undefined ? { reason: dto.reason } : {}),
       },
     });
   }

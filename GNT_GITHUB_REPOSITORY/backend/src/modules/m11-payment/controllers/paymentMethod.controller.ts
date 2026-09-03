@@ -10,8 +10,8 @@ export class PaymentMethodController {
 
   getMethod = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
       const method = await this.service.getMethod(id, tenantId);
       successResponse(res, method);
     } catch (err) { next(err); }
@@ -19,7 +19,7 @@ export class PaymentMethodController {
 
   listMethods = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
+      const tenantId = String(req.tenantId ?? '');
       const isActive = req.query.isActive ? req.query.isActive === 'true' : undefined;
       const methods = await this.service.listMethods(tenantId, isActive);
       successResponse(res, methods);
@@ -28,8 +28,8 @@ export class PaymentMethodController {
 
   createMethod = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: CreatePaymentMethodDto = req.body;
       const method = await this.service.createMethod(dto, tenantId, userId);
       createdResponse(res, method);
@@ -38,9 +38,9 @@ export class PaymentMethodController {
 
   updateMethod = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: UpdatePaymentMethodDto = req.body;
       const method = await this.service.updateMethod(id, dto, tenantId, userId);
       successResponse(res, method);
@@ -49,8 +49,8 @@ export class PaymentMethodController {
 
   deleteMethod = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
       await this.service.deleteMethod(id, tenantId);
       successResponse(res, { deleted: true });
     } catch (err) { next(err); }

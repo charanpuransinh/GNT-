@@ -10,8 +10,8 @@ export class ReconciliationController {
 
   getReconciliation = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
       const recon = await this.service.getReconciliation(id, tenantId);
       successResponse(res, recon);
     } catch (err) { next(err); }
@@ -19,7 +19,7 @@ export class ReconciliationController {
 
   listReconciliations = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
+      const tenantId = String(req.tenantId ?? '');
       const bankAccountId = req.query.bankAccountId as string;
       const recons = await this.service.listReconciliations(tenantId, bankAccountId);
       successResponse(res, recons);
@@ -28,8 +28,8 @@ export class ReconciliationController {
 
   createReconciliation = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: CreateReconciliationDto = req.body;
       const recon = await this.service.createReconciliation(dto, tenantId, userId);
       createdResponse(res, recon);
@@ -38,9 +38,9 @@ export class ReconciliationController {
 
   uploadStatement = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const statementData = req.body.statementData;
       const recon = await this.service.uploadStatement(id, statementData, tenantId, userId);
       successResponse(res, recon);
@@ -49,9 +49,9 @@ export class ReconciliationController {
 
   autoMatch = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const id = String(req.params.id);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const result = await this.service.autoMatch(id, tenantId, userId);
       successResponse(res, result);
     } catch (err) { next(err); }
@@ -59,9 +59,9 @@ export class ReconciliationController {
 
   resolveItem = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { itemId } = req.params;
-      const tenantId = req.tenantId;
-      const userId = req.userId;
+      const itemId = String(req.params.itemId);
+      const tenantId = String(req.tenantId ?? '');
+      const userId = String(req.userId ?? '');
       const dto: UpdateReconciliationItemDto = req.body;
       const item = await this.service.resolveItem(itemId, dto, tenantId, userId);
       successResponse(res, item);

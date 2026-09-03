@@ -81,8 +81,10 @@ export class PaymentRepository {
     return this.prisma.paymentTransaction.create({
       data: {
         tenantId,
+        transactionNumber: `TXN-${Date.now()}`,
         amount: toDecimal(dto.amount),
         currency: dto.currency || 'INR',
+        baseAmount: toDecimal(dto.amount),
         status: 'PENDING',
         direction: 'OUT',
         paymentMethodId: dto.paymentMethodId,
@@ -92,9 +94,11 @@ export class PaymentRepository {
         partyName: dto.payerName || '',
         partyContact: dto.payerEmail || null,
         partyId: dto.payerId || '',
-        partyType: dto.payerType || null,
+        partyType: dto.payerType || 'SYSTEM',
         narration: dto.description || null,
+        transactionDate: new Date(),
         createdBy: userId,
+        updatedBy: userId,
       },
     });
   }

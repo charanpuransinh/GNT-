@@ -16,7 +16,7 @@ export class PaymentMethodRepository {
 
     return this.prisma.paymentMethod.findMany({
       where,
-      orderBy: [{ isDefault: 'desc' }, { sortOrder: 'asc' }],
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -25,12 +25,9 @@ export class PaymentMethodRepository {
       data: {
         tenantId,
         name: dto.name,
-        type: dto.type,
-        configJson: dto.configJson || null,
+        code: dto.type,
+        configJson: dto.configJson as never,
         isActive: dto.isActive ?? true,
-        isDefault: dto.isDefault ?? false,
-        sortOrder: dto.sortOrder || 0,
-        bankAccountId: dto.bankAccountId || null,
         createdBy: userId,
         updatedBy: userId,
       },
@@ -40,7 +37,12 @@ export class PaymentMethodRepository {
   async update(id: string, dto: UpdatePaymentMethodDto, tenantId: string, userId: string): Promise<PaymentMethod> {
     return this.prisma.paymentMethod.update({
       where: { id },
-      data: { ...dto, updatedBy: userId },
+      data: {
+        ...(dto.name && { name: dto.name }),
+        ...(dto.configJson !== undefined && { configJson: dto.configJson as never }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        updatedBy: userId,
+      },
     });
   }
 

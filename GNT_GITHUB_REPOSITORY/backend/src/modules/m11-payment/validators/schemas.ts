@@ -14,20 +14,20 @@ export const createPaymentSchema = z.object({
   payerId: z.string().optional(),
   payerType: z.string().optional(),
   description: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const updatePaymentSchema = z.object({
   status: z.enum(['PENDING','PROCESSING','COMPLETED','FAILED','CANCELLED','REFUNDED','PARTIALLY_REFUNDED']).optional(),
   gatewayRef: z.string().optional(),
-  gatewayResponse: z.record(z.any()).optional(),
+  gatewayResponse: z.record(z.string(), z.any()).optional(),
   description: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const processPaymentSchema = z.object({
   gatewayRef: z.string().optional(),
-  gatewayResponse: z.record(z.any()).optional(),
+  gatewayResponse: z.record(z.string(), z.any()).optional(),
 });
 
 export const createInvoiceSchema = z.object({
@@ -40,7 +40,7 @@ export const createInvoiceSchema = z.object({
   dueDate: z.string().datetime().or(z.date()),
   notes: z.string().optional(),
   terms: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   lineItems: z.array(z.object({
     productId: z.string().optional(),
     productName: z.string().min(1, 'Product name required'),
@@ -61,7 +61,7 @@ export const updateInvoiceSchema = z.object({
   notes: z.string().optional(),
   terms: z.string().optional(),
   status: z.enum(['DRAFT','SENT','VIEWED','PARTIAL_PAID','PAID','OVERDUE','CANCELLED','WRITTEN_OFF']).optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const createRefundSchema = z.object({
@@ -75,7 +75,7 @@ export const createRefundSchema = z.object({
 export const updateRefundSchema = z.object({
   status: z.enum(['REQUESTED','APPROVED','REJECTED','PROCESSING','COMPLETED','FAILED']).optional(),
   gatewayRef: z.string().optional(),
-  gatewayResponse: z.record(z.any()).optional(),
+  gatewayResponse: z.record(z.string(), z.any()).optional(),
 });
 
 export const createBankAccountSchema = z.object({
@@ -112,7 +112,7 @@ export const createReconciliationSchema = z.object({
 export const createPaymentMethodSchema = z.object({
   name: z.string().min(1, 'Name required'),
   type: z.enum(['CASH','BANK_TRANSFER','CREDIT_CARD','DEBIT_CARD','UPI','WALLET','CHEQUE','NEFT','RTGS','IMPS','INTERNATIONAL_WIRE']),
-  configJson: z.record(z.any()).optional(),
+  configJson: z.record(z.string(), z.any()).optional(),
   isActive: z.boolean().default(true),
   isDefault: z.boolean().default(false),
   sortOrder: z.number().default(0),
@@ -121,7 +121,7 @@ export const createPaymentMethodSchema = z.object({
 
 export const updatePaymentMethodSchema = z.object({
   name: z.string().optional(),
-  configJson: z.record(z.any()).optional(),
+  configJson: z.record(z.string(), z.any()).optional(),
   isActive: z.boolean().optional(),
   isDefault: z.boolean().optional(),
   sortOrder: z.number().optional(),
