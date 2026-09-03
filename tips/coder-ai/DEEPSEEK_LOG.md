@@ -162,6 +162,14 @@
 
 ---
 
+### टास्क #025-हिस्सा C — frontend 216 → 0 (01:20 → 02:00)
+- **कौन सा task मिला:** frontend के 216 errors को 0 पर लाना
+- **क्या किया (C1 module-wise):** m14 (100) → पुराना अलग sub-app (components/hooks/state/पुराने pages/services/vite.config — 30+ files) dead था, मुख्य app सिर्फ़ मेरा ImportExportPage use करता है — हटाया; m13 (36) पूरा frontend dead (backend भी excluded — मालिक का फैसला) — हटाया; m15 (32)/m11 (27)/m12 (20) के पुराने components/hooks/state/पुराने pages dead — हटाए; m10 (1) accounting.actions में गैर-मौजूद getVouchers call ठीक किया
+- **कौन सी files:** ~60 dead frontend files हटाईं (git rm) + accounting.actions.ts fix
+- **status:** **पूरा — frontend tsc 0** (216→0), vite build ✅, backend tsc 301 स्थिर; commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

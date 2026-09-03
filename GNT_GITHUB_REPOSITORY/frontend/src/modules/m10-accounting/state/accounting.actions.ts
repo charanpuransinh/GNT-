@@ -33,11 +33,7 @@ export const AccountingActions = {
     store.setLoading(true);
     try {
       await AccountingService.postVoucher(voucherId);
-      const companyId = useAccountingStore.getState().accounts[0]?.company_id;
-      if (companyId) {
-        const vouchers = await AccountingService.getVouchers(companyId);
-        store.setVouchers(vouchers);
-      }
+      store.setLoading(false);
     } catch (e: any) {
       store.setError(e.message);
     } finally {
