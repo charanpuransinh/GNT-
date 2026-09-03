@@ -3,6 +3,7 @@
  * Owner: D4-DELTA
  */
 import { Request, Response, NextFunction } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { IntegrationService } from '../services/integration.service';
 import {
   createIntegrationSchema,
@@ -20,7 +21,7 @@ export class IntegrationController {
     try {
       const query = listIntegrationsQuerySchema.parse(req.query);
       // company client की query से नहीं, token/tenant से आती है (वरना दूसरी कंपनी माँगी जा सकती है)
-      const result = await this.service.listIntegrations({ ...query, company_id: req.tenant.companyId });
+      const result = await this.service.listIntegrations({ ...query, company_id: requireTenant(req).companyId });
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);
@@ -30,7 +31,7 @@ export class IntegrationController {
   async getIntegration(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
-      const data = await this.service.getIntegrationById(id, req.tenant.companyId);
+      const data = await this.service.getIntegrationById(id, requireTenant(req).companyId);
       if (!data) {
         res.status(404).json({ success: false, message: 'Integration not found' });
         return;
@@ -55,7 +56,7 @@ export class IntegrationController {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
       const dto = updateIntegrationSchema.parse(req.body);
-      const data = await this.service.updateIntegration(id, req.tenant.companyId, dto);
+      const data = await this.service.updateIntegration(id, requireTenant(req).companyId, dto);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -65,7 +66,7 @@ export class IntegrationController {
   async deleteIntegration(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
-      const data = await this.service.deleteIntegration(id, req.tenant.companyId);
+      const data = await this.service.deleteIntegration(id, requireTenant(req).companyId);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -75,7 +76,7 @@ export class IntegrationController {
   async testConnection(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { integration_id } = testGatewaySchema.parse(req.body);
-      const data = await this.service.testIntegrationConnection(integration_id, req.tenant.companyId);
+      const data = await this.service.testIntegrationConnection(integration_id, requireTenant(req).companyId);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -84,7 +85,7 @@ export class IntegrationController {
 
   async getGatewayStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const companyId = req.tenant.companyId;
+      const companyId = requireTenant(req).companyId;
       const type = req.query.type as string | undefined;
       if (!companyId) {
         res.status(400).json({ success: false, message: 'company_id required' });
@@ -109,7 +110,7 @@ export class IntegrationController {
 
   async listApiKeys(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const companyId = req.tenant.companyId;
+      const companyId = requireTenant(req).companyId;
       if (!companyId) {
         res.status(400).json({ success: false, message: 'company_id required' });
         return;
@@ -124,7 +125,7 @@ export class IntegrationController {
   async revokeApiKey(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
-      await this.service.revokeApiKey(id, req.tenant.companyId);
+      await this.service.revokeApiKey(id, requireTenant(req).companyId);
       res.json({ success: true, message: 'API key revoked' });
     } catch (err) {
       next(err);

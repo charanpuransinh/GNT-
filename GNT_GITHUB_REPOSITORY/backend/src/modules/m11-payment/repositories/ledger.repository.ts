@@ -2,6 +2,7 @@
 // Links to M10 Finance module via PUBLIC API only
 
 import { PrismaClient, Prisma, PaymentLedgerEntry } from '@prisma/client';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class LedgerRepository {

@@ -4,6 +4,7 @@
  */
 
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { salesService } from '../services/sales.service';
 import {
   salesInvoiceSchema,
@@ -28,7 +29,7 @@ export class SalesController {
   // ─── GET INVOICES ───
   async getInvoices(req: Request, res: Response): Promise<void> {
     try {
-      const query = invoiceQuerySchema.parse({ ...req.query, companyId: req.tenant.companyId });
+      const query = invoiceQuerySchema.parse({ ...req.query, companyId: requireTenant(req).companyId });
       const result = await salesService.getInvoices(query);
       res.status(200).json({ success: true, data: result.data, meta: { total: result.total, page: query.page, limit: query.limit } });
     } catch (error: any) {
@@ -40,7 +41,7 @@ export class SalesController {
   async getInvoiceById(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const invoice = await salesService.getInvoiceById(id, companyId);
       if (!invoice) {
         res.status(404).json({ success: false, error: 'Invoice not found' });
@@ -56,7 +57,7 @@ export class SalesController {
   async updateInvoice(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const dto = salesInvoiceSchema.partial().parse(req.body);
       const invoice = await salesService.updateInvoice(id, companyId, dto);
       res.status(200).json({ success: true, data: invoice });
@@ -69,7 +70,7 @@ export class SalesController {
   async deleteInvoice(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       await salesService.deleteInvoice(id, companyId);
       res.status(200).json({ success: true, message: 'Invoice deleted' });
     } catch (error: any) {
@@ -81,7 +82,7 @@ export class SalesController {
   async approveInvoice(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const approvedBy = req.headers['x-user-id'] as string;
       const invoice = await salesService.approveInvoice(id, companyId, approvedBy);
       res.status(200).json({ success: true, data: invoice });
@@ -94,7 +95,7 @@ export class SalesController {
   async postInvoice(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const postedBy = req.headers['x-user-id'] as string;
       const invoice = await salesService.postInvoice(id, companyId, postedBy);
       res.status(200).json({ success: true, data: invoice });
@@ -107,7 +108,7 @@ export class SalesController {
   async recordPayment(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const payment = invoicePaymentSchema.parse(req.body);
       const invoice = await salesService.recordPayment(id, companyId, payment);
       res.status(200).json({ success: true, data: invoice });
@@ -120,7 +121,7 @@ export class SalesController {
   async generatePrint(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const { template } = printRequestSchema.parse({ template: req.query.template || 'a4', invoiceId: id });
       const html = await salesService.generatePrint(id, companyId, template);
       res.setHeader('Content-Type', 'text/html');
@@ -134,7 +135,7 @@ export class SalesController {
   async shareInvoice(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const { method, recipient, message } = shareRequestSchema.parse(req.body);
       const result = await salesService.shareInvoice(id, companyId, method, recipient);
       res.status(200).json({ success: true, data: result });
@@ -147,7 +148,7 @@ export class SalesController {
   async convertOrderToInvoice(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const dto = salesInvoiceSchema.partial().parse(req.body);
       const invoice = await salesService.convertOrderToInvoice(id, companyId, dto);
       res.status(201).json({ success: true, data: invoice });

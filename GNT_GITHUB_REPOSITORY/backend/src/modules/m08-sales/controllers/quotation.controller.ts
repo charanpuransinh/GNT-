@@ -4,6 +4,7 @@
  */
 
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { quotationService } from '../services/quotation.service';
 import {
   quotationSchema,
@@ -26,7 +27,7 @@ export class QuotationController {
   // ─── GET QUOTATIONS ───
   async getQuotations(req: Request, res: Response): Promise<void> {
     try {
-      const query = quotationQuerySchema.parse({ ...req.query, companyId: req.tenant.companyId });
+      const query = quotationQuerySchema.parse({ ...req.query, companyId: requireTenant(req).companyId });
       const result = await quotationService.getQuotations(query);
       res.status(200).json({ success: true, data: result.data, meta: { total: result.total, page: query.page, limit: query.limit } });
     } catch (error: any) {
@@ -38,7 +39,7 @@ export class QuotationController {
   async getQuotationById(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const quotation = await quotationService.getQuotationById(id, companyId);
       if (!quotation) {
         res.status(404).json({ success: false, error: 'Quotation not found' });
@@ -54,7 +55,7 @@ export class QuotationController {
   async updateQuotation(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const dto = quotationSchema.partial().parse(req.body);
       const quotation = await quotationService.updateQuotation(id, companyId, dto);
       res.status(200).json({ success: true, data: quotation });
@@ -67,7 +68,7 @@ export class QuotationController {
   async sendQuotation(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const quotation = await quotationService.sendQuotation(id, companyId);
       res.status(200).json({ success: true, data: quotation });
     } catch (error: any) {
@@ -79,7 +80,7 @@ export class QuotationController {
   async convertQuotationToOrder(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const dto = salesOrderSchema.partial().parse(req.body);
       const order = await quotationService.convertQuotationToOrder(id, companyId, dto);
       res.status(201).json({ success: true, data: order });
@@ -92,7 +93,7 @@ export class QuotationController {
   async deleteQuotation(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       await quotationService.deleteQuotation(id, companyId);
       res.status(200).json({ success: true, message: 'Quotation deleted' });
     } catch (error: any) {

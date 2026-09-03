@@ -11,6 +11,22 @@
 
 ---
 
+### टास्क #024-हिस्सा A — M05 बचा काम (18:50 → 19:12)
+- **कौन सा task मिला:** मालिक का nonstop आदेश — #024 के हिस्से A→F लगातार; A = M05 का बचा काम
+- **क्या किया:** A1 contract yaml बनाया (असली routes/validators से, X-Company-Id नहीं — सिर्फ़ bearerAuth) · A2 index.ts पहले से सही (session 2) · A3 tests: unit 17/17 + supertest 5/5 (401 auth/tenant गेट; TSX_TSCONFIG_PATH=../tsconfig.backend.json ज़रूरी — tsx को @/ alias के लिए) · A4 frontend form validation (GSTIN/phone/email/state/limit checks)
+- **कौन सी files बनाईं/बदलीं:** नई `api-contracts/v1/M05-party.contract.yaml`, `backend/.../m05-party-management/tests/unit/party.internal.test.ts`, `tests/api/party.routes.test.ts`; बदली `frontend/.../pages/PartyEntryDrawer.tsx`
+- **status:** पूरा — backend tsc 563 (baseline), frontend tsc 226 (पहले से 286→226 घटा हुआ मिला), m05 = 0 दोनों तरफ़, prisma valid, mount 18 चढ़े; commit d4c1484, push नहीं
+
+---
+
+### टास्क #024-हिस्सा B — M04 बचा काम (19:13 → 19:40)
+- **कौन सा task मिला:** CERT-003 की शर्त 2 और 3 (M04 typing/migration/contract)
+- **क्या किया:** B1 `req.tenant` optional किया + नया helper `common/middleware/require-tenant.ts` (गायब tenant → 401 AppError) और 16 files में 121 जगह `req.tenant.companyId` → `requireTenant(req).companyId` (tsc-driven, सारे TS18048 ख़त्म) · B2 पहले से हो चुका था (#009) — दर्ज किया · B3 नई migration `007_M04_financial_year_no_overlap.sql` (EXCLUDE btree_gist — FY overlap रोकेगा) · B4 `M04-company.contract.yaml` असली shape से मिलाया (X-Company-Id हटाया, envelope {success,data,meta}, असली 13 routes)
+- **कौन सी files बनाईं/बदलीं:** नई `common/middleware/require-tenant.ts`, `database/migrations/007_...sql`; बदली `common/types/express.d.ts`, 16 controller/repository/service/routes files, `M04-company.contract.yaml`
+- **status:** पूरा — backend tsc 563 (baseline, कोई नई error नहीं), mount 18 चढ़े; commit अगली लाइन में
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

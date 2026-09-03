@@ -2,6 +2,7 @@
 // Data Access Layer - Prisma queries with tenant isolation
 
 import { PrismaClient, Prisma, PaymentTransaction, PaymentStatus, TransactionType } from '@prisma/client';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentFilter, CreatePaymentDto, UpdatePaymentDto } from '../types';
 import { toDecimal } from '../utils/decimal.helper';

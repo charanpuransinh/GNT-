@@ -5,6 +5,7 @@
  */
 
 import { Router } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { salesController } from '../controllers/sales.controller';
 import { quotationController } from '../controllers/quotation.controller';
 import { returnController } from '../controllers/return.controller';
@@ -81,7 +82,7 @@ router.get('/challans', async (req, res) => {
   try {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
-    const companyId = req.tenant.companyId as string;
+    const companyId = requireTenant(req).companyId as string;
     const { salesOrderId, status, page = '1', limit = '20' } = req.query;
     const where: any = { companyId };
     if (salesOrderId) where.salesOrderId = salesOrderId as string;
@@ -107,7 +108,7 @@ router.get('/challans/:id', async (req, res) => {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
     const { id } = req.params;
-    const companyId = req.tenant.companyId as string;
+    const companyId = requireTenant(req).companyId as string;
     const challan = await prisma.deliveryChallan.findFirst({
       where: { id, companyId },
       include: { items: true, salesOrder: true },

@@ -4,6 +4,7 @@
  */
 
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { returnService } from '../services/return.service';
 import {
   salesReturnSchema,
@@ -25,7 +26,7 @@ export class ReturnController {
   // ─── GET RETURNS ───
   async getReturns(req: Request, res: Response): Promise<void> {
     try {
-      const query = returnQuerySchema.parse({ ...req.query, companyId: req.tenant.companyId });
+      const query = returnQuerySchema.parse({ ...req.query, companyId: requireTenant(req).companyId });
       const result = await returnService.getReturns(query);
       res.status(200).json({ success: true, data: result.data, meta: { total: result.total, page: query.page, limit: query.limit } });
     } catch (error: any) {
@@ -37,7 +38,7 @@ export class ReturnController {
   async getReturnById(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const salesReturn = await returnService.getReturnById(id, companyId);
       if (!salesReturn) {
         res.status(404).json({ success: false, error: 'Return not found' });
@@ -53,7 +54,7 @@ export class ReturnController {
   async approveReturn(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const salesReturn = await returnService.approveReturn(id, companyId);
       res.status(200).json({ success: true, data: salesReturn });
     } catch (error: any) {
@@ -65,7 +66,7 @@ export class ReturnController {
   async postReturn(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const salesReturn = await returnService.postReturn(id, companyId);
       res.status(200).json({ success: true, data: salesReturn });
     } catch (error: any) {

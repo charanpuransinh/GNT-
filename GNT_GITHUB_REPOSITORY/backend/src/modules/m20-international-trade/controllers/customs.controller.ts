@@ -2,6 +2,7 @@
 // Owner: D4-DELTA
 
 import { Request, Response, NextFunction } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { PrismaClient } from '@prisma/client';
 import { CustomsService } from '../services/customs.service';
 import { FXService } from '../services/fx.service';
@@ -21,7 +22,7 @@ export class CustomsController {
   // POST /api/v1/customs/calculate
   calculate = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const parsed = CustomsCalculateSchema.parse(req.body);
@@ -41,7 +42,7 @@ export class CustomsController {
   // GET /api/v1/customs/rules
   getRules = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       if (!companyId) throw new AppError('UNAUTHORIZED', 'Company ID required', 401);
 
       const hsnCode = req.query.hsn_code as string;

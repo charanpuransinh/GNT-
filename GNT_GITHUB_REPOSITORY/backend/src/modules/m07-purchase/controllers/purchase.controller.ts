@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { PurchaseService } from '../services/purchase.service';
 import {
   createPurchaseInvoiceSchema,
@@ -29,7 +30,7 @@ export class PurchaseController {
 
   getInvoices = async (req: Request, res: Response) => {
     try {
-      const validated = purchaseInvoiceQuerySchema.parse({ ...req.query, company_id: req.tenant.companyId });
+      const validated = purchaseInvoiceQuerySchema.parse({ ...req.query, company_id: requireTenant(req).companyId });
       const result = await this.purchaseService.getPurchaseInvoices(validated);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
@@ -40,7 +41,7 @@ export class PurchaseController {
   getInvoiceById = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const invoice = await this.purchaseService.getPurchaseInvoiceById(id, company_id);
       res.status(200).json({ success: true, data: invoice });
     } catch (error: any) {
@@ -51,7 +52,7 @@ export class PurchaseController {
   updateInvoice = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const validated = updatePurchaseInvoiceSchema.parse(req.body);
       const invoice = await this.purchaseService.updatePurchaseInvoice(id, company_id, validated);
       res.status(200).json({ success: true, data: invoice });
@@ -63,7 +64,7 @@ export class PurchaseController {
   deleteInvoice = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       await this.purchaseService.deletePurchaseInvoice(id, company_id);
       res.status(200).json({ success: true, message: 'Invoice deleted successfully' });
     } catch (error: any) {
@@ -76,7 +77,7 @@ export class PurchaseController {
   approveInvoice = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const approved_by = req.body.approved_by || req.user?.id;
       const result = await this.purchaseService.approvePurchaseInvoice(id, company_id, approved_by);
       res.status(200).json(result);
@@ -88,7 +89,7 @@ export class PurchaseController {
   postInvoice = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const posted_by = req.body.posted_by || req.user?.id;
       const result = await this.purchaseService.postPurchaseInvoice(id, company_id, posted_by);
       res.status(200).json(result);
@@ -100,7 +101,7 @@ export class PurchaseController {
   cancelInvoice = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       await this.purchaseService.cancelPurchaseInvoice(id, company_id);
       res.status(200).json({ success: true, message: 'Invoice cancelled successfully' });
     } catch (error: any) {
@@ -113,7 +114,7 @@ export class PurchaseController {
   uploadOCR = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
 
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'Image file is required' });
@@ -129,7 +130,7 @@ export class PurchaseController {
   reviewOCR = async (req: Request, res: Response) => {
     try {
       const validated = ocrReviewSchema.parse(req.body);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const result = await this.purchaseService.reviewOCR(validated, company_id);
       res.status(200).json(result);
     } catch (error: any) {
@@ -151,7 +152,7 @@ export class PurchaseController {
 
   getReturns = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const page = req.query.page ? parseInt(req.query.page as string) : undefined;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       const result = await this.purchaseService.getPurchaseReturns(company_id, page, limit);
@@ -164,7 +165,7 @@ export class PurchaseController {
   getReturnById = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const result = await this.purchaseService.getPurchaseReturnById(id, company_id);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
@@ -175,7 +176,7 @@ export class PurchaseController {
   approveReturn = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const result = await this.purchaseService.approvePurchaseReturn(id, company_id);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
@@ -186,7 +187,7 @@ export class PurchaseController {
   postReturn = async (req: Request, res: Response) => {
     try {
       const id = String(req.params.id);
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const posted_by = req.body.posted_by || req.user?.id;
       if (!posted_by) throw new Error('Posted-by user is required');
       const result = await this.purchaseService.postPurchaseReturn(id, company_id, posted_by);

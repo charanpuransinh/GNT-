@@ -1,10 +1,11 @@
 // ============================================================================
 // M05 PARTY MANAGEMENT — Controller
-// ⚠️ tenant-सुरक्षा: कंपनी की पहचान सिर्फ़ req.tenant.companyId से —
+// ⚠️ tenant-सुरक्षा: कंपनी की पहचान सिर्फ़ requireTenant(req).companyId से —
 //    x-company-id / body.company_id पर कभी भरोसा नहीं (टास्क #009 का नियम)
 // ============================================================================
 
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { PartyService } from '../services/party.service';
 import { partyEventHandlers } from '../events/party.handlers';
 import { createPartySchema, updatePartySchema, partyQuerySchema } from '../validators/party.schema';
@@ -14,7 +15,7 @@ export class PartyController {
 
   create = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const validated = createPartySchema.parse(req.body);
       const party = await this.service.createParty(company_id, validated, req.user?.id);
       await partyEventHandlers.publishCreated({ party_id: party.id, company_id, at: new Date() });
@@ -26,7 +27,7 @@ export class PartyController {
 
   list = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const query = partyQuerySchema.parse(req.query);
       const result = await this.service.listParties(company_id, query);
       res.json({ success: true, data: result.data, meta: { total: result.total, page: result.page, limit: result.limit } });
@@ -37,7 +38,7 @@ export class PartyController {
 
   getById = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const party = await this.service.getPartyById(String(req.params.id), company_id);
       if (!party) return res.status(404).json({ success: false, error: 'Party not found' });
       return res.json({ success: true, data: party });
@@ -48,7 +49,7 @@ export class PartyController {
 
   update = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const validated = updatePartySchema.parse(req.body);
       const party = await this.service.updateParty(String(req.params.id), company_id, validated, req.user?.id);
       if (!party) return res.status(404).json({ success: false, error: 'Party not found' });
@@ -61,7 +62,7 @@ export class PartyController {
 
   deactivate = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const id = String(req.params.id);
       const existing = await this.service.getPartyById(id, company_id);
       if (!existing) return res.status(404).json({ success: false, error: 'Party not found' });
@@ -75,7 +76,7 @@ export class PartyController {
 
   getOutstanding = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const data = await this.service.getOutstanding(String(req.params.id), company_id);
       res.json({ success: true, data });
     } catch (e: unknown) {
@@ -85,7 +86,7 @@ export class PartyController {
 
   getAging = async (req: Request, res: Response) => {
     try {
-      const company_id = req.tenant.companyId;
+      const company_id = requireTenant(req).companyId;
       const data = await this.service.getAging(String(req.params.id), company_id);
       res.json({ success: true, data });
     } catch (e: unknown) {

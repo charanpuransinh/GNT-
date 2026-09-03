@@ -3,6 +3,7 @@
  * Owner: D4-DELTA
  */
 import { Request, Response, NextFunction } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { ReportService } from '../services/report.service';
 import {
   GenerateReportRequestSchema,
@@ -19,7 +20,7 @@ export class ReportController {
 
   generateReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       if (!companyId) {
         res.status(400).json({ success: false, error: 'Company ID required' });
         return;
@@ -39,7 +40,7 @@ export class ReportController {
 
   getSalesReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const filters = {
         dateFrom: req.query.dateFrom as string | undefined,
         dateTo: req.query.dateTo as string | undefined,
@@ -58,7 +59,7 @@ export class ReportController {
 
   getPurchaseReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const filters = {
         dateFrom: req.query.dateFrom as string | undefined,
         dateTo: req.query.dateTo as string | undefined,
@@ -77,7 +78,7 @@ export class ReportController {
 
   getInventoryReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const filters = {
         warehouseId: req.query.warehouseId as string | undefined,
         productId: req.query.productId as string | undefined,
@@ -96,7 +97,7 @@ export class ReportController {
 
   getGSTReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const filters = {
         dateFrom: req.query.dateFrom as string | undefined,
         dateTo: req.query.dateTo as string | undefined,
@@ -116,7 +117,7 @@ export class ReportController {
 
   getAccountingReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const filters = {
         dateFrom: req.query.dateFrom as string | undefined,
         dateTo: req.query.dateTo as string | undefined,
@@ -135,7 +136,7 @@ export class ReportController {
 
   getHRReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const filters = {
         dateFrom: req.query.dateFrom as string | undefined,
         dateTo: req.query.dateTo as string | undefined,
@@ -156,7 +157,7 @@ export class ReportController {
 
   exportReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
 
       const parsed = ExportReportRequestSchema.parse(req.body);
@@ -173,7 +174,7 @@ export class ReportController {
 
   getExecutiveDashboard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const result = await this.reportService.getExecutiveDashboard(companyId);
       res.status(200).json(result);
     } catch (error) {
@@ -185,7 +186,7 @@ export class ReportController {
 
   createConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const userId = req.headers['x-user-id'] as string;
       const parsed = ReportConfigSchema.parse(req.body);
       const result = await this.reportService.createReportConfig(parsed, userId);
@@ -201,7 +202,7 @@ export class ReportController {
 
   getConfigs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const configs = await this.reportService.getReportConfigs(companyId);
       res.status(200).json({ success: true, data: configs });
     } catch (error) {
@@ -211,7 +212,7 @@ export class ReportController {
 
   updateConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const id = String(req.params.id);
       const result = await this.reportService.updateReportConfig(id, companyId, req.body);
       res.status(200).json({ success: true, data: result });
@@ -222,7 +223,7 @@ export class ReportController {
 
   deleteConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const id = String(req.params.id);
       await this.reportService.deleteReportConfig(id, companyId);
       res.status(204).send();
@@ -235,7 +236,7 @@ export class ReportController {
 
   createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const userId = req.headers['x-user-id'] as string;
       const parsed = ReportTemplateSchema.parse(req.body);
       const result = await this.reportService.createReportTemplate(parsed, userId);
@@ -251,7 +252,7 @@ export class ReportController {
 
   getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const templates = await this.reportService.getReportTemplates(companyId);
       res.status(200).json({ success: true, data: templates });
     } catch (error) {
@@ -261,7 +262,7 @@ export class ReportController {
 
   updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const id = String(req.params.id);
       const result = await this.reportService.updateReportTemplate(id, companyId, req.body);
       res.status(200).json({ success: true, data: result });
@@ -272,7 +273,7 @@ export class ReportController {
 
   deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const companyId = req.tenant.companyId as string;
+      const companyId = requireTenant(req).companyId as string;
       const id = String(req.params.id);
       await this.reportService.deleteReportTemplate(id, companyId);
       res.status(204).send();

@@ -1,5 +1,6 @@
 // [LOCK-11] Payroll Service
 import { PrismaClient } from '@prisma/client';
+import { requireTenant } from '@/common/middleware/require-tenant';
 const prisma = new PrismaClient();
 
 export class PayrollService {
