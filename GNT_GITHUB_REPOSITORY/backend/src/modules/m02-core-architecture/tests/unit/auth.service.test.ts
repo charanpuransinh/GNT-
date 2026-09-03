@@ -21,13 +21,13 @@ describe('M02 - authService', () => {
         name: 'Test User',
         email: 'test@example.com',
         username: 'testuser',
-        passwordHash: 'hashed-password',
-        companyId: 'company-123',
-        branchId: 'branch-123',
-        isActive: true,
-        failedLoginAttempts: 0,
-        twoFactorEnabled: false,
-        lastLoginAt: new Date(),
+        password_hash: 'hashed-password',
+        company_id: 'company-123',
+        branch_id: 'branch-123',
+        is_active: true,
+        failed_login_attempts: 0,
+        two_factor_enabled: false,
+        last_login_at: new Date(),
       };
 
       vi.mocked(userRepository.findByUsernameAndCompany).mockResolvedValue(mockUser as any);
@@ -72,7 +72,7 @@ describe('M02 - authService', () => {
     it('should throw error for inactive account', async () => {
       vi.mocked(userRepository.findByUsernameAndCompany).mockResolvedValue({
         id: 'user-123',
-        isActive: false,
+        is_active: false,
       } as any);
 
       await expect(
@@ -90,12 +90,12 @@ describe('M02 - authService', () => {
         name: 'Test User',
         email: 'test@example.com',
         username: 'testuser',
-        passwordHash: 'hashed-password',
-        companyId: 'company-123',
-        isActive: true,
-        failedLoginAttempts: 0,
-        twoFactorEnabled: true,
-        lastLoginAt: new Date(),
+        password_hash: 'hashed-password',
+        company_id: 'company-123',
+        is_active: true,
+        failed_login_attempts: 0,
+        two_factor_enabled: true,
+        last_login_at: new Date(),
       };
 
       vi.mocked(userRepository.findByUsernameAndCompany).mockResolvedValue(mockUser as any);
@@ -121,9 +121,9 @@ describe('M02 - authService', () => {
     it('should lock account after 5 failed attempts', async () => {
       const mockUser = {
         id: 'user-123',
-        isActive: true,
-        failedLoginAttempts: 5,
-        passwordHash: 'hashed',
+        is_active: true,
+        failed_login_attempts: 5,
+        password_hash: 'hashed',
       };
 
       vi.mocked(userRepository.findByUsernameAndCompany).mockResolvedValue(mockUser as any);
@@ -144,11 +144,11 @@ describe('M02 - authService', () => {
       vi.mocked(authInternal.verifyOtp).mockResolvedValue(true);
       vi.mocked(userRepository.findById).mockResolvedValue({
         id: 'user-123',
-        companyId: 'company-123',
+        company_id: 'company-123',
         name: 'Test',
         email: 'test@example.com',
         username: 'testuser',
-        isActive: true,
+        is_active: true,
       } as any);
       vi.mocked(roleRepository.getRolesByUserId).mockResolvedValue([]);
       vi.mocked(roleRepository.getPermissionsByUserId).mockResolvedValue([]);
@@ -185,8 +185,8 @@ describe('M02 - authService', () => {
       });
       vi.mocked(userRepository.findById).mockResolvedValue({
         id: 'user-123',
-        companyId: 'company-123',
-        isActive: true,
+        company_id: 'company-123',
+        is_active: true,
       } as any);
       vi.mocked(authInternal.generateTokenPair).mockReturnValue({
         accessToken: 'new-access',

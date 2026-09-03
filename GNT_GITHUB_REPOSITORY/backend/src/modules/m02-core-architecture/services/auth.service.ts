@@ -131,7 +131,13 @@ export const authService = {
   },
 
   async refreshToken(refreshToken: string): Promise<TokenPair> {
-    const payload = await authInternal.verifyRefreshToken(refreshToken);
+    let payload: { userId: string };
+    try {
+      payload = await authInternal.verifyRefreshToken(refreshToken);
+    } catch {
+      // अंदर का error बाहर नहीं जाना चाहिए (जानकारी leak) — हमेशा एक जैसा 401
+      throw new AppError('GNT-ERR-2007', 'Invalid refresh token', 401);
+    }
     const user = await userRepository.findById(payload.userId);
 
     if (!user || !user.is_active) {
