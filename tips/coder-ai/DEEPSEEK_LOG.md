@@ -1,3 +1,16 @@
+### टास्क #007 — M05 Party Management (05:16 → 05:28)
+- **कौन सा task मिला:** रात का stream-error से मरा अधूरा #007 वहीं से पूरा करना
+- **क्या किया:** बने काम की जाँच, 1 tsc error का fix (Decimal→Number mapper), frontend के 3 पेज + routes, mount verify (17 modules चढ़े)
+- **कौन सी files बनाईं/बदलीं:** बदली `backend/.../m05-party-management/services/party.service.ts`; नई `frontend/src/modules/m05-party-management/types/party.types.ts`, `pages/{PartyListPage,PartyEntryDrawer,PartyDetailHubPage}.tsx`; बदली `frontend/src/routes.tsx`
+- **status:** पूरा — backend m05 tsc 0 (कुल 563), frontend m05 tsc 0 (कुल 286), prisma valid; 4 कोड commits (1f0f252, 1bf57ce, f0f009e, df55604) + रिपोर्ट commit (13ab728); push नहीं
+
+### 🌙 रात का समापन नोट (05:35, 6 बजे से पहले रुकना)
+- रात भर के tasks: #005/#006 जांच, #013, #011, #014, #015, #012, #009, #008, #016, #007 — पूरी रात की रिपोर्ट नीचे है
+- **status:** सब committed, uncommitted कुछ नहीं; अगला बड़ा काम रात की क़तार (NIGHT-QUEUE.md) से — मालिक के फैसलों का इंतज़ार
+- **दिक्कतें:** कोई नई नहीं — balance/402 और stream error रात के थे, आज काम में कोई रुकावट नहीं आई
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03
