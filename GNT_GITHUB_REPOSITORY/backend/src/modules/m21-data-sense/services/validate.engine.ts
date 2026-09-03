@@ -11,7 +11,7 @@
  */
 import type { DataGroup, DataSenseStatus } from '../index';
 import { GROUP_SPECS } from './sense.engine';
-import type { RowVerdict } from '../types/dataSense.types';
+import { DEFAULT_OPTIONS, type DataSenseOptions, type RowVerdict } from '../types/dataSense.types';
 
 /** भारत का GSTIN: 2 अंक राज्य + 10 अंक PAN + 1 इकाई + Z + 1 checksum */
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
@@ -45,12 +45,16 @@ export function validateRow(
   mapped: Record<string, unknown>,
   group: DataGroup,
   rowNumber: number,
+  options: DataSenseOptions = DEFAULT_OPTIONS,
 ): RowVerdict {
   const reasons: string[] = [];
-  let status: DataSenseStatus = 'GREEN';
+  // status को object में रखा है क्योंकि नीचे closures इसे बदलते हैं और
+  // TypeScript का control-flow विश्लेषण closure के अंदर का बदलाव नहीं देखता
+  const state: { status: DataSenseStatus } = { status: 'GREEN' };
+  let zone: RowVerdict['zone'] = 'ready';
 
-  const red = (msg: string) => { reasons.push(msg); status = 'RED'; };
-  const orange = (msg: string) => { reasons.push(msg); if (status !== 'RED') status = 'ORANGE'; };
+  const red = (msg: string) => { reasons.push(msg); state.status = 'RED'; };
+  const orange = (msg: string) => { reasons.push(msg); if (state.status !== 'RED') state.status = 'ORANGE'; };
 
   // 1) ज़रूरी fields
   for (const field of GROUP_SPECS[group].required) {
@@ -63,7 +67,13 @@ export function validateRow(
     if (!GSTIN_RE.test(gstin)) red(`GSTIN का ढाँचा ग़लत है: "${gstin}"`);
     else mapped.gstin = gstin;
   } else if (group === 'party') {
-    orange('GSTIN नहीं है — B2C पार्टी मानी जाएगी');
+    // फ़ैसला 2 (मालिक, 2026-09-03): default = B2C बनाकर चलाओ; toggle = suspense में रोको
+    if (options.nonGstinParty === 'suspense-zone') {
+      orange('GSTIN नहीं है — suspense में रोकी गई (मालिक का toggle: Option B)');
+      zone = 'suspense';
+    } else {
+      reasons.push('GSTIN नहीं है — B2C पार्टी बनाई जाएगी (मालिक का default: Option A)');
+    }
   }
 
   // 3) HSN
@@ -111,7 +121,9 @@ export function validateRow(
     }
   }
 
-  return { rowNumber, status, reasons, mapped };
+  if (state.status === 'RED') zone = 'blocked';
+
+  return { rowNumber, status: state.status, zone, reasons, mapped };
 }
 
 /** फ़ाइल के अंदर ही दोहरी पंक्तियाँ ढूँढो (GSTIN → नाम+फ़ोन → invoice no) */
@@ -145,13 +157,14 @@ export function findDuplicates(verdicts: RowVerdict[], group: DataGroup): number
 
   const groups = [...buckets.values()].filter((rows) => rows.length > 1);
 
-  // duplicate मिली पंक्तियों को ORANGE कर दो — चढ़ेंगी, पर इंसान देख ले
+  // फ़ैसला 1 (मालिक, 2026-09-03) — Option C: **Review Zone / सख़्त निशान**।
+  // दोहरी पंक्तियाँ न अपने-आप जुड़ेंगी, न अपने-आप चढ़ेंगी — इंसान की मंज़ूरी तक रुकेंगी।
   const dupRows = new Set(groups.flat());
   for (const v of verdicts) {
-    if (dupRows.has(v.rowNumber) && v.status === 'GREEN') {
-      v.status = 'ORANGE';
-      v.reasons.push('इसी फ़ाइल में यह पंक्ति दोहरी है');
-    }
+    if (!dupRows.has(v.rowNumber)) continue;
+    if (v.status === 'GREEN') v.status = 'ORANGE';
+    if (v.zone !== 'blocked') v.zone = 'review';
+    v.reasons.push('इसी फ़ाइल में यह पंक्ति दोहरी है — Review Zone में रोकी गई (न जोड़ी जाएगी, न अपने-आप चढ़ेगी)');
   }
 
   return groups;

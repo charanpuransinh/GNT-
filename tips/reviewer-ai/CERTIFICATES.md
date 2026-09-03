@@ -327,3 +327,42 @@ DeepSeek को ठीक करने भेज दिया; ठीक हो�
 
 **सीख:** "tsc 0" का मतलब सुरक्षित नहीं होता। ऊपर की 10 में से 9 गड़बड़ियाँ compile होती थीं —
 वे सिर्फ़ पढ़कर और tenant-scope जाँचकर मिलीं।
+
+## CERT-017 — M21 Data Sense: मालिक के 3 फ़ैसले लागू, engine पूरा
+**तारीख:** 2026-09-03 · **फैसला:** 🟢 **VERIFIED (LOCKED)** — Data Sense engine
+· **किसने:** समीक्षक AI (Claude) · **आधार:** मालिक के फ़ैसले (2026-09-03)
+
+### मालिक ने जो तय किया, वही कोड में लगा है
+| # | फ़ैसला | कोड में | दोनों रास्तों के test |
+|---|---|---|---|
+| 1 | दोहरी पंक्तियाँ → **Option C: Review Zone / सख़्त निशान** | `reviewZone[]`, हर ऐसी पंक्ति `zone: 'review'`, plan में हमेशा `hold-for-review` — **कभी अपने-आप नहीं चढ़ेगी, कभी अपने-आप नहीं जुड़ेगी** | ✅ 4 tests |
+| 2 | बिना GSTIN पार्टी → **default A: B2C auto-create**, toggle **B: Suspense Zone** | default पर `zone: 'ready'` + M05 को `create` (नोट: "B2C बनेगी"); toggle पर `suspenseZone[]` + `hold-for-review` | ✅ 3 tests (दोनों तरफ़) |
+| 3 | बैंक मिलान → **default A: सीधे पार्टी खाते में जमा**, toggle **B: FIFO बिल चुकता** | A → `m10-accounting` / `credit-ledger`; B → `m11-payment` / `settle-invoices-fifo` | ✅ 4 tests (दोनों तरफ़) |
+
+**UI के लिए:** `GET /api/v1/data-sense/options` तीनों toggle, उनके विकल्प और defaults लौटाता है
+(फ़ैसला 1 `fixed: true` — यह toggle नहीं है, नियम है)।
+हर नतीजे में चुनी हुई settings भी लौटती हैं — बाद में पता रहे कि किस नियम से चढ़ा।
+
+### जो मैंने चलाकर जाँचा
+| क्या | नतीजा |
+|---|---|
+| M21 backend tsc | **0** ✅ |
+| M21 tests | **23/23 पास** ✅ |
+| M16–M21 पूरा suite | **42/42 पास** ✅ |
+| Routes (चलाकर गिने) | `POST /analyze`, `GET /field-map`, `GET /options` ✅ |
+| App में mount | ✅ (`/readyz` — कुल 18 modules) |
+
+### 🔒 क्या LOCK हो रहा है (साफ़-साफ़)
+**LOCKED:** SENSE → MAP → VALIDATE → ZONES → **TRANSFER PLAN**।
+यानी: ग्राहक की फ़ाइल पढ़ना, पहचानना, GNT fields से जोड़ना, हर पंक्ति को GREEN/ORANGE/RED देना,
+Review/Suspense कमरों में बाँटना, और यह तय करना कि **कौन सी पंक्ति किस module में, किस तरीक़े से
+जाएगी** — मालिक के तीनों फ़ैसलों के हिसाब से। यह सब test से बँधा है।
+
+**अभी बाक़ी (एक ही चीज़):** plan को **असल में चलाना** — यानी `create` / `credit-ledger` /
+`settle-invoices-fifo` को M05/M06/M08/M10/M11 की live सेवाओं पर लागू करना।
+इसके लिए **database चालू होना ज़रूरी है** (अभी बंद है), वरना न लिखा जा सकता है न सच में जाँचा।
+यह M21 के डिज़ाइन या फ़ैसलों की कमी नहीं — सिर्फ़ चलता हुआ database चाहिए।
+
+**मेरी राय (दर्ज):** engine पर LOCK सही है — नियम तय हैं, कोड उन्हीं के मुताबिक है, tests पहरा दे रहे हैं।
+पर "M21 का data असल में GNT में चढ़ गया" यह मैं तभी लिखूँगा जब database पर चलाकर देख लूँ।
+अधूरे को पूरा लिखना इस project की सबसे महँगी ग़लती होगी।

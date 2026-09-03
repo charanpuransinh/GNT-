@@ -6,6 +6,7 @@ const router = Router();
 
 router.post('/analyze', (req, res, next) => dataSenseController.analyze(req, res, next));
 router.get('/field-map', (req, res) => dataSenseController.fieldMap(req, res));
+router.get('/options', (req, res) => dataSenseController.options(req, res));
 
 export const dataSenseRoutes = router;
 export default router;

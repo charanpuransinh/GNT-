@@ -49,6 +49,9 @@ export { dataSenseRoutes, default as router } from './routes/dataSense.routes';
 export { dataSenseService, DataSenseService } from './services/dataSense.service';
 export { senseSheet, mapRow, GROUP_SPECS } from './services/sense.engine';
 export { validateRow, findDuplicates } from './services/validate.engine';
+export { buildTransferPlan } from './services/transfer.planner';
+export { DEFAULT_OPTIONS } from './types/dataSense.types';
 export type {
-  AnalyzeResult, ColumnMapping, IntakeSheet, RowVerdict, SenseResult,
+  AnalyzeResult, ColumnMapping, DataSenseOptions, IntakeSheet, RowVerdict,
+  RowZone, SenseResult, TransferPlanItem,
 } from './types/dataSense.types';
