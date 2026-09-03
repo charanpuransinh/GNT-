@@ -366,3 +366,60 @@ Review/Suspense कमरों में बाँटना, और यह त�
 **मेरी राय (दर्ज):** engine पर LOCK सही है — नियम तय हैं, कोड उन्हीं के मुताबिक है, tests पहरा दे रहे हैं।
 पर "M21 का data असल में GNT में चढ़ गया" यह मैं तभी लिखूँगा जब database पर चलाकर देख लूँ।
 अधूरे को पूरा लिखना इस project की सबसे महँगी ग़लती होगी।
+
+## CERT-018 — M20: मालिक की upload (`GNT_M20_M21_COMPLETE_PRODUCTION.zip`) की जाँच और मिलान
+**तारीख:** 2026-09-03 · **फैसला:** 🟢 **VERIFIED (LOCKED)** — नए हिस्से जोड़े गए
+· **किसने:** समीक्षक AI (Claude)
+**नोट:** मालिक ने इसे CERT-017 कहा था, पर वह नंबर **M21** को दिया जा चुका है (आज सुबह)।
+इसलिए यह **CERT-018** है — नंबर दोहराने से रिकॉर्ड गड़बड़ा जाता।
+
+### 🚨 सबसे ज़रूरी बात — zip **पुराना** था, नया नहीं
+96 फाइलों में से 24 M20 की थीं। उनमें से **14 फाइलें repo के मौजूदा version से पुरानी** निकलीं।
+अगर आदेश के मुताबिक "outdated references replace" कर दिया जाता, तो **आज ठीक की गई
+सुरक्षा वापस टूट जाती**। दो पक्के सबूत:
+
+| फ़ाइल | zip में (पुराना) | repo में (अभी, सही) |
+|---|---|---|
+| `controllers/customs.controller.ts` | `req.headers['x-company-id']` — कंपनी **client से** आती | `req.tenant.companyId` — token से |
+| `repositories/hsn.repository.ts` | `prisma.hsn_master` — यानी **M09 की domestic table** | `prisma.customs_tariff` — M20 की international table |
+
+पहला वही P0 छेद है जो कल रात बंद हुआ था (commit `ea9d40c`) और CERT-016 में दोबारा जाँचा गया।
+दूसरा सीधे **मालिक के HSN फ़ैसले का उल्लंघन** है (M20 = INTERNATIONAL, M09 = DOMESTIC, अलग tables)।
+**इसलिए इन 14 फ़ाइलों को नहीं बदला — यही सही फ़ैसला था।**
+
+### ✅ जो लिया गया (नया, शुद्ध गणना, deterministic)
+| फ़ाइल | क्या करती है |
+|---|---|
+| `services/m20-container-cbm.service.ts` | **CBM = L×W×H ÷ 10,00,000 × Qty** + 20FT/40FT container चुनाव |
+| `services/m20-shipping-calculator.service.ts` | inland + freight + CHA + marine insurance |
+| `services/m20-country-tax-rules.service.ts` | देश-वार VAT/tariff/zero-rated/LUT |
+| `services/m20-currency-exchange.service.ts` | FX freeze + conversion (2 दशमलव) |
+| `services/m20-peppol-generator.service.ts` | PEPPOL invoice XML (escape के साथ) |
+| `controllers/m20-landed-cost.controller.ts` | duty + CHA + freight |
+| `controllers/m20-packing-list.controller.ts` | CBM/packing endpoint |
+
+**Routes (सापेक्ष रखे):** `POST /api/v1/trade/cbm-calc`, `/packing-list/optimize`, `/landed-cost`
+→ M20 अब **22 routes** (पहले 19)। upload में ये `/api/v1/international/...` लिखे थे; वैसे रखने पर
+पता `/api/v1/trade/api/v1/international/...` बनता — **वही दोहरा-रास्ता बग जो CERT-012 में पकड़ा था**।
+
+### ❌ जो जान-बूझकर नहीं लिया
+| क्या | क्यों नहीं |
+|---|---|
+| 14 पुरानी M20 फ़ाइलें | ऊपर देखो — सुरक्षा और HSN फ़ैसले का उल्लंघन |
+| `m20-export-quotation.controller.ts` | **पूरा stub** — चारों endpoint सिर्फ़ `{ok:true}` लौटाते हैं, कुछ सहेजते नहीं |
+| packing-list के `/3d` और `/boxes` | stub — ख़ाली `boxes: []` लौटाते हैं |
+| `m21-importer/` पूरा module | **M21 दो बार** हो जाता — `m21-data-sense` आज ही CERT-017 में LOCK हुआ है और ज़्यादा पूरा है (23 tests)। इसका `M21PartyBankMatcherService` (bank txn → party → ledger) काम का है — फ़ैसला 3 को असल में चलाते वक़्त **इसी से port करूँगा**, अलग module बनाकर नहीं |
+| `m20-schema.prisma`, `m21-schema.prisma` | canonical `prisma/schema.prisma` पहले से आगे है (टास्क #008 में merge हो चुका) |
+
+### जाँच के नतीजे
+| क्या | नतीजा |
+|---|---|
+| CBM का सूत्र (माँगा हुआ) | ✅ **बिल्कुल सही** — `L×W×H×Qty ÷ 1_000_000`, 6 दशमलव पर round |
+| Determinism (AI/random/घड़ी) | ✅ कोई AI/LLM नहीं, कोई `Math.random` नहीं; घड़ी सिर्फ़ FX के `fetched_at` में (हिसाब में नहीं) |
+| Multi-tenancy (CERT-016) | ✅ **बरक़रार** — एक भी fix वापस नहीं गया (नई फ़ाइलें शुद्ध गणना हैं, DB छूती ही नहीं) |
+| `tests/m20-m21.deterministic.test.ts` | ✅ **11/11 पास** (`npm run test:deterministic`) — upload में यह vitest का था, repo `node:test` चलाता है, इसलिए उसी जाँच को हमारे runner में लिखा और **और कड़ा किया** (एक ही input दस बार → वही नतीजा) |
+| M16–M21 पूरा suite | ✅ **42/42 पास** |
+| M20 tsc | ✅ **0** |
+| App में चढ़ना | ✅ 18 modules, M20 पर 22 routes |
+
+**🔒 M20 LOCKED (CERT-018)** — CERT-016 की सुरक्षा बरक़रार, नई गणनाएँ जुड़ीं और test से बँधीं।

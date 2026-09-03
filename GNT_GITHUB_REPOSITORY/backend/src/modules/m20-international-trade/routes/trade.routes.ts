@@ -10,6 +10,8 @@ import { FXService } from '../services/fx.service';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../../shared/errors/app-error';
 import { GenerateDocumentSchema } from '../validators/trade.schema';
+import { M20LandedCostController } from '../controllers/m20-landed-cost.controller';
+import { M20PackingListController } from '../controllers/m20-packing-list.controller';
 
 const router = Router();
 const tradeCtrl = new TradeController();
@@ -117,5 +119,21 @@ router.patch('/documents/:id/status', async (req, res, next) => {
     next(err);
   }
 });
+
+// ── मालिक की upload (2026-09-03) से लिए गए calculator endpoints ──
+// रास्ते जान-बूझकर **सापेक्ष** हैं: registry इस router को `/api/v1/trade` पर चढ़ाता है।
+// upload में ये `/api/v1/international/...` लिखे थे — वैसे रखने पर पता
+// `/api/v1/trade/api/v1/international/...` बन जाता (वही दोहरा-रास्ता वाली गड़बड़ जो CERT-012 में पकड़ी थी)।
+const landedCost = new M20LandedCostController();
+const packingList = new M20PackingListController();
+
+/** POST /api/v1/trade/cbm-calc — CBM = L×W×H×Qty ÷ 10,00,000 + container चुनाव */
+router.post('/cbm-calc', (req, res) => packingList.optimize(req, res));
+
+/** POST /api/v1/trade/packing-list/optimize — वही गणना, packing के नाम से */
+router.post('/packing-list/optimize', (req, res) => packingList.optimize(req, res));
+
+/** POST /api/v1/trade/landed-cost — duty + CHA + freight */
+router.post('/landed-cost', (req, res) => landedCost.calculate(req, res));
 
 export default router;

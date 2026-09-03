@@ -1031,3 +1031,42 @@ UI को तीनों toggle `GET /api/v1/data-sense/options` से मि�
 **database चालू होना ज़रूरी है** (अभी बंद है)। वह चालू होते ही यह आख़िरी क़दम भी पूरा कर दूँगा।
 
 **📊 प्रगति: 54%** (84 में से 45 — compile 15, mount 18, verified 6, tests 6)
+
+---
+
+## 2026-09-03 — आपकी upload की जाँच (`GNT_M20_M21_COMPLETE_PRODUCTION.zip`) — CERT-018
+
+**पहले एक ज़रूरी बात, सीधी:** आपने कहा था कि पुरानी references हटाकर uploaded version लगा दूँ।
+**मैंने पूरा नहीं लगाया — जान-बूझकर।** वजह यह है कि zip **पुराना** निकला:
+
+- उसमें `customs.controller.ts` कंपनी की पहचान **client के भेजे header** से लेता है
+  (`x-company-id`) — यही वह P0 छेद था जो कल रात बंद किया था। लगा देता तो **फिर से खुल जाता**।
+- उसमें `hsn.repository.ts` **M09 की domestic HSN table** से पढ़ता है — जबकि आपने आज ही तय किया
+  कि **M20 = INTERNATIONAL HSN, M09 = DOMESTIC, दोनों अलग**। लगा देता तो आपका फ़ैसला टूट जाता।
+
+इसलिए **14 पुरानी फ़ाइलें नहीं बदलीं**, और **नया जो सच में काम का था वह ले लिया**।
+
+### ✅ जो जोड़ा (नया काम, सब test से बँधा)
+- **CBM calculator** — आपका सूत्र बिल्कुल वैसा ही: लंबाई × चौड़ाई × ऊँचाई ÷ 10,00,000 × नग
+  (साथ में 20FT/40FT container अपने-आप चुनना, कितने container लगेंगे)
+- **Shipping calculator** — inland + freight + CHA + marine insurance
+- **देश-वार tax नियम**, **FX freeze/conversion**, **PEPPOL invoice XML**
+- तीन नए पते: `/api/v1/trade/cbm-calc`, `/packing-list/optimize`, `/landed-cost`
+  → M20 अब **22 routes** (पहले 19)
+
+### ❌ जो नहीं लिया (और क्यों)
+- **Export quotation controller** — पूरा ख़ाली ढाँचा था (चारों जगह सिर्फ़ `ok:true` लौटाता, कुछ सहेजता नहीं)
+- **packing-list के /3d और /boxes** — वही, ख़ाली जवाब
+- **m21-importer पूरा module** — तब M21 **दो बार** हो जाता। आज सुबह `m21-data-sense` LOCK हुआ है
+  और वह ज़्यादा पूरा है (23 tests)। हाँ, उसमें एक चीज़ काम की है —
+  **bank txn → पार्टी पहचान → ledger में डालना** — वह आपके फ़ैसला 3 को असल में चलाते वक़्त
+  मैं उसी से उठाकर लगाऊँगा, अलग module बनाकर नहीं।
+
+### जाँच
+CBM सूत्र ✅ सटीक · determinism ✅ (कोई AI, कोई random) · CERT-016 की सुरक्षा ✅ बरक़रार ·
+`tests/m20-m21.deterministic.test.ts` ✅ **11/11 पास** · M16–M21 ✅ **42/42 पास** · M20 tsc ✅ 0
+
+**🔒 M20 LOCKED — CERT-018** (आपने CERT-017 कहा था, पर वह नंबर आज सुबह M21 को दे चुका हूँ;
+एक ही नंबर दो जगह लिखने से रिकॉर्ड गड़बड़ा जाता)।
+
+**📊 प्रगति: 54%** (84 में से 45 — इस काम से नई क्षमताएँ जुड़ीं, पर gate वही रहे)

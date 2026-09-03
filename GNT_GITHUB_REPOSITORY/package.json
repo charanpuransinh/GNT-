@@ -1,7 +1,7 @@
 {
   "name": "gnt-class-c",
   "version": "2.0.0",
-  "description": "GNT Class C Modules (M11-M15) \u2014 Payment, HR, Automation, Import/Export, Sync",
+  "description": "GNT Class C Modules (M11-M15) — Payment, HR, Automation, Import/Export, Sync",
   "private": true,
   "workspaces": [
     "frontend",
@@ -14,7 +14,8 @@
     "build": "npm run build:backend && npm run build:frontend",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cd backend && npm test",
-    "test:frontend": "cd frontend && npm test"
+    "test:frontend": "cd frontend && npm test",
+    "test:deterministic": "cd backend && npm run test:deterministic"
   },
   "devDependencies": {
     "concurrently": "^8.2.0",
