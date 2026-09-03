@@ -29,6 +29,29 @@ interface PartyForm {
   credit_days: string;
 }
 
+// backend के Zod से मिलते हुए client-side जाँच (टास्क #024 — A4)
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const PHONE_RE = /^[0-9+\-\s]{6,20}$/;
+const STATE_RE = /^[0-9]{2}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateForm(form: PartyForm): string | null {
+  if (!form.name.trim()) return 'नाम ज़रूरी है';
+  const gstin = form.gstin.trim();
+  if (gstin && !GSTIN_RE.test(gstin)) return 'GSTIN 15 अक्षर का होना चाहिए (जैसे 27ABCDE1234F1Z5)';
+  const phone = form.phone.trim();
+  if (phone && !PHONE_RE.test(phone)) return 'फ़ोन नंबर सही नहीं है';
+  const email = form.email.trim();
+  if (email && !EMAIL_RE.test(email)) return 'ईमेल सही नहीं है';
+  const state = form.state_code.trim();
+  if (state && !STATE_RE.test(state)) return 'राज्य कोड 2 अंकों का होना चाहिए (जैसे 27)';
+  const limit = Number(form.credit_limit);
+  if (form.credit_limit.trim() && (Number.isNaN(limit) || limit < 0)) return 'उधार-सीमा 0 या उससे ज़्यादा की संख्या हो';
+  const days = Number(form.credit_days);
+  if (form.credit_days.trim() && (Number.isNaN(days) || days < 0)) return 'उधार के दिन 0 या उससे ज़्यादा हों';
+  return null;
+}
+
 export const PartyEntryDrawer: React.FC<PartyEntryDrawerProps> = ({ isOpen, onClose, party, onSaved }) => {
   const [form, setForm] = useState<PartyForm>({
     party_type: party?.party_type ?? 'customer',
@@ -47,6 +70,11 @@ export const PartyEntryDrawer: React.FC<PartyEntryDrawerProps> = ({ isOpen, onCl
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const submit = async () => {
+    const problem = validateForm(form);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setSaving(true);
     setError('');
     try {

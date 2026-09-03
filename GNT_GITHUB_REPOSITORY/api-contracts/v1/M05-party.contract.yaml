@@ -1,0 +1,217 @@
+openapi: 3.0.3
+info:
+  title: GNT M05 Party Management API
+  version: "1.0.0"
+  description: >
+    Public contract for M05 Party Management (टास्क #007, टास्क #024 — A1).
+    Party = दुकानदार का ग्राहक/सप्लायर (company_master नहीं — वो M04 है).
+    कंपनी की पहचान सिर्फ़ login के token से आती है (tenant-middleware) —
+    x-company-id header पर भरोसा नहीं (टास्क #009), इसलिए यह contract उसे नहीं दिखाता।
+servers:
+  - url: /api/v1/parties
+tags:
+  - name: Parties
+  - name: Outstanding
+paths:
+  /:
+    get:
+      tags: [Parties]
+      summary: पार्टियों की सूची (खोज + छाँटना + पृष्ठ)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: party_type, in: query, schema: { type: string, enum: [customer, supplier, both] } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: is_active, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: सूची + गिनती
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: "#/components/schemas/Party" } }
+                  meta:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      page: { type: integer }
+                      limit: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Parties]
+      summary: नई पार्टी बनाओ
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartyCreate" }
+      responses:
+        "201": { description: बन गई }
+        "400": { description: validation गलती }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /{partyId}:
+    get:
+      tags: [Parties]
+      summary: एक पार्टी का ब्यौरा
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Party मिली }
+        "404": { description: नहीं मिली (या दूसरी कंपनी की है) }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [Parties]
+      summary: पार्टी बदलो
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartyUpdate" }
+      responses:
+        "200": { description: बदल गई }
+        "400": { description: validation गलती }
+        "404": { description: नहीं मिली }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [Parties]
+      summary: पार्टी निष्क्रिय करो (soft delete — is_active=false)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: निष्क्रिय हुई }
+        "404": { description: नहीं मिली }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /{partyId}/outstanding:
+    get:
+      tags: [Outstanding]
+      summary: बकाया (अभी खाली — असला हिसाब M10 से आएगा, TODO #016)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: बकाया (अभी शून्य — झूठे आँकड़े नहीं)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: "#/components/schemas/PartyOutstanding" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /{partyId}/aging:
+    get:
+      tags: [Outstanding]
+      summary: बकाये की उम्र (अभी शून्य — M10 से आएगा, TODO #016)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: aging बकेट (अभी सब 0)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: "#/components/schemas/PartyAging" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: token गायब/गलत — tenant की पहचान token से ही बनती है
+  schemas:
+    Party:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        party_type: { type: string, enum: [customer, supplier, both] }
+        name: { type: string, maxLength: 200 }
+        display_name: { type: [string, "null"], maxLength: 100 }
+        gstin: { type: [string, "null"] }
+        pan: { type: [string, "null"] }
+        gst_type: { type: [string, "null"], enum: [regular, composition, unregistered, sez, overseas] }
+        contact_person: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        alt_phone: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        billing_address: { type: [string, "null"] }
+        shipping_address: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        state_code: { type: [string, "null"], pattern: "^[0-9]{2}$" }
+        pincode: { type: [string, "null"], pattern: "^[0-9]{6}$" }
+        country: { type: string, maxLength: 2, default: IN }
+        credit_limit: { type: number }
+        credit_days: { type: integer }
+        opening_balance: { type: number }
+        opening_type: { type: string, enum: [dr, cr] }
+        notes: { type: [string, "null"] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    PartyCreate:
+      type: object
+      required: [party_type, name]
+      properties:
+        party_type: { type: string, enum: [customer, supplier, both] }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        display_name: { type: [string, "null"], maxLength: 100 }
+        gstin: { type: [string, "null"], pattern: "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$" }
+        pan: { type: [string, "null"], pattern: "^[A-Z]{5}[0-9]{4}[A-Z]{1}$" }
+        gst_type: { type: [string, "null"], enum: [regular, composition, unregistered, sez, overseas] }
+        contact_person: { type: [string, "null"], maxLength: 100 }
+        phone: { type: [string, "null"], pattern: "^[0-9+\\-\\s]{6,20}$" }
+        alt_phone: { type: [string, "null"], pattern: "^[0-9+\\-\\s]{6,20}$" }
+        email: { type: [string, "null"] }
+        billing_address: { type: [string, "null"] }
+        shipping_address: { type: [string, "null"] }
+        city: { type: [string, "null"], maxLength: 100 }
+        state_code: { type: [string, "null"], pattern: "^[0-9]{2}$" }
+        pincode: { type: [string, "null"], pattern: "^[0-9]{6}$" }
+        country: { type: string, maxLength: 2 }
+        credit_limit: { type: number, minimum: 0 }
+        credit_days: { type: integer, minimum: 0 }
+        opening_balance: { type: number }
+        opening_type: { type: string, enum: [dr, cr] }
+        notes: { type: [string, "null"] }
+        branch_id: { type: [string, "null"], format: uuid }
+    PartyUpdate:
+      description: सब fields optional — सिर्फ़ भेजे गए fields बदलते हैं
+      allOf:
+        - $ref: "#/components/schemas/PartyCreate"
+        - type: object
+          properties:
+            is_active: { type: boolean }
+    PartyOutstanding:
+      type: object
+      properties:
+        party_id: { type: string, format: uuid }
+        outstanding: { type: number }
+        currency: { type: string }
+        as_on: { type: string, format: date-time }
+    PartyAging:
+      type: object
+      properties:
+        party_id: { type: string, format: uuid }
+        not_due: { type: number }
+        due_1_30: { type: number }
+        due_31_60: { type: number }
+        due_61_90: { type: number }
+        due_over_90: { type: number }
+        total: { type: number }
