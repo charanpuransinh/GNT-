@@ -1,5 +1,6 @@
 // GNT M06 — Product Service
 import { ProductRepository } from '../repositories/product.repository';
+import { StockService } from './stock.service';
 import { ProductDTO, ProductFilter, PaginatedResult } from '../types/inventory.types';
 import { product_master } from '@prisma/client';
 
@@ -50,7 +51,6 @@ export class ProductService {
   }
 
   async getProductStock(product_id: string, company_id: string, branch_id?: string) {
-    const { StockService } = require('./stock.service');
     const stockService = new StockService();
     return stockService.getStockByProduct(product_id, company_id, branch_id);
   }

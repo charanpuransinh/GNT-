@@ -111,7 +111,7 @@ export class StockController {
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       // Inject company_id for repository context
-      const result = await stockService.checkAvailability(validated);
+      const result = await stockService.checkAvailability(validated, company_id);
       return res.json({ success: true, data: result });
     } catch (err: any) {
       return res.status(400).json({ success: false, error: err.message });

@@ -1,14 +1,19 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import express from 'express';
 import inventoryRoutes from '../../routes/inventory.routes';
 
+// असली DB पर (TEST_DB=1) — m06 columns @db.Uuid हैं, असली UUIDs चाहिए
+const COMPANY_ID = '11111111-1111-4111-8111-111111111111';
+const USER_ID = '99999999-9999-4999-8999-999999999999';
+
 const app = express();
 app.use(express.json());
-app.use((req, res, next) => {
-  (req as any).tenant = { company_id: 'test-company-uuid' };
-  (req as any).user = { id: 'test-user-uuid' };
+app.use((req, _res, next) => {
+  (req as any).tenant = { companyId: COMPANY_ID };
+  (req as any).user = { id: USER_ID, companyId: COMPANY_ID };
   next();
 });
 app.use('/api/v1/inventory', inventoryRoutes);
@@ -25,7 +30,7 @@ describe.runIf(process.env.TEST_DB === '1')(
 
   it('✓ POST /products creates with valid context', async () => {
     const res = await request(app).post('/api/v1/inventory/products').send({
-      name: 'API Test Product', code: 'API001', sale_price: 200
+      company_id: COMPANY_ID, name: 'API Test Product', code: `API-${randomUUID().slice(0, 8)}`, sale_price: 200
     });
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
@@ -44,13 +49,13 @@ describe.runIf(process.env.TEST_DB === '1')(
     expect(Array.isArray(res.body.data)).toBe(true);
   });
 
-  it('✓ Unauthorized access returns 401/403', async () => {
+  it('✓ Unauthorized access returns 400 (Tenant required)', async () => {
     const unauthorizedApp = express();
     unauthorizedApp.use(express.json());
     unauthorizedApp.use('/api/v1/inventory', inventoryRoutes);
     const res = await request(unauthorizedApp).get('/api/v1/inventory/products');
     expect(res.status).toBe(400);
-    expect(res.body.error).toContain('Company context required');
+    expect(res.body.error).toContain('Tenant required');
   });
 
   it('✓ GET /categories/tree returns nested structure', async () => {
