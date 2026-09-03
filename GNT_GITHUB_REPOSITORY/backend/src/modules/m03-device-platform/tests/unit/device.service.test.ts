@@ -17,13 +17,13 @@ describe('M03 - deviceService', () => {
       const mockSessions = [
         {
           id: 'session-1',
-          userId: 'user-123',
-          deviceName: 'iPhone 15',
+          user_id: 'user-123',
+          device_name: 'iPhone 15',
           platform: 'ios',
           status: 'active',
-          createdAt: new Date(),
-          lastActiveAt: new Date(),
-          expiresAt: new Date(Date.now() + 3600000),
+          created_at: new Date(),
+          last_active_at: new Date(),
+          expires_at: new Date(Date.now() + 3600000),
         },
       ];
 
@@ -40,7 +40,7 @@ describe('M03 - deviceService', () => {
     it('should terminate own session', async () => {
       vi.mocked(deviceRepository.getSessionById).mockResolvedValue({
         id: 'session-1',
-        userId: 'user-123',
+        user_id: 'user-123',
       } as any);
       vi.mocked(deviceRepository.deleteSession).mockResolvedValue({} as any);
 
@@ -52,7 +52,7 @@ describe('M03 - deviceService', () => {
     it('should throw error for unauthorized session', async () => {
       vi.mocked(deviceRepository.getSessionById).mockResolvedValue({
         id: 'session-1',
-        userId: 'other-user',
+        user_id: 'other-user',
       } as any);
 
       await expect(
@@ -90,11 +90,11 @@ describe('M03 - deviceService', () => {
       vi.mocked(deviceRepository.getDeviceByUserAndName).mockResolvedValue(null);
       vi.mocked(deviceRepository.createDevice).mockResolvedValue({
         id: 'device-1',
-        deviceName: 'iPhone 15',
+        device_name: 'iPhone 15',
       } as any);
 
       const result = await deviceService.registerDevice('user-123', {
-        deviceName: 'iPhone 15',
+        device_name: 'iPhone 15',
         platform: 'ios',
       });
 
@@ -105,15 +105,15 @@ describe('M03 - deviceService', () => {
     it('should update existing device', async () => {
       vi.mocked(deviceRepository.getDeviceByUserAndName).mockResolvedValue({
         id: 'device-1',
-        deviceName: 'iPhone 15',
+        device_name: 'iPhone 15',
       } as any);
       vi.mocked(deviceRepository.updateDevice).mockResolvedValue({
         id: 'device-1',
-        deviceName: 'iPhone 15 Pro',
+        device_name: 'iPhone 15 Pro',
       } as any);
 
       const result = await deviceService.registerDevice('user-123', {
-        deviceName: 'iPhone 15',
+        device_name: 'iPhone 15',
       });
 
       expect(deviceRepository.updateDevice).toHaveBeenCalled();

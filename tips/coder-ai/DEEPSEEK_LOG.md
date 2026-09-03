@@ -84,6 +84,14 @@
 
 ---
 
+### अनुवर्ती 5 — पुराने tests की मरम्मत (दौर 1) (23:15 → 23:48)
+- **कौन सा task मिला:** #017 का बचा हिस्सा — fail हो रहे पुराने tests को असली code से मिलाना
+- **क्या किया:** m02 auth.service.test 9/9 (mocks snake_case + असली bug-fix: refreshToken में verify के error को 401 AppError में लपेटा — info leak नहीं) · m01 app.service.test (NODE_ENV-aware expect) · m03 device.service.test (mock rows snake_case) · m04 company.service.test (Mocked fixes से खुद ठीक)
+- **कौन सी files बनाईं/बदलीं:** बदली `m02.../services/auth.service.ts` + 4 test files
+- **status:** आंशिक — vitest **237→244 pass, 41→36 fail**; बाकी fails की जड़ें दर्ज: (1) integration/api tests — DB बंद (2) m06/m09/m10 के पुराने unit tests — पुरानी mock strategy (prototype spy) असली module-level structure से मेल नहीं खाती — हर file का rewrite चाहिए (3) कुछ old shapes। commits 358db6a + अगला
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

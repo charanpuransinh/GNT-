@@ -38,7 +38,8 @@ describe('M01 - appService', () => {
 
       expect(result.appName).toBe('GARUDA NEXTECH');
       expect(result.version).toBe('1.0.0');
-      expect(result.environment).toBe('development');
+      // खाली config पर environment process.env से आता है (vitest में NODE_ENV=test)
+      expect(result.environment).toBe(process.env.NODE_ENV || 'development');
     });
   });
 
