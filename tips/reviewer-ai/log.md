@@ -1389,3 +1389,31 @@ fail files (मुख्य, नाम सहित): m01 integration/app.integr
 - हर हिस्से पर: DEEPSEEK_LOG नोट + commit + Telegram ✅
 
 **बाक़ी:** आपकी मुहर (A–F की जाँच)। अगला बड़ा काम क़तार (NIGHT-QUEUE #019–#023) — मालिक के फ़ैसलों का इंतज़ार।
+
+---
+
+## 🌙 कोडर AI (DeepSeek) — nonstop रात की पूरी रिपोर्ट (टास्क #024 + अनुवर्ती 1–10)
+तारीख: 2026-09-03 (18:50 → 02:55) | मालिक का nonstop आदेश — सारे पेंडिंग काम लगातार
+
+### पूरे काम की सूची (commits)
+1. **#024 A→F** (d4c1484…f4c9fd5): A=M05 contract+tests+validation · B=req.tenant optional+requireTenant(121)+FY-EXCLUDE migration+M04 contract · C=company_master.code+login code-पर · D=redis leak fix+M01 tests · E=session cleanup job+M03 tests · F=tests compile में (exclude हटाया)+vitest runner+~40 टूटी test files ठीक
+2. **अनुवर्ती 1** (408fab9): पूरे backend से `(req as any)` सफाई — tsc 563→518
+3. **अनुवर्ती 2** (4a538b1): M14 mount — असली router + static templateCtrl fix + पुराने x-tenant-id middleware हटाए → **19 modules**
+4. **अनुवर्ती 3** (3e7229f): M07→M06 stock wiring असली StockService से (company_id handlers तक); **GST+ledger के डिज़ाइन फैसले आपके — 🚨 notify भेजा**
+5. **अनुवर्ती 4–5** (358db6a, f497ee0): पुराने tests की मरम्मत — m01/m02/m03/m04 unit pass; refreshToken में error-wrap (info-leak fix); vitest 237→244 pass
+6. **अनुवर्ती 6–10**: frontend के सारे बचे पेज (backend असली API से, नकली डेटा नहीं): M06 (6), M07 (5), M08 (6), M09 (5), M10 (6), M11 (4), M12 (1), M14 (1), M15 (1) = **34 पेज** + routes; M16–M20 आपके बनाए थे — **अब M01–M20 के सारे UI पेज मौजूद**
+7. बीच में 2 backend गैप मिले और ठीक किए: M07/M08 के create schemas body से company_id माँगते थे (#009 के खिलाफ़) — अब tenant से; M09 का वही गैप **दर्ज** (M09 mount के साथ जाएगा)
+
+### अंतिम आँकड़े (नापे हुए)
+- backend tsc: **563 → 510** (53 कम, tests सहित) · frontend tsc: **217→216**
+- mount: **19 modules** (M13 गिरा — मालिक का फैसला; M09 रुका — cess_rate आपका फैसला)
+- vitest: **244 pass | 36 fail | 4 skip** (fails = DB बंद वाले integration/api + m06/m09/m10 के पुराने tests जिनकी mock-रचना पुरानी है — हर file का rewrite चाहिए, दर्ज)
+- **vite build: ✅ सफल** (पूरा frontend बनता है) · prisma validate: valid 🚀
+- नया as any/@ts-ignore/exclude: 0 · हर काम पर DEEPSEEK_LOG नोट + commit + Telegram ✅
+
+### आपके/मालिक के फैसले जो लटके हैं (काम रुका है इन पर)
+1. **M09 cess_rate** — tax_rate_master में field जोड़ें या code बदलें (#016 से लटका)
+2. **M13 तीन टकराती schema** — कौन सी सही (#010)
+3. **GST+ledger wiring का डिज़ाइन** — (1) ledger डबल-एंट्री रचना + purchase account (2) GST में state का स्रोत — मेरा सुझाव: party.state_code + company GSTIN के पहले 2 अंक
+4. **DB चालू करना** — बचे 36 tests + असली runtime जाँच इसी पर टिकी है
+5. **git identity** — repo में user.name/email सेट नहीं; मैं हर commit पर -c से "Trishul Pro <trishulpro2@gmail.com>" भेज रहा हूँ — स्थायी config का फैसला
