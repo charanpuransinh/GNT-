@@ -28,7 +28,7 @@ H=$(date +%H); [ $H -ge 21 ] || [ $H -lt 6 ] && echo "🌙 चला सकत�
 
 | काम | किसका इंतज़ार |
 |---|---|
-| **#019 M20 Export hub** (SPEC-A) | HSN का मालिक कौन — M09 या M20 (फ़ैसला 1) |
+| **#019 M20 Export hub** (SPEC-A) | ✅ **खुल गया** — मालिक का फ़ैसला 2026-09-03: M20 = INTERNATIONAL HSN का मालिक, M09 = INDIAN/DOMESTIC HSN का; अलग tables/fields, कोई overwrite नहीं |
 | **#020 M21 Data Sense** (SPEC-A) | M05 पहले बने (#007) |
 | **#021 M08 Trade Scheme** (SPEC-B) | M08 पहले हरा हो (#016) |
 | **#022 M16 WhatsApp campaign** (SPEC-B) | सुरक्षा (#009) पूरी हो — इसमें सार्वजनिक order-link है |

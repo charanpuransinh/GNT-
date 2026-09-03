@@ -1,1 +1,6 @@
 tips/reviewer-ai/keepalive.log
+
+# secrets — kabhi commit nahi (2026-09-03)
+.env
+*.env
+.git-credentials

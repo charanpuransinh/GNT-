@@ -86,6 +86,31 @@ independent HSN master."*
 - `hsn_master` (M09) = हर कंपनी की **GST दर की सेटिंग**, जो `customs_tariff` से **जुड़ी** रहेगी
 यानी वर्गीकरण M20 का, GST-दर M09 की। **दो अलग masters नहीं — एक source, एक config।**
 
+> ## ✅ मालिक का फ़ैसला आ गया (पूरन सिंह, 2026-09-03) — टकराव #1 बंद
+>
+> **दोनों module के अपने-अपने अलग HSN होंगे — एक दूसरे का नहीं।**
+> - **M20 (Export/International Trade) = INTERNATIONAL HSN का मालिक।** जो कंपनी import/export
+>   करती है, उसका पूरा सिस्टम इसी International HSN से चलेगा।
+> - **M09 (GST/घरेलू compliance) = INDIAN/DOMESTIC HSN का मालिक।**
+> - **अलग-अलग tables/fields** — कोई किसी को overwrite नहीं करेगा।
+>
+> यानी मेरा "एक source, एक config" वाला प्रस्ताव **रद्द** — spec §7 का *"M20 = single source of
+> truth for HSN"* वाला वाक्य भी इसी फ़ैसले से **overrule** होता है। दोनों स्वतंत्र हैं।
+>
+> **जाँच (समीक्षक AI, 2026-09-03 05:25):** repo में यह अलगाव **पहले से सही लागू है** —
+> - `hsn_master` (M09, per-company, `gst_rate`/`cess_rate`) — M20 इसे कहीं नहीं छूता
+> - `customs_tariff` (M20, 8-अंकीय, chapter/heading/subheading, BCD/SWS/IGST/cess) — M09 इसे कहीं नहीं छूता
+> - `grep` से पुष्टि: M09 में `customs_tariff` का एक भी इस्तेमाल नहीं, M20 में `hsn_master` का एक भी नहीं
+>
+> **बचे हुए तीन काम (अगले task में):**
+> 1. **नाम की सफ़ाई:** `m20/models/hsn.model.ts` में export का नाम `hsnMasterExtensions` है जबकि
+>    वह `customs_tariff` पर चलता है → `customsTariffExtensions` करना (सिर्फ़ नाम, काम वही)
+> 2. **product/item स्तर पर दूसरा field:** अभी `hsn_code` एक ही field है (product, sales/purchase items)।
+>    फ़ैसले के मुताबिक export वाले सामान के लिए **अलग international tariff field** चाहिए
+>    (प्रस्ताव: `intl_tariff_code` → `customs_tariff.code`), वरना एक ही field दोनों काम करेगा = overlap
+> 3. **M13:** मालिक ने M13 में भी लागू करने को कहा था — पर **M13 = Automation है, उसमें HSN है ही नहीं**
+>    (grep खाली)। इसलिए वहाँ कुछ बदलना नहीं है; पुष्टि माँगनी है कि उनका मतलब M13 था या canonical schema।
+
 ### 2. M21 नंबर का टकराव
 **मैंने pricing/subscription के design में `m21-subscription` प्रस्तावित किया था**
 (`PRICING_SUBSCRIPTION_STRATEGY.md` का Suggestions हिस्सा)। अब **M21 = Data Sense** हो गया।
