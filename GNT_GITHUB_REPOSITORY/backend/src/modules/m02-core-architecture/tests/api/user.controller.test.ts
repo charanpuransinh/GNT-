@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 app.use((req, res, next) => {
   res.locals.requestId = 'test-request-id';
-  (req as any).company = { id: 'company-123' };
+  (req as any).tenant = { companyId: 'company-123' };
   next();
 });
 

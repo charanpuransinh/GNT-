@@ -3,6 +3,7 @@ import { authService } from '../../services/auth.service';
 import { userService } from '../../services/user.service';
 import { roleService } from '../../services/role.service';
 import { authInternal } from '../../services/auth.internal';
+import { prisma } from '@/common/config/prisma';
 
 describe.runIf(process.env.TEST_DB === '1')(
 'M02 - Integration Tests', () => {
@@ -35,11 +36,24 @@ describe.runIf(process.env.TEST_DB === '1')(
 
   describe('OTP flow', () => {
     it('should generate and verify OTP', async () => {
-      await authInternal.sendOtp('user-123', 'test@example.com');
+      // असली DB पर — auth_otp_challenge.user_id UUID FK है, इसलिए company+user seed चाहिए
+      const companyId = '00000000-0000-4000-8000-000000000001';
+      const userId = '99999999-9999-4999-8999-999999999999';
+      await prisma.company_master.upsert({
+        where: { id: companyId },
+        update: {},
+        create: { id: companyId, name: 'Auth Test Co', code: 'AUTHTEST' },
+      });
+      await prisma.user_master.upsert({
+        where: { id: userId },
+        update: {},
+        create: { id: userId, company_id: companyId, name: 'OTP User', email: 'otp@test.com', username: 'otpuser', password_hash: 'x' },
+      });
 
-      // We can't directly access the OTP, but we can verify the flow structure
-      // In real tests, we'd mock the OTP delivery and capture the generated OTP
-      const isValid = await authInternal.verifyOtp('user-123', '000000');
+      await authInternal.sendOtp(userId, 'otp@test.com');
+
+      // हम OTP सीधे नहीं पढ़ सकते — गलत OTP से verify false ही होना चाहिए
+      const isValid = await authInternal.verifyOtp(userId, '000000');
       expect(isValid).toBe(false); // Random OTP should fail
     });
   });

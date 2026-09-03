@@ -34,7 +34,7 @@ async function isRevoked(userId: string, issuedAtSeconds?: number): Promise<bool
   if (!issuedAtSeconds) return true;
   try {
     const rows = await prisma.$queryRaw<Array<{ revoked_after: Date | null }>>(Prisma.sql`
-      SELECT revoked_after FROM auth_user_revocation WHERE user_id = ${userId} LIMIT 1
+      SELECT revoked_after FROM auth_user_revocation WHERE user_id = ${userId}::uuid LIMIT 1
     `);
     const revokedAfter = rows[0]?.revoked_after;
     return !!revokedAfter && issuedAtSeconds * 1000 <= revokedAfter.getTime();
@@ -74,7 +74,7 @@ export const authInternal = {
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     await prisma.$executeRaw(Prisma.sql`
       INSERT INTO auth_otp_challenge (user_id, email, otp_hash, expires_at, attempts)
-      VALUES (${userId}, ${email}, ${otpHash}, ${expiresAt}, 0)
+      VALUES (${userId}::uuid, ${email}, ${otpHash}, ${expiresAt}, 0)
       ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, otp_hash = EXCLUDED.otp_hash, expires_at = EXCLUDED.expires_at, attempts = 0
     `);
     if (process.env.NODE_ENV === 'test') logger.info(`Test OTP generated for user ${userId}`, { expiresAt, otp });
@@ -86,19 +86,19 @@ export const authInternal = {
 
   async verifyOtp(userId: string, otp: string): Promise<boolean> {
     const rows = await prisma.$queryRaw<Array<{ id: string; otp_hash: string; expires_at: Date; attempts: number }>>(Prisma.sql`
-      SELECT id, otp_hash, expires_at, attempts FROM auth_otp_challenge WHERE user_id = ${userId} LIMIT 1
+      SELECT id, otp_hash, expires_at, attempts FROM auth_otp_challenge WHERE user_id = ${userId}::uuid LIMIT 1
     `);
     const record = rows[0];
     if (!record || record.expires_at <= new Date() || record.attempts >= 5) return false;
     const valid = await bcrypt.compare(otp, record.otp_hash);
-    if (!valid) { await prisma.$executeRaw(Prisma.sql`UPDATE auth_otp_challenge SET attempts = attempts + 1 WHERE id = ${record.id}`); return false; }
-    await prisma.$executeRaw(Prisma.sql`DELETE FROM auth_otp_challenge WHERE id = ${record.id}`);
+    if (!valid) { await prisma.$executeRaw(Prisma.sql`UPDATE auth_otp_challenge SET attempts = attempts + 1 WHERE id = ${record.id}::uuid`); return false; }
+    await prisma.$executeRaw(Prisma.sql`DELETE FROM auth_otp_challenge WHERE id = ${record.id}::uuid`);
     return true;
   },
 
   async verifyPin(userId: string, pin: string): Promise<boolean> {
     if (!/^\d{4,8}$/.test(pin)) return false;
-    const rows = await prisma.$queryRaw<Array<{ pin_hash: string | null }>>(Prisma.sql`SELECT pin_hash FROM user_master WHERE id = ${userId} LIMIT 1`);
+    const rows = await prisma.$queryRaw<Array<{ pin_hash: string | null }>>(Prisma.sql`SELECT pin_hash FROM user_master WHERE id = ${userId}::uuid LIMIT 1`);
     return !!rows[0]?.pin_hash && await bcrypt.compare(pin, rows[0].pin_hash);
   },
 
@@ -108,7 +108,7 @@ export const authInternal = {
 
   async revokeTokens(userId: string): Promise<void> {
     await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO auth_user_revocation (user_id, revoked_after) VALUES (${userId}, NOW())
+      INSERT INTO auth_user_revocation (user_id, revoked_after) VALUES (${userId}::uuid, NOW())
       ON CONFLICT (user_id) DO UPDATE SET revoked_after = EXCLUDED.revoked_after
     `);
   },

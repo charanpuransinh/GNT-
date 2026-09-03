@@ -3,6 +3,7 @@ import request from 'supertest';
 import express from 'express';
 import { authController } from '../../controllers/auth.controller';
 import { authService } from '../../services/auth.service';
+import { AppError } from '@/common/errors/error-classes';
 
 vi.mock('../../services/auth.service');
 
@@ -20,6 +21,11 @@ app.post('/api/v1/auth/logout', (req, res, next) => {
   (req as any).user = { id: 'user-123' };
   next();
 }, authController.logout);
+
+// AppError.statusCode का सम्मान करने वाला error handler (asली app जैसा)
+app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  res.status(err.statusCode || 500).json({ success: false, error: err.message });
+});
 
 describe.runIf(process.env.TEST_DB === '1')(
 'M02 - Auth API Endpoints', () => {
@@ -61,7 +67,7 @@ describe.runIf(process.env.TEST_DB === '1')(
     });
 
     it('should return 401 on invalid credentials', async () => {
-      vi.mocked(authService.login).mockRejectedValue(new Error('Invalid credentials'));
+      vi.mocked(authService.login).mockRejectedValue(new AppError('GNT-ERR-2002', 'Invalid credentials', 401));
 
       const response = await request(app)
         .post('/api/v1/auth/login')
@@ -70,9 +76,10 @@ describe.runIf(process.env.TEST_DB === '1')(
           password: 'wrong',
           companyCode: 'COMP001',
         })
-        .expect(500); // Error middleware would convert to proper status
+        .expect(401);
 
       expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Invalid credentials');
     });
   });
 
