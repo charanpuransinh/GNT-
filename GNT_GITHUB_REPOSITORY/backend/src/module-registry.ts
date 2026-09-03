@@ -28,7 +28,16 @@ export interface ModuleMount {
 export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   { load: async () => (await import('./modules/m01-foundation/routes/app.routes')).default, code: 'M01', path: '/api/v1/app',           mounted: true },
   { load: async () => (await import('./modules/m02-core-architecture/routes/auth.routes')).default, code: 'M02', path: '/api/v1/auth',          mounted: true },
-  { load: async () => (await import('./modules/m03-device-platform/routes/device.routes')).default, code: 'M03', path: '/api/v1/device',        mounted: true },
+  {
+    load: async () => {
+      const { default: deviceRoutes } = await import('./modules/m03-device-platform/routes/device.routes');
+      // टास्क #024 — E1: expired sessions की सफाई का job (unref — process नहीं रोकता)
+      const { startSessionCleanupJob } = await import('./modules/m03-device-platform/services/session-cleanup');
+      startSessionCleanupJob();
+      return deviceRoutes;
+    },
+    code: 'M03', path: '/api/v1/device',        mounted: true,
+  },
   { load: async () => (await import('./modules/m04-company-management/routes/company.routes')).default, code: 'M04', path: '/api/v1/company',       mounted: true },
   { code: 'M05', path: '/api/v1/parties', mounted: true,
     load: async () => (await import('./modules/m05-party-management')).partyRoutes },

@@ -43,6 +43,14 @@
 
 ---
 
+### टास्क #024-हिस्सा E — M03 Device (20:16 → 20:40)
+- **कौन सा task मिला:** expired session की सफाई का job + device/session tests
+- **क्या किया:** E1 नई `m03.../services/session-cleanup.ts` — हर 15 मिनट (unref) expired active/idle sessions को status='expired' करता है (delete नहीं, इतिहास बना रहता है; tenant-safe — दूसरी कंपनी का डेटा छूता नहीं); module-registry के M03 load() में start · E2 tests 10/10 (filter + device/deployment/update-check schemas)
+- **कौन सी files बनाईं/बदलीं:** नई `m03.../services/session-cleanup.ts`, `m03.../tests/unit/session-cleanup.test.ts`; बदली `module-registry.ts`
+- **status:** पूरा — tsc 563, mount 18 (DB न होने से पहली cleanup fail हुई पर catch ने संभाला — server गिरा नहीं), commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03
