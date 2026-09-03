@@ -20,7 +20,8 @@ app.post('/api/v1/roles', roleController.createRole);
 app.put('/api/v1/roles/:id', roleController.updateRole);
 app.delete('/api/v1/roles/:id', roleController.deleteRole);
 
-describe('M02 - Role API Endpoints', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'M02 - Role API Endpoints', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

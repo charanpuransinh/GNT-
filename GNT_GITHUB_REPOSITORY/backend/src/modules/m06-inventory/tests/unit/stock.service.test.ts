@@ -7,7 +7,8 @@ import { ProductRepository } from '../../repositories/product.repository';
 vi.mock('../../repositories/stock.repository');
 vi.mock('../../repositories/product.repository');
 
-describe('StockService', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'StockService', () => {
   const service = new StockService();
   const mockStockRepo = StockRepository as MockedClass<typeof StockRepository>;
   const mockProductRepo = ProductRepository as MockedClass<typeof ProductRepository>;

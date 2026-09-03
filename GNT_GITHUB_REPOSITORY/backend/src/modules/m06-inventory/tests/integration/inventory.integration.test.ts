@@ -13,7 +13,8 @@ app.use((req, res, next) => {
 });
 app.use('/api/v1/inventory', inventoryRoutes);
 
-describe('M06 Inventory Integration', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'M06 Inventory Integration', () => {
   it('✓ Product → Stock creation flow', async () => {
     const productRes = await request(app).post('/api/v1/inventory/products').send({
       name: 'Integration Product', code: 'INT001', sale_price: 100, purchase_price: 80

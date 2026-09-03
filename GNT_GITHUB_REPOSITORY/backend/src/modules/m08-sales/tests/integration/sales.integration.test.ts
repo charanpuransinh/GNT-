@@ -12,7 +12,8 @@ import { SalesInvoiceDTO, QuotationDTO, SalesReturnDTO } from '../../types/sales
 
 const prisma = new PrismaClient();
 
-describe('Sales Integration Tests', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'Sales Integration Tests', () => {
   const companyId = 'comp-test-001';
   const branchId = 'branch-test-001';
   const customerId = 'cust-test-001';

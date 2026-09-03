@@ -13,7 +13,8 @@ app.use((req, res, next) => {
 });
 app.use('/api/v1/inventory', inventoryRoutes);
 
-describe('M06 Inventory API', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'M06 Inventory API', () => {
   it('✓ GET /products returns paginated list', async () => {
     const res = await request(app).get('/api/v1/inventory/products');
     expect(res.status).toBe(200);

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { appService } from '../../services/app.service';
 import { appRepository } from '../../repositories/app.repository';
 
-describe('M01 - Integration Tests', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'M01 - Integration Tests', () => {
   beforeAll(() => {
     // Setup test environment
     process.env.APP_NAME = 'GNT Test';

@@ -11,7 +11,9 @@ describe('LedgerService', () => {
     getLedgerSumsByAccount: vi.fn(),
   } as unknown as Mocked<LedgerRepository>;
 
-  const mockPrisma = {} as PrismaClient;
+  const mockPrisma = {
+    account_master: { findMany: vi.fn() },
+  } as unknown as PrismaClient;
   const service = new LedgerService(mockRepo, mockPrisma);
 
   it('Ledger posting updates account balance', async () => {
@@ -33,6 +35,10 @@ describe('LedgerService', () => {
       acc1: { debit: 1000, credit: 0 },
       acc2: { debit: 0, credit: 1000 },
     });
+    (mockPrisma.account_master.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 'acc1', name: 'Account 1' },
+      { id: 'acc2', name: 'Account 2' },
+    ]);
     const tb = await service.getTrialBalance('c1');
     expect(tb).toBeDefined();
   });

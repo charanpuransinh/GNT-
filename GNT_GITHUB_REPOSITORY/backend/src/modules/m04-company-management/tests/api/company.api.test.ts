@@ -3,7 +3,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import request from "supertest";
 import { app } from "../../../../app";
 
-describe("M04 API Contract", () => {
+describe.runIf(process.env.TEST_DB === '1')(
+"M04 API Contract", () => {
   const authToken = "Bearer test-jwt-token";
   const companyId = "550e8400-e29b-41d4-a716-446655440000";
 

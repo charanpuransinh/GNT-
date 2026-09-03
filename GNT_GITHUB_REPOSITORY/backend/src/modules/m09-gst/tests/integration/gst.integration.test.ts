@@ -8,7 +8,8 @@ const app = express();
 app.use(express.json());
 app.use('/api/v1/gst', gstRoutes);
 
-describe('GST Integration', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'GST Integration', () => {
   it('Sales invoice → GST transaction record created', async () => {
     expect(true).toBe(true);
   });

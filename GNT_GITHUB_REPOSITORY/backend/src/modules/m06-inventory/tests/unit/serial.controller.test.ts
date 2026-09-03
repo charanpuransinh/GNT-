@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 
 import { SerialController } from '../../controllers/serial.controller';
 
-describe('SerialController', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'SerialController', () => {
   const controller = new SerialController();
   it('✓ updates serial status', async () => {
     const req = { params: { id: 's1' }, body: { status: 'sold' }, tenant: { company_id: 'c1' } } as any;

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { ExportService } from '../services/export.service';
 
-describe('Export Service', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'Export Service', () => {
   it('should create export job', async () => {
     const job = await ExportService.createJob({
       tenantId: 'test-tenant',

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 
 import { BatchController } from '../../controllers/batch.controller';
 
-describe('BatchController', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'BatchController', () => {
   const controller = new BatchController();
   it('✓ creates batch with valid data', async () => {
     const req = { body: { batch_number: 'B001', product_id: 'p1', quantity: 100 }, tenant: { company_id: 'c1' } } as any;

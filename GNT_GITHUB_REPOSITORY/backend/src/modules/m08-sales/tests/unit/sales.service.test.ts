@@ -63,8 +63,8 @@ describe('Sales Service Unit Tests', () => {
   // ─── TEST: Return calculation with original invoice reference ───
   it('should calculate return totals correctly', () => {
     const items = [
-      { productId: 'p1', quantity: 2, rate: 100 },
-      { productId: 'p2', quantity: 1, rate: 200 },
+      { productId: 'p1', quantity: 2, rate: 100, taxRate: 18 },
+      { productId: 'p2', quantity: 1, rate: 200, taxRate: 18 },
     ];
 
     const result = calculateReturnTotals(items);

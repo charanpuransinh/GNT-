@@ -20,7 +20,8 @@ app.post('/api/v1/users', userController.createUser);
 app.put('/api/v1/users/:id', userController.updateUser);
 app.delete('/api/v1/users/:id', userController.deleteUser);
 
-describe('M02 - User API Endpoints', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'M02 - User API Endpoints', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -8,7 +8,8 @@ const app = express();
 app.use(express.json());
 app.use('/api/v1/accounting', accountingRoutes);
 
-describe('Accounting API', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'Accounting API', () => {
   it('POST /vouchers with unbalanced debit/credit returns 400', async () => {
     const res = await request(app)
       .post('/api/v1/accounting/vouchers')

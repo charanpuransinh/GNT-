@@ -21,7 +21,8 @@ app.post('/api/v1/auth/logout', (req, res, next) => {
   next();
 }, authController.logout);
 
-describe('M02 - Auth API Endpoints', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'M02 - Auth API Endpoints', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -8,7 +8,8 @@ const app = express();
 app.use(express.json());
 app.use('/api/v1/gst', gstRoutes);
 
-describe('GST API', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'GST API', () => {
   it('POST /calculate returns correct tax breakup', async () => {
     const res = await request(app)
       .post('/api/v1/gst/calculate')

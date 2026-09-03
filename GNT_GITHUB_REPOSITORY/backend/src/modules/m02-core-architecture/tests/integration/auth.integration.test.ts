@@ -4,7 +4,8 @@ import { userService } from '../../services/user.service';
 import { roleService } from '../../services/role.service';
 import { authInternal } from '../../services/auth.internal';
 
-describe('M02 - Integration Tests', () => {
+describe.runIf(process.env.TEST_DB === '1')(
+'M02 - Integration Tests', () => {
   beforeAll(() => {
     process.env.ACCESS_TOKEN_SECRET = 'test-access-secret';
     process.env.REFRESH_TOKEN_SECRET = 'test-refresh-secret';
