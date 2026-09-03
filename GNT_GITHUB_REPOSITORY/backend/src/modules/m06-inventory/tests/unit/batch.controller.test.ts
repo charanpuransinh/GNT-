@@ -24,9 +24,9 @@ describe.runIf(process.env.TEST_DB === '1')(
     const req = {
       body: { company_id: COMPANY_ID, product_id: PRODUCT_ID, batch_number: 'B001', quantity: 100, remaining_qty: 100 },
       tenant: { companyId: COMPANY_ID },
-    } as never;
-    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as never;
-    await controller.createBatch(req, res);
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await controller.createBatch(req as never, res as never);
     expect(res.status).toHaveBeenCalledWith(201);
   });
 });

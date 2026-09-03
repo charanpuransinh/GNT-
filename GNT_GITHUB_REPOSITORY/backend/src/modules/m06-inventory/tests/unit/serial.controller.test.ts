@@ -25,9 +25,9 @@ describe.runIf(process.env.TEST_DB === '1')(
       data: { id: SERIAL_ID, company_id: COMPANY_ID, product_id: PRODUCT_ID, serial_number: 'SN-001', status: 'in_stock' },
     });
 
-    const req = { params: { id: SERIAL_ID }, body: { status: 'sold' }, tenant: { companyId: COMPANY_ID } } as never;
-    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as never;
-    await controller.updateSerialStatus(req, res);
+    const req = { params: { id: SERIAL_ID }, body: { status: 'sold' }, tenant: { companyId: COMPANY_ID } };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await controller.updateSerialStatus(req as never, res as never);
     expect(res.json).toHaveBeenCalled();
     const payload = vi.mocked(res.json).mock.calls[0]?.[0] as { success: boolean };
     expect(payload.success).toBe(true);
