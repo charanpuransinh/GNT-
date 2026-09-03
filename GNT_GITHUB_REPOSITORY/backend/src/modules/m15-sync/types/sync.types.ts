@@ -295,3 +295,63 @@ export interface SyncDashboardStats {
   recentSyncLogs: SyncLog[];
   recentConflicts: SyncConflict[];
 }
+
+// ─── SyncService request/response types (टास्क #025 B3 — services के use से मिलाकर) ───
+
+export interface SyncEntityConfigInput {
+  internalEntity: string;
+  externalEntity?: string;
+  syncDirection?: SyncDirection;
+  fieldMappings?: Array<{ internalField: string; externalField: string; isKey?: boolean }>;
+}
+
+export interface CreateSyncConfigRequest {
+  configCode: string;
+  name: string;
+  description?: string | null;
+  sourceSystem: string;
+  sourceVersion?: string;
+  syncDirection: SyncDirection;
+  connectionType: string;
+  connectionConfig?: Record<string, unknown> | null;
+  syncMode?: string;
+  cronExpression?: string | null;
+  entityConfigs: SyncEntityConfigInput[];
+}
+
+export interface UpdateSyncConfigRequest {
+  name?: string;
+  description?: string | null;
+  syncDirection?: SyncDirection;
+  connectionConfig?: Record<string, unknown> | null;
+  syncMode?: string;
+  cronExpression?: string | null;
+  status?: SyncStatus;
+  errorThreshold?: number;
+}
+
+export interface TriggerSyncRequest {
+  syncConfigId: string;
+  triggeredBy?: string;
+  entityType?: string;
+}
+
+export interface SyncEntityRequest {
+  syncConfigCode: string;
+  entityType: string;
+}
+
+export interface SyncProgress {
+  jobId?: string;
+  status?: SyncStatus;
+  processed?: number;
+  total?: number;
+  percent?: number;
+  message?: string;
+}
+
+export interface SyncPreviewResponse {
+  totalRows?: number;
+  sample?: unknown[];
+  entityTypes?: string[];
+}

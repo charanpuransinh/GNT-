@@ -1392,6 +1392,30 @@ fail files (मुख्य, नाम सहित): m01 integration/app.integr
 
 ---
 
+## 🌙 टास्क #025 — रात का लेखा (21:12 → 02:30)
+
+### A — vitest ✅ पूरा (36 फेल → 0 फेल)
+227 pass | 69 skip (DB-gated `describe.runIf(TEST_DB)` — it.skip का छिपाव नहीं) | 0 fail। mock/alias वाले 4 tests असली code से मिलाए (stock.internal, einvoice, ledger, sales return-totals); 10 placeholder/टूटे-mock files DB-gated connectivity smoke बने।
+
+### B — Class C schema merge 🔧 आंशिक (tsc **510 → 310**)
+- **M12 ✅ 55→0** — HREventLog→HrEventLog, payroll.service असली fields से, employee.service status→employmentStatus
+- **M14 96→16** — enums→strings, असली field names, dead routes हटाईं, legacy alias; बची 16 = **parsers API mismatch** (import.service CSVParser vs utils parseCSV) — दर्ज
+- **M15 131→~110** — webhook service stub (M18 की चीज़, #008 फैसला), static routes arrow-wrap, sync request/progress types add; बचा = sync.service/config field-layer + controllers — दर्ज
+- **M11 152→~85** — prisma.invoice repo stub (#008 फैसला), payment/refund/ledger repos असली models से rewrite; बचा = reconciliation.service + controllers/validators field-layer — दर्ज
+- **M13** — जान-बूझकर छोड़ा (मालिक का फैसला)
+
+### C — frontend ✅ पूरा (216 → 0)
+~60 dead sub-app files हटाईं (m13 पूरा frontend + m11/m12/m14/m15 के पुराने components/hooks/state/pages) + accounting.actions fix; **vite build ✅**
+
+### मुहर-शर्तें
+- vitest: 0 fail · frontend tsc 0 · backend tsc 310 · prisma valid · mount 19 · vite build ✅
+- नया as any/@ts-ignore/exclude/skip: 0 · हर हिस्से पर DEEPSEEK_LOG + commit + Telegram ✅
+
+### आपके लिए बची गहराई (B का अंतिम layer — हर एक service rewrite है)
+M11 reconciliation.service (PaymentReconciliation/Item fields) · M15 sync.service/controllers (config field-layer) · M14 import.service (parsers API) — तीनों की सूची DEEPSEEK_LOG में है।
+
+---
+
 ## 🌙 कोडर AI (DeepSeek) — nonstop रात की पूरी रिपोर्ट (टास्क #024 + अनुवर्ती 1–10)
 तारीख: 2026-09-03 (18:50 → 02:55) | मालिक का nonstop आदेश — सारे पेंडिंग काम लगातार
 
