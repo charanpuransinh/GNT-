@@ -6,9 +6,9 @@ describe.runIf(process.env.TEST_DB === '1')(
   it('should create export job', async () => {
     const job = await ExportService.createJob({
       tenantId: 'test-tenant',
-      fileName: 'test_export',
-      fileType: 'csv',
-      entityType: 'product',
+      name: 'test_export',
+      format: 'csv',
+      sourceEntity: 'product',
       createdBy: 'test-user'
     });
 

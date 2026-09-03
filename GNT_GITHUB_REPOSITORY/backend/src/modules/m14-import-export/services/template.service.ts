@@ -23,11 +23,9 @@ export class TemplateService {
         name: data.name,
         targetModule: data.targetModule,
         targetEntity: data.targetEntity,
-        fileType: data.fileType,
-        columnMapping: data.columnMapping as any,
-        sampleFileUrl: data.sampleFileUrl,
+        mappings: data.columnMapping as never,
+        validationRules: [] as never,
         isDefault: data.isDefault ?? false,
-        createdBy: data.userId,
       }
     });
   }
@@ -65,7 +63,7 @@ export class TemplateService {
   async createExportTemplate(data: any) {
     if (data.isDefault) {
       await prisma.exportTemplate.updateMany({
-        where: { tenantId: data.tenantId, targetModule: data.targetModule, targetEntity: data.targetEntity, isDefault: true },
+        where: { tenantId: data.tenantId, sourceModule: data.sourceModule ?? data.targetModule, sourceEntity: data.sourceEntity ?? data.targetEntity, isDefault: true },
         data: { isDefault: false }
       });
     }

@@ -21,6 +21,7 @@ export class ExportService {
     return prisma.exportJob.create({
       data: {
         tenantId: data.tenantId,
+        jobNumber: `EXP-${Date.now()}`,
         name: data.name,
         format: data.format,
         sourceModule: data.sourceModule ?? 'M14',

@@ -1,6 +1,6 @@
 // M14 — Import Job Processor
 // Lock: LOCK_13_PROCESSOR
-import { PrismaClient, ImportStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { ParserService } from './services/parser.service';
 import { EventBus } from './events/import.events';
 
@@ -36,7 +36,7 @@ export class ImportProcessor {
       // Publish completion event for other modules to consume
       await this.eventBus.publish('import.job.completed', {
         jobId,
-        module: (await prisma.importJob.findUnique({ where: { id: jobId } }))?.module,
+        module: (await prisma.importJob.findUnique({ where: { id: jobId } }))?.targetModule,
         totalRows: result.meta.totalRows,
         successRows: result.meta.validRows,
       });

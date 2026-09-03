@@ -3,6 +3,7 @@
 import { PrismaClient } from '@prisma/client';
 import { FormatterService } from './services/formatter.service';
 import { EventBus } from './events/export.events';
+import { ExportFormat } from './types';
 
 const prisma = new PrismaClient();
 const formatter = new FormatterService();
@@ -25,7 +26,7 @@ export class ExportProcessor {
 
       const buffer = await formatter.format(
         moduleData,
-        job.format,
+        job.format as ExportFormat,
         job.columns as string[] || undefined
       );
 

@@ -2,6 +2,7 @@
 // Lock: LOCK_02_TYPES
 
 export type FileType = 'csv' | 'xlsx' | 'json';
+export type ExportFormat = 'CSV' | 'XLSX' | 'JSON' | 'PDF';
 export type EntityModule = 'M05' | 'M06' | 'M07' | 'M08' | 'M09' | 'M10' | 'M11' | 'M12' | 'M13';
 
 export interface ImportRequest {

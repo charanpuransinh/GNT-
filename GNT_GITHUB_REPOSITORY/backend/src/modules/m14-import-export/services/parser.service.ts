@@ -60,7 +60,7 @@ export class ParserService {
           errors.push({ row: idx + 2, message: err.message, code: 'PARSE_ERROR' });
           return null;
         }
-      }).filter(Boolean);
+      }).filter((x): x is Record<string, any> => x !== null);
 
       return {
         data,

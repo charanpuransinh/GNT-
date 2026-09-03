@@ -1,4 +1,4 @@
-import { PrismaClient, ImportJob, ImportStatus } from '@prisma/client';
+import { PrismaClient, ImportJob } from '@prisma/client';
 import { CSVParser } from '../utils/csvParser';
 import { ExcelParser } from '../utils/excelParser';
 import { JSONParser } from '../utils/jsonParser';
@@ -19,7 +19,21 @@ export class ImportService {
     entityType: string;
     createdBy: string;
   }): Promise<ImportJob> {
-    return prisma.importJob.create({ data });
+    return prisma.importJob.create({
+      data: {
+        tenantId: data.tenantId,
+        jobNumber: `IMP-${Date.now()}`,
+        name: data.fileName,
+        targetModule: data.entityType,
+        targetEntity: data.entityType,
+        fileName: data.fileName,
+        fileType: data.fileType,
+        fileSize: data.fileSize,
+        fileUrl: data.filePath,
+        fileKey: data.filePath,
+        createdBy: data.createdBy,
+      },
+    });
   }
 
   static async previewFile(filePath: string, fileType: string): Promise<ImportPreview> {
@@ -85,7 +99,7 @@ export class ImportService {
         data: { totalRows: rows.length }
       });
 
-      const validator = ValidationEngine.createEntityValidator(job.entityType);
+      const validator = ValidationEngine.createEntityValidator(job.targetEntity);
       const batchSize = 100;
       const totalBatches = Math.ceil(rows.length / batchSize);
       let successRows = 0;
@@ -141,7 +155,7 @@ export class ImportService {
           processedRows: rows.length,
           successRows,
           failedRows,
-          validationErrors,
+          validationReport: { errors: validationErrors },
           completedAt: new Date()
         }
       });

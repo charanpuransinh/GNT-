@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser'; // npm package
 import xlsx from 'xlsx'; // npm package
+import { ImportRow } from '../types/import.types';
 
 // ── Parse CSV ──
 export const parseCSV = (filePath: string, limit?: number): Promise<Record<string, any>[]> => {
@@ -117,3 +118,18 @@ export const getFileInfo = (filePath: string) => {
     modifiedAt: stat.mtime,
   };
 };
+
+// ── CSVParser class (टास्क #025 B2) — ExcelParser/JSONParser जैसा static API ──
+export class CSVParser {
+  static async parse(filePath: string): Promise<{ headers: string[]; rows: ImportRow[] }> {
+    const rows = await parseCSV(filePath);
+    const headers = rows.length ? Object.keys(rows[0]) : [];
+    const normalized: ImportRow[] = rows.map((row, index) => ({ ...row, _rowNumber: index + 1 }));
+    return { headers, rows: normalized };
+  }
+
+  static async preview(filePath: string, limit = 10): Promise<{ headers: string[]; rows: ImportRow[]; totalRows: number }> {
+    const { headers, rows } = await this.parse(filePath);
+    return { headers, rows: rows.slice(0, limit), totalRows: rows.length };
+  }
+}
