@@ -861,6 +861,7 @@ model bank_reconciliation_item {
 model company_master {
   id String @id @default(uuid()) @db.Uuid
   name String @db.VarChar(200)
+  code String @unique @db.VarChar(20) // login की चाबी (CERT-003 शर्त 1) — GSTIN कभी login की चाबी नहीं
   gstin String? @unique @db.VarChar(15)
   address String? @db.Text
   phone String? @db.VarChar(20)

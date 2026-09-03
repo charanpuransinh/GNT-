@@ -20,7 +20,8 @@ export const userRepository = {
       where: {
         username,
         company_master: {
-          gstin: companyCode,
+          // CERT-003 शर्त 1 (टास्क #024 — C2): login की चाबी अब company_master.code है, GSTIN नहीं
+          code: companyCode,
         },
       },
     });
