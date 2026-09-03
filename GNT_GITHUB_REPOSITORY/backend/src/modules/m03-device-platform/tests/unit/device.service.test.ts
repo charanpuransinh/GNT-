@@ -94,7 +94,7 @@ describe('M03 - deviceService', () => {
       } as any);
 
       const result = await deviceService.registerDevice('user-123', {
-        device_name: 'iPhone 15',
+        deviceName: 'iPhone 15',
         platform: 'ios',
       });
 
@@ -113,7 +113,7 @@ describe('M03 - deviceService', () => {
       } as any);
 
       const result = await deviceService.registerDevice('user-123', {
-        device_name: 'iPhone 15',
+        deviceName: 'iPhone 15',
       });
 
       expect(deviceRepository.updateDevice).toHaveBeenCalled();
