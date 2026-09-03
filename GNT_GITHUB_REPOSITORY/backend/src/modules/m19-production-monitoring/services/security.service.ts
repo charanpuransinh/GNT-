@@ -32,7 +32,7 @@ export class SecurityService {
   /**
    * PUBLIC API: Mark a security event as resolved.
    */
-  async resolveSecurityEvent(eventId: string): Promise<void> {
-    return this.internal.resolveSecurityEvent(eventId);
+  async resolveSecurityEvent(eventId: string, companyId: string): Promise<boolean> {
+    return this.internal.resolveSecurityEvent(eventId, companyId);
   }
 }

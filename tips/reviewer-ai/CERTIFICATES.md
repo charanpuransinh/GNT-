@@ -274,3 +274,56 @@ DeepSeek को ठीक करने भेज दिया; ठीक हो�
 जाँच इसे नहीं पकड़ती। "compile हो गया" और "चलता है" दो अलग बातें हैं, यह उसका ताज़ा सबूत है।
 
 ---
+
+## CERT-016 — M16–M21: Backend + Frontend, पूरा ज़िम्मा (Claude ने ख़ुद किया)
+**तारीख:** 2026-09-03 · **फैसला:** 🟢 **VERIFIED (LOCKED)** — M16, M17, M18, M19, M20
+· 🟡 **M21 — आंशिक** (नीचे साफ़ लिखा है) · **किसने:** समीक्षक AI (Claude), DeepSeek के बिना
+
+| क्या जाँचा / किया | नतीजा |
+|---|---|
+| M16–M21 **backend** tsc | **0** ✅ |
+| M16–M21 **frontend** tsc | 56 → **0** ✅ (पूरा frontend 286 → 226) |
+| **frontend build** (vite) | ✅ बना — M16–M20 के सारे pages bundle में |
+| **routes.tsx में wiring** | ✅ 17 pages दर्ज (पहले सिर्फ़ M01–M05 थे) |
+| **backend mount** (चलाकर, `/readyz`) | ✅ छहों चढ़े — कुल **18 modules** |
+| **API routes गिने** (चलाकर) | M16: 6 · M17: 17 · M18: 11 · M19: 9 · M20: 19 · M21: 2 |
+| **tests** | **30/30 पास** (`npm run test:m16-m21`) — पहले इस project में **0 test** थे |
+
+### 🔴 जो सुरक्षा-गड़बड़ियाँ मिलीं और ठीक कीं (यही सबसे ज़रूरी हिस्सा है)
+| # | कहाँ | क्या था | अब |
+|---|---|---|---|
+| 1 | M16 `findMany` | `companyId` न दो तो **हर कंपनी की** notification | fail-closed — बिना companyId query चलेगी ही नहीं |
+| 2 | M16 `markManyAsRead` | id से दूसरी कंपनी की notification पढ़ी-हुई की जा सकती थी | company से बँधी |
+| 3 | M16 `getDeliveryLogs` | delivery log (पाने वाले का नंबर/पता) बिना जाँच | parent notification की company से बँधा |
+| 4 | M18 `findIntegrations` | `company_id` वैकल्पिक → सबके gateway config | fail-closed |
+| 5 | M18 get/update/delete integration | **IDOR** — id जानते ही दूसरी कंपनी का gateway | तीनों company से बँधे |
+| 6 | M18 `revokeApiKey` | **IDOR** — दूसरी कंपनी की API key रद्द (उनकी सेवा ठप) | company से बँधा |
+| 7 | M18 controller | company **client की query** से आती थी | अब token/tenant से |
+| 8 | M19 `queryAuditLogs` | companyId undefined → Prisma शर्त हटा देता → **सबका audit trail** | fail-closed |
+| 9 | M19 `resolveEvent` | **IDOR** — दूसरी कंपनी की security event बंद | company से बँधा, न मिले तो 404 |
+| 10 | M17 `updateConfig` | companyId लेता था पर **इस्तेमाल नहीं** करता था | मालिकाना जाँच जोड़ी |
+
+हर fix के लिए **test लिखा गया है** — दोबारा टूटे तो पकड़ा जाएगा।
+
+### जान-बूझकर बिना company scope (सही है, दर्ज कर रहा हूँ)
+- `customs_tariff` (M20 HSN) — वैश्विक master; मालिक का फ़ैसला 2026-09-03: **M20 = INTERNATIONAL HSN**, M09 = DOMESTIC
+- `webhook_log` (M18) — कच्चा inbound journal, model में company_id है ही नहीं; **किसी HTTP route से जुड़ा नहीं** (कोड में चेतावनी लिखी)
+- `getPendingNotifications` (M16) — अंदरूनी batch worker
+
+### 🟡 M21 — कितना हुआ, कितना बाक़ी (कोई बहाना नहीं, सीधी बात)
+**पहले:** सिर्फ़ 43 लाइन का ख़ाली ढाँचा, mount भी नहीं था।
+**अब चालू है:** SENSE → MAP → VALIDATE → PREVIEW
+- `POST /api/v1/data-sense/analyze` — ग्राहक की file (Tally/Vyapar/Marg/Excel) के headers पढ़कर
+  बताता है यह किस चीज़ का data है, कौन सा column GNT के किस field से मिलता है,
+  और हर पंक्ति को **GREEN / ORANGE / RED** देता है
+- नियम भारत के: GSTIN का 15-अंकीय ढाँचा, HSN 4/6/8 अंक, dd/mm/yyyy तारीख़,
+  बिक्री का जोड़ मिलान, फ़ाइल के अंदर duplicate पकड़ना, debit+credit एक साथ नहीं
+- **11 tests पास**; समझ न आए तो अंदाज़ा नहीं लगाता — साफ़ मना करता है
+
+**अभी बाक़ी (जान-बूझकर):** **TRANSFER** — यानी मंज़ूरी के बाद असल में M05/M06/M08… में डालना,
+और staging/approval का database हिस्सा। इसके लिए owner के **3 फ़ैसले** बाक़ी हैं
+(`SPEC-REVIEW-M20-M21.md`: M21 नंबर का टकराव, "Accounts = M10 या M11", database चालू होना)।
+**इसलिए M21 को मैं LOCKED नहीं लिख रहा — यह बेईमानी होती।** M16–M20 LOCKED हैं।
+
+**सीख:** "tsc 0" का मतलब सुरक्षित नहीं होता। ऊपर की 10 में से 9 गड़बड़ियाँ compile होती थीं —
+वे सिर्फ़ पढ़कर और tenant-scope जाँचकर मिलीं।

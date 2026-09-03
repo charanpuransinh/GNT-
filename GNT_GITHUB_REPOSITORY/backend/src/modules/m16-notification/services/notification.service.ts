@@ -97,7 +97,7 @@ class NotificationService {
     if (payload.markAll) {
       markedCount = await notificationRepository.markAllAsRead(userId, companyId);
     } else if (payload.notificationIds && payload.notificationIds.length > 0) {
-      markedCount = await notificationRepository.markManyAsRead(payload.notificationIds);
+      markedCount = await notificationRepository.markManyAsRead(payload.notificationIds, companyId);
     }
 
     return { markedCount };
@@ -107,13 +107,13 @@ class NotificationService {
    * PUBLIC API: Track delivery status
    * Consumed by: M19 (Audit)
    */
-  async trackDelivery(notificationId: string): Promise<DeliveryTrackingResponse> {
-    const notification = await notificationRepository.findById(notificationId);
+  async trackDelivery(notificationId: string, companyId: string): Promise<DeliveryTrackingResponse> {
+    const notification = await notificationRepository.findById(notificationId, companyId);
     if (!notification) {
       throw new Error(`Notification ${notificationId} not found`);
     }
 
-    const logs = await notificationRepository.getDeliveryLogs(notificationId);
+    const logs = await notificationRepository.getDeliveryLogs(notificationId, companyId);
 
     return {
       notificationId,

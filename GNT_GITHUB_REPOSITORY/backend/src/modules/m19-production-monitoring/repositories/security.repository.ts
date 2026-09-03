@@ -39,11 +39,13 @@ export class SecurityRepository {
     return events as SecurityEventEntry[];
   }
 
-  async resolveEvent(eventId: string): Promise<void> {
-    await this.prisma.securityEvent.update({
-      where: { id: eventId },
+  /** company से बँधा — दूसरी कंपनी की security event बंद नहीं की जा सकती। */
+  async resolveEvent(eventId: string, companyId: string): Promise<boolean> {
+    const result = await this.prisma.securityEvent.updateMany({
+      where: { id: eventId, companyId },
       data: { resolvedAt: new Date() },
     });
+    return result.count > 0;
   }
 
   async getRecentFailedAttempts(companyId: string, userId: string, minutes: number = 30): Promise<number> {

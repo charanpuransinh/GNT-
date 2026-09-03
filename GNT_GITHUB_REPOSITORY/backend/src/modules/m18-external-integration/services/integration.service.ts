@@ -41,8 +41,8 @@ export class IntegrationService {
     });
   }
 
-  async getIntegrationById(id: string): Promise<IntegrationConfig | null> {
-    return this.repository.findIntegrationById(id);
+  async getIntegrationById(id: string, companyId: string): Promise<IntegrationConfig | null> {
+    return this.repository.findIntegrationById(id, companyId);
   }
 
   async listIntegrations(filters: {
@@ -71,11 +71,11 @@ export class IntegrationService {
     return items.find(i => i.provider.toLowerCase() === provider.toLowerCase()) ?? null;
   }
 
-  async updateIntegration(id: string, dto: UpdateIntegrationConfigDto): Promise<IntegrationConfig> {
-    const existing = await this.repository.findIntegrationById(id);
+  async updateIntegration(id: string, companyId: string, dto: UpdateIntegrationConfigDto): Promise<IntegrationConfig> {
+    const existing = await this.repository.findIntegrationById(id, companyId);
     if (!existing) throw new Error('Integration not found');
 
-    const updated = await this.repository.updateIntegration(id, dto);
+    const updated = await this.repository.updateIntegration(id, companyId, dto);
 
     // Emit status change event if status changed
     if (dto.status && dto.status !== existing.status) {
@@ -91,8 +91,8 @@ export class IntegrationService {
     return updated;
   }
 
-  async deleteIntegration(id: string): Promise<IntegrationConfig> {
-    return this.repository.deleteIntegration(id);
+  async deleteIntegration(id: string, companyId: string): Promise<IntegrationConfig> {
+    return this.repository.deleteIntegration(id, companyId);
   }
 
   // ─── Gateway Status ───
@@ -119,8 +119,8 @@ export class IntegrationService {
     );
   }
 
-  async testIntegrationConnection(integrationId: string): Promise<GatewayTestResult> {
-    const integration = await this.repository.findIntegrationById(integrationId);
+  async testIntegrationConnection(integrationId: string, companyId: string): Promise<GatewayTestResult> {
+    const integration = await this.repository.findIntegrationById(integrationId, companyId);
     if (!integration) throw new Error('Integration not found');
     return this.gatewayService.testConnection(integration);
   }
@@ -157,8 +157,8 @@ export class IntegrationService {
     }));
   }
 
-  async revokeApiKey(id: string): Promise<void> {
-    await this.repository.deleteApiKey(id);
+  async revokeApiKey(id: string, companyId: string): Promise<void> {
+    await this.repository.deleteApiKey(id, companyId);
   }
 
   async validateApiKey(plainKey: string): Promise<{ valid: boolean; permissions?: string[] }> {

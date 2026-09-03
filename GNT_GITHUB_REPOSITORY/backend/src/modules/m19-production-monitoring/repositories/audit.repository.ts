@@ -23,6 +23,12 @@ export class AuditRepository {
   }
 
   async queryAuditLogs(filters: AuditQueryFilters): Promise<{ data: AuditLogEntry[]; total: number }> {
+    // सुरक्षा (P0): companyId undefined हो तो Prisma उस शर्त को छोड़ देता है और
+    // हर कंपनी का audit trail लौट आता है। इसलिए यहीं रोक दो।
+    if (!filters.companyId) {
+      throw new Error('companyId ज़रूरी है — tenant scope के बिना audit log नहीं मिलेगा');
+    }
+
     const where: Prisma.AuditLogWhereInput = {
       companyId: filters.companyId,
       ...(filters.module && { module: filters.module }),

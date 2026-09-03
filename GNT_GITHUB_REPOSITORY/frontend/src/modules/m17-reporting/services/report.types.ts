@@ -59,6 +59,19 @@ export type ReportFilters =
   | AccountingReportFilters
   | HRReportFilters;
 
+
+/**
+ * Filter panel ek hi form dikhata hai jisme har report ke field ho sakte hain,
+ * isliye sab ka joda hua (intersection) roop. Har field optional hai, to koi takraav nahi.
+ * Yeh ReportFilters ke har member ka subtype hai — isliye har page ka handler ise le sakta hai.
+ */
+export type AnyReportFilters = SalesReportFilters &
+  PurchaseReportFilters &
+  InventoryReportFilters &
+  GSTReportFilters &
+  AccountingReportFilters &
+  HRReportFilters;
+
 export interface ReportMeta {
   generatedAt: string;
   rowCount: number;

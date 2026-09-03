@@ -41,7 +41,17 @@ export class SecurityController {
   async resolveEvent(req: Request, res: Response): Promise<void> {
     try {
       const eventId = String(req.params.eventId);
-      await this.securityService.resolveSecurityEvent(eventId);
+      const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
+      if (!companyId) {
+        res.status(400).json({ error: 'company_id required' });
+        return;
+      }
+      const done = await this.securityService.resolveSecurityEvent(eventId, companyId);
+      if (!done) {
+        // दूसरी कंपनी की event या है ही नहीं — दोनों हाल में 404 (जानकारी लीक न हो)
+        res.status(404).json({ error: 'Security event not found' });
+        return;
+      }
       res.json({ success: true });
     } catch {
       res.status(500).json({ error: 'Failed to resolve event' });

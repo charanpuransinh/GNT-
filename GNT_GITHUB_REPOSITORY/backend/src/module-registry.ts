@@ -135,7 +135,10 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     } },
   { code: 'M19', path: '/api/v1/monitoring', mounted: true,
     load: async () => (await import('./modules/m19-production-monitoring')).securityRoutes },
-  { code: 'M21', path: '/api/v1/data-sense', mounted: false, blockedBy: 'सिर्फ़ ढाँचा बना है — owner spec के 4 फ़ैसले बाक़ी (tips/reviewer-ai/SPEC-REVIEW-M20-M21.md)' },
+  // M21 — SENSE/MAP/VALIDATE/PREVIEW चालू (Claude, 2026-09-03)। TRANSFER अभी बाक़ी:
+  // owner के 3 फ़ैसले चाहिए (tips/reviewer-ai/SPEC-REVIEW-M20-M21.md)।
+  { code: 'M21', path: '/api/v1/data-sense', mounted: true,
+    load: async () => (await import('./modules/m21-data-sense')).dataSenseRoutes },
   { code: 'M20', path: '/api/v1/trade',         mounted: true,
     load: async () => (await import('./modules/m20-international-trade')).tradeRoutes },
 ];

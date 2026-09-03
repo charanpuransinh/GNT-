@@ -5,9 +5,10 @@
   "scripts": {
     "build": "tsc -p ../tsconfig.backend.json --noEmit",
     "start": "tsx --tsconfig ../tsconfig.backend.json src/server.ts",
-    "test": "node --test",
+    "test": "node --import tsx --test src/modules/*/tests/unit/*.test.ts",
     "dev": "tsx watch --tsconfig ../tsconfig.backend.json src/server.ts",
-    "typecheck": "tsc -p ../tsconfig.backend.json --noEmit"
+    "typecheck": "tsc -p ../tsconfig.backend.json --noEmit",
+    "test:m16-m21": "node --import tsx --test src/modules/m1[6-9]*/tests/unit/*.test.ts src/modules/m2[01]*/tests/unit/*.test.ts"
   },
   "dependencies": {
     "express": "^5.1.0",

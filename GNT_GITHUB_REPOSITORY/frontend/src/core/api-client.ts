@@ -26,6 +26,21 @@ export class ApiError extends Error {
 
 const BASE_URL = '/api/v1';
 
+/** RequestInit + query params — services `{ params }` bhejti hain (axios wali aadat). */
+export type RequestOptions = RequestInit & { params?: object };
+
+function withQuery(url: string, params?: object): string {
+  if (!params) return url;
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+    if (value === undefined || value === null || value === '') continue;
+    qs.append(key, String(value));
+  }
+  const query = qs.toString();
+  if (!query) return url;
+  return url + (url.includes('?') ? '&' : '?') + query;
+}
+
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
   try {
@@ -44,14 +59,15 @@ function joinUrl(path: string): string {
   return path.startsWith('/api/') ? path : `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, init: RequestInit = {}): Promise<ApiResponse<T>> {
-  const res = await fetch(joinUrl(path), {
-    ...init,
+async function request<T>(method: string, path: string, body?: unknown, init: RequestOptions = {}): Promise<ApiResponse<T>> {
+  const { params, ...rest } = init;
+  const res = await fetch(withQuery(joinUrl(path), params), {
+    ...rest,
     method,
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(),
-      ...((init.headers as Record<string, string>) ?? {}),
+      ...((rest.headers as Record<string, string>) ?? {}),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -73,11 +89,11 @@ async function request<T>(method: string, path: string, body?: unknown, init: Re
 }
 
 export const apiClient = {
-  get: <T = unknown>(path: string, init?: RequestInit) => request<T>('GET', path, undefined, init),
-  post: <T = unknown>(path: string, body?: unknown, init?: RequestInit) => request<T>('POST', path, body, init),
-  put: <T = unknown>(path: string, body?: unknown, init?: RequestInit) => request<T>('PUT', path, body, init),
-  patch: <T = unknown>(path: string, body?: unknown, init?: RequestInit) => request<T>('PATCH', path, body, init),
-  delete: <T = unknown>(path: string, init?: RequestInit) => request<T>('DELETE', path, undefined, init),
+  get: <T = unknown>(path: string, init?: RequestOptions) => request<T>('GET', path, undefined, init),
+  post: <T = unknown>(path: string, body?: unknown, init?: RequestOptions) => request<T>('POST', path, body, init),
+  put: <T = unknown>(path: string, body?: unknown, init?: RequestOptions) => request<T>('PUT', path, body, init),
+  patch: <T = unknown>(path: string, body?: unknown, init?: RequestOptions) => request<T>('PATCH', path, body, init),
+  delete: <T = unknown>(path: string, init?: RequestOptions) => request<T>('DELETE', path, undefined, init),
 };
 
 export default apiClient;

@@ -5,11 +5,11 @@
  */
 import React, { useState } from 'react';
 import { useReportStore } from '../state/report.store';
-import { ReportType, ReportFilters } from '../services/report.types';
+import { ReportType, AnyReportFilters } from '../services/report.types';
 
 interface ReportFilterPanelProps {
   reportType: ReportType;
-  onGenerate: (filters: ReportFilters) => void;
+  onGenerate: (filters: AnyReportFilters) => void;
 }
 
 // Design Tokens
@@ -29,7 +29,7 @@ export const ReportFilterPanel: React.FC<ReportFilterPanelProps> = ({
   onGenerate,
 }) => {
   const { dateRange, setDateRange } = useReportStore();
-  const [localFilters, setLocalFilters] = useState<ReportFilters>({
+  const [localFilters, setLocalFilters] = useState<AnyReportFilters>({
     dateFrom: dateRange.from,
     dateTo: dateRange.to,
   });

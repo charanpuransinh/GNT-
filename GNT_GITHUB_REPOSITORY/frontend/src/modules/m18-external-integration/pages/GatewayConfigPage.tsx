@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useIntegrationStore } from '../state/integration.store';
 import { IntegrationApi } from '../services/integration.service';
 import { GatewayType, IntegrationConfig } from '../services/integration.types';
-import { integrationFormSchema, IntegrationFormValues } from '../validators/integration.schema';
+import { integrationFormSchema, IntegrationFormInput, IntegrationFormValues } from '../validators/integration.schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
@@ -41,7 +41,7 @@ export const GatewayConfigPage: React.FC = () => {
     setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<IntegrationFormValues>({
+  } = useForm<IntegrationFormInput, unknown, IntegrationFormValues>({
     resolver: zodResolver(integrationFormSchema),
     defaultValues: {
       type: GatewayType.SMS,
@@ -182,7 +182,7 @@ export const GatewayConfigPage: React.FC = () => {
                   }
                 }}
               />
-              {errors.config_json && <p className="mt-1 text-xs text-red-600">{errors.config_json.message}</p>}
+              {errors.config_json && <p className="mt-1 text-xs text-red-600">{String(errors.config_json.message ?? '')}</p>}
             </div>
 
             <div className="flex items-center gap-2">

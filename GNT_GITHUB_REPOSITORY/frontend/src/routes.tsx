@@ -20,6 +20,10 @@ export interface AppRoute {
 const page = <T extends Record<string, unknown>>(loader: () => Promise<T>, name: keyof T) =>
   lazy(() => loader().then((m) => ({ default: m[name] as ComponentType<Record<string, never>> })));
 
+/** जिन pages में `export default` है (M16/M17/M19/M20) — उनके लिए। */
+const pageDefault = <T extends { default: unknown }>(loader: () => Promise<T>) =>
+  lazy(() => loader().then((m) => ({ default: m.default as ComponentType<Record<string, never>> })));
+
 export const routes: ReadonlyArray<AppRoute> = [
   // M02 — Core (सार्वजनिक)
   { path: '/login',       public: true, label: 'लॉगिन',        element: page(() => import('./modules/m02-core-architecture/pages/LoginPage'), 'LoginPage') },
@@ -43,6 +47,33 @@ export const routes: ReadonlyArray<AppRoute> = [
   // M05 — Party Management
   { path: '/parties',      label: 'पार्टी (ग्राहक/सप्लायर)', element: page(() => import('./modules/m05-party-management/pages/PartyListPage'), 'PartyListPage') },
   { path: '/parties/:id',                                element: page(() => import('./modules/m05-party-management/pages/PartyDetailHubPage'), 'PartyDetailHubPage') },
+
+  // M16 — Notification (टास्क: M16–M21 पूरा — Claude, 2026-09-03)
+  { path: '/notifications',          label: 'सूचनाएँ',        element: pageDefault(() => import('./modules/m16-notification/pages/NotificationCenterPage')) },
+  { path: '/notifications/settings', label: 'सूचना सेटिंग',   element: pageDefault(() => import('./modules/m16-notification/pages/NotificationSettingsPage')) },
+
+  // M17 — Reporting
+  { path: '/reports/sales',      label: 'बिक्री रिपोर्ट',   element: pageDefault(() => import('./modules/m17-reporting/pages/SalesReportsPage')) },
+  { path: '/reports/purchase',   label: 'ख़रीद रिपोर्ट',    element: pageDefault(() => import('./modules/m17-reporting/pages/PurchaseReportsPage')) },
+  { path: '/reports/inventory',  label: 'स्टॉक रिपोर्ट',    element: pageDefault(() => import('./modules/m17-reporting/pages/InventoryReportsPage')) },
+  { path: '/reports/gst',        label: 'GST रिपोर्ट',      element: pageDefault(() => import('./modules/m17-reporting/pages/GSTReportsPage')) },
+  { path: '/reports/accounting', label: 'लेखा रिपोर्ट',     element: pageDefault(() => import('./modules/m17-reporting/pages/AccountingReportsPage')) },
+  { path: '/reports/hr',         label: 'HR रिपोर्ट',       element: pageDefault(() => import('./modules/m17-reporting/pages/HRReportsPage')) },
+
+  // M18 — External Integration
+  { path: '/integrations',          label: 'गेटवे सेटिंग',   element: page(() => import('./modules/m18-external-integration/pages/GatewayConfigPage'), 'GatewayConfigPage') },
+  { path: '/integrations/status',   label: 'गेटवे स्थिति',   element: page(() => import('./modules/m18-external-integration/pages/IntegrationStatusPage'), 'IntegrationStatusPage') },
+  { path: '/integrations/api-keys', label: 'API कुंजियाँ',   element: page(() => import('./modules/m18-external-integration/pages/APIKeyManagerPage'), 'APIKeyManagerPage') },
+
+  // M19 — Production Monitoring
+  { path: '/monitoring/health',      label: 'सिस्टम स्वास्थ्य', element: pageDefault(() => import('./modules/m19-production-monitoring/pages/SystemHealthPage')) },
+  { path: '/monitoring/activity',    label: 'गतिविधि लॉग',     element: pageDefault(() => import('./modules/m19-production-monitoring/pages/ActivityLogPage')) },
+  { path: '/monitoring/logins',      label: 'लॉगिन इतिहास',    element: pageDefault(() => import('./modules/m19-production-monitoring/pages/LoginHistoryPage')) },
+  { path: '/monitoring/permissions', label: 'अनुमति बदलाव',    element: pageDefault(() => import('./modules/m19-production-monitoring/pages/PermissionTrackerPage')) },
+
+  // M20 — International Trade
+  { path: '/trade',                label: 'निर्यात/आयात',   element: pageDefault(() => import('./modules/m20-international-trade/pages/TradeDashboardPage')) },
+  { path: '/trade/bill-of-entry',  label: 'बिल ऑफ़ एंट्री',  element: pageDefault(() => import('./modules/m20-international-trade/pages/BillOfEntryPage')) },
 
   // M01 — Foundation
   { path: '/maintenance', public: true, element: page(() => import('./modules/m01-foundation/pages/MaintenancePage'), 'MaintenancePage') },

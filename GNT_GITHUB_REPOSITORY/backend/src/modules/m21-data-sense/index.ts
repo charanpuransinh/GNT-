@@ -17,8 +17,10 @@
  *   Party→M05 · Item/Stock→M06 · Purchase→M07 · Sales→M08 · GST→M09 ·
  *   Accounting→M10 · Payment/Bank→M11 · Export→M20 · Scheme/Rate→M08
  *
- * ⚠️ अभी सिर्फ़ ढाँचा है — कोई logic नहीं। implementation से पहले owner के 4 फ़ैसले
- *    चाहिए, जो `tips/reviewer-ai/SPEC-REVIEW-M20-M21.md` में लिखे हैं।
+ * स्थिति (2026-09-03, Claude): SENSE → MAP → VALIDATE → PREVIEW **चालू है**
+ *   (`POST /api/v1/data-sense/analyze`) — बिना database के, शुद्ध logic।
+ *   ⏳ TRANSFER (असल में M05/M06/M08… में डालना) अभी नहीं — उसके लिए owner के
+ *      बाक़ी 3 फ़ैसले चाहिए (`tips/reviewer-ai/SPEC-REVIEW-M20-M21.md`)।
  */
 
 /** इस module का API namespace (spec §32) */
@@ -41,3 +43,12 @@ export const DATA_GROUP_OWNER: Readonly<Record<DataGroup, string>> = {
   export: 'm20-international-trade',
   scheme: 'm08-sales',
 } as const;
+
+// ── PUBLIC सतह (दूसरे module सिर्फ़ यही इस्तेमाल करें) ──
+export { dataSenseRoutes, default as router } from './routes/dataSense.routes';
+export { dataSenseService, DataSenseService } from './services/dataSense.service';
+export { senseSheet, mapRow, GROUP_SPECS } from './services/sense.engine';
+export { validateRow, findDuplicates } from './services/validate.engine';
+export type {
+  AnalyzeResult, ColumnMapping, IntakeSheet, RowVerdict, SenseResult,
+} from './types/dataSense.types';

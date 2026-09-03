@@ -59,9 +59,14 @@ export class NotificationRepository {
     const limit = filter.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    // सुरक्षा (P0): companyId के बिना query = दूसरी कंपनी का डेटा दिख सकता है।
+    // इसलिए यहाँ fail-closed — बुलाने वाला भूल जाए तो query चलेगी ही नहीं।
+    if (!filter.companyId) {
+      throw new Error('companyId ज़रूरी है — tenant scope के बिना notification query नहीं चलेगी');
+    }
+
+    const where: any = { companyId: filter.companyId };
     if (filter.userId) where.userId = filter.userId;
-    if (filter.companyId) where.companyId = filter.companyId;
     if (filter.type) where.type = filter.type;
     if (filter.status) where.status = filter.status;
     if (filter.entityType) where.entityType = filter.entityType;
@@ -104,9 +109,9 @@ export class NotificationRepository {
   /**
    * Find single notification by ID
    */
-  async findById(id: string): Promise<NotificationMaster | null> {
-    const notification = await prisma.notificationMaster.findUnique({
-      where: { id },
+  async findById(id: string, companyId: string): Promise<NotificationMaster | null> {
+    const notification = await prisma.notificationMaster.findFirst({
+      where: { id, companyId },
       include: { deliveryLogs: true },
     });
 
@@ -116,21 +121,23 @@ export class NotificationRepository {
   /**
    * Mark notification as read
    */
-  async markAsRead(id: string): Promise<NotificationMaster> {
-    const notification = await prisma.notificationMaster.update({
-      where: { id },
+  async markAsRead(id: string, companyId: string): Promise<NotificationMaster | null> {
+    // update({ where: { id } }) दूसरी कंपनी की row भी बदल देता — इसलिए updateMany + scope
+    const result = await prisma.notificationMaster.updateMany({
+      where: { id, companyId },
       data: { status: 'read', readAt: new Date() },
     });
+    if (result.count === 0) return null;
 
-    return notification as NotificationMaster;
+    return prisma.notificationMaster.findFirst({ where: { id, companyId } }) as Promise<NotificationMaster | null>;
   }
 
   /**
    * Mark multiple notifications as read
    */
-  async markManyAsRead(ids: string[]): Promise<number> {
+  async markManyAsRead(ids: string[], companyId: string): Promise<number> {
     const result = await prisma.notificationMaster.updateMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, companyId },
       data: { status: 'read', readAt: new Date() },
     });
 
@@ -208,9 +215,10 @@ export class NotificationRepository {
   /**
    * Get delivery logs for a notification
    */
-  async getDeliveryLogs(notificationId: string): Promise<NotificationDeliveryLog[]> {
+  async getDeliveryLogs(notificationId: string, companyId: string): Promise<NotificationDeliveryLog[]> {
+    // delivery log में पाने वाले का पता/नंबर होता है — इसलिए parent notification की कंपनी से बाँधना ज़रूरी
     const logs = await prisma.notificationDeliveryLog.findMany({
-      where: { notificationId },
+      where: { notificationId, notification: { companyId } },
       orderBy: { attemptedAt: 'desc' },
     });
 
@@ -220,15 +228,18 @@ export class NotificationRepository {
   /**
    * Delete notification (soft delete pattern)
    */
-  async delete(id: string): Promise<void> {
-    await prisma.notificationMaster.update({
-      where: { id },
+  async delete(id: string, companyId: string): Promise<void> {
+    await prisma.notificationMaster.updateMany({
+      where: { id, companyId },
       data: { status: 'read', readAt: new Date() }, // Soft delete by marking read
     });
   }
 
   /**
    * Get pending notifications for batch processing
+   *
+   * ⚠️ जान-बूझकर बिना company scope के — यह अंदरूनी batch worker है जो हर कंपनी की
+   * pending notification भेजता है। इसे कभी किसी HTTP route से मत बुलाना।
    */
   async getPendingNotifications(limit: number = 100): Promise<NotificationMaster[]> {
     const notifications = await prisma.notificationMaster.findMany({

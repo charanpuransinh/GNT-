@@ -3,7 +3,7 @@
  * Owner: D4-DELTA
  */
 import { create } from 'zustand';
-import { IntegrationConfig, GatewayStatusDto, ApiKeyResponse } from './integration.types';
+import { IntegrationConfig, GatewayStatusDto, ApiKeyResponse } from '../services/integration.types';
 
 interface IntegrationState {
   integrations: IntegrationConfig[];

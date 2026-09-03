@@ -1,4 +1,9 @@
 // GNT M20 — HSN Repository (OWNER ONLY for customs_tariff)
+//
+// ℹ️ यहाँ जान-बूझकर company scope नहीं है: `customs_tariff` एक वैश्विक master है
+//    (8-अंकीय INTERNATIONAL HSN), हर कंपनी के लिए एक ही। मालिक का फ़ैसला 2026-09-03:
+//    M20 = INTERNATIONAL HSN का मालिक, M09 (`hsn_master`) = INDIAN/DOMESTIC HSN का।
+//    दोनों अलग tables हैं, कोई overwrite नहीं।
 // Owner: D4-DELTA
 
 import { PrismaClient, customs_tariff } from '@prisma/client';

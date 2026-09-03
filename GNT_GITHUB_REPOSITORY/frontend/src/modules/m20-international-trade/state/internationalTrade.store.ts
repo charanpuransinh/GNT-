@@ -36,7 +36,10 @@ interface TradeState {
   error: string | null;
   activeTab: 'exports' | 'imports' | 'hsn' | 'fx' | 'customs' | 'documents';
 
-  // Actions
+  // (actions TradeActions mein hain)
+}
+
+interface TradeActions {
   setTradeJobs: (jobs: TradeJob[], meta?: PaginatedTradeJobs['meta']) => void;
   setSelectedTradeJob: (job: TradeJob | null) => void;
   addTradeJob: (job: TradeJob) => void;
@@ -61,7 +64,11 @@ interface TradeState {
   reset: () => void;
 }
 
-const initialState = {
+/** Poora store = data + actions. */
+export type TradeStore = TradeState & TradeActions;
+
+/** Sirf data wala hissa — bina type diye TS ise never[]/string maan leta tha. */
+const initialState: TradeState = {
   tradeJobs: [],
   selectedTradeJob: null,
   hsnResults: [],
@@ -76,7 +83,7 @@ const initialState = {
   activeTab: 'exports',
 };
 
-export const useTradeStore = create<TradeState>()(
+export const useTradeStore = create<TradeStore>()(
   devtools(
     persist(
       (set) => ({

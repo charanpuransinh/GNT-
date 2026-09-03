@@ -19,7 +19,8 @@ export class IntegrationController {
   async listIntegrations(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const query = listIntegrationsQuerySchema.parse(req.query);
-      const result = await this.service.listIntegrations(query);
+      // company client की query से नहीं, token/tenant से आती है (वरना दूसरी कंपनी माँगी जा सकती है)
+      const result = await this.service.listIntegrations({ ...query, company_id: req.tenant.companyId });
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);
@@ -29,7 +30,7 @@ export class IntegrationController {
   async getIntegration(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
-      const data = await this.service.getIntegrationById(id);
+      const data = await this.service.getIntegrationById(id, req.tenant.companyId);
       if (!data) {
         res.status(404).json({ success: false, message: 'Integration not found' });
         return;
@@ -54,7 +55,7 @@ export class IntegrationController {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
       const dto = updateIntegrationSchema.parse(req.body);
-      const data = await this.service.updateIntegration(id, dto);
+      const data = await this.service.updateIntegration(id, req.tenant.companyId, dto);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -64,7 +65,7 @@ export class IntegrationController {
   async deleteIntegration(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
-      const data = await this.service.deleteIntegration(id);
+      const data = await this.service.deleteIntegration(id, req.tenant.companyId);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -74,7 +75,7 @@ export class IntegrationController {
   async testConnection(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { integration_id } = testGatewaySchema.parse(req.body);
-      const data = await this.service.testIntegrationConnection(integration_id);
+      const data = await this.service.testIntegrationConnection(integration_id, req.tenant.companyId);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -123,7 +124,7 @@ export class IntegrationController {
   async revokeApiKey(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = integrationIdParamSchema.parse(req.params);
-      await this.service.revokeApiKey(id);
+      await this.service.revokeApiKey(id, req.tenant.companyId);
       res.json({ success: true, message: 'API key revoked' });
     } catch (err) {
       next(err);

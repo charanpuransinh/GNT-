@@ -2,7 +2,7 @@
  * M17 Reporting — Report API Calls
  * Owner: D4-DELTA
  */
-import apiClient from '../../../shared/api-client';
+import apiClient from '@/core/api-client';
 import {
   ReportType,
   ReportFilters,

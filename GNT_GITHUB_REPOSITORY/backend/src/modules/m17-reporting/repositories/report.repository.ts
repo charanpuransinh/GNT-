@@ -54,6 +54,11 @@ export class ReportRepository {
     companyId: string,
     data: Partial<ReportConfig>
   ): Promise<ReportConfig> {
+    // companyId पैरामीटर तो था पर इस्तेमाल नहीं हो रहा था — यानी दूसरी कंपनी का
+    // report config बदला जा सकता था। बाक़ी methods की तरह पहले मालिकाना जाँचो।
+    const existing = await this.findConfigById(id, companyId);
+    if (!existing) throw new Error('Report config not found');
+
     return this.prisma.reportConfig.update({
       where: { id },
       data: {

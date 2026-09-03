@@ -86,7 +86,7 @@ export class SecurityInternal {
     return this.securityRepo.getSecurityEvents(filters);
   }
 
-  async resolveSecurityEvent(eventId: string): Promise<void> {
-    return this.securityRepo.resolveEvent(eventId);
+  async resolveSecurityEvent(eventId: string, companyId: string): Promise<boolean> {
+    return this.securityRepo.resolveEvent(eventId, companyId);
   }
 }

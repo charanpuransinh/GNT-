@@ -35,8 +35,11 @@ export class IntegrationRepository {
     }) as Promise<IntegrationConfig>;
   }
 
-  async findIntegrationById(id: string): Promise<IntegrationConfig | null> {
-    return this.prisma.integration_config.findUnique({ where: { id } }) as Promise<IntegrationConfig | null>;
+  /** company से बँधा — दूसरी कंपनी की id डालने पर null मिलेगा (IDOR बंद)। */
+  async findIntegrationById(id: string, companyId: string): Promise<IntegrationConfig | null> {
+    return this.prisma.integration_config.findFirst({
+      where: { id, company_id: companyId },
+    }) as Promise<IntegrationConfig | null>;
   }
 
   async findIntegrations(filters: {
@@ -47,8 +50,13 @@ export class IntegrationRepository {
     skip?: number;
     take?: number;
   }): Promise<{ items: IntegrationConfig[]; total: number }> {
-    const where: any = {};
-    if (filters.company_id) where.company_id = filters.company_id;
+    // सुरक्षा (P0): company_id के बिना यह query हर कंपनी के gateway config लौटा देती
+    // (जिनमें provider credentials का संदर्भ होता है)। इसलिए fail-closed।
+    if (!filters.company_id) {
+      throw new Error('company_id ज़रूरी है — tenant scope के बिना integration सूची नहीं मिलेगी');
+    }
+
+    const where: any = { company_id: filters.company_id };
     if (filters.type) where.type = filters.type;
     if (filters.status) where.status = filters.status;
     if (filters.is_active !== undefined) where.is_active = filters.is_active;
@@ -71,7 +79,11 @@ export class IntegrationRepository {
     }) as Promise<IntegrationConfig | null>;
   }
 
-  async updateIntegration(id: string, data: UpdateIntegrationConfigDto): Promise<IntegrationConfig> {
+  async updateIntegration(id: string, companyId: string, data: UpdateIntegrationConfigDto): Promise<IntegrationConfig> {
+    // पहले company से मिलान — वरना दूसरी कंपनी का gateway बदला जा सकता था
+    const owned = await this.prisma.integration_config.findFirst({ where: { id, company_id: companyId } });
+    if (!owned) throw new Error('Integration not found');
+
     return this.prisma.integration_config.update({
       where: { id },
       data: {
@@ -83,7 +95,10 @@ export class IntegrationRepository {
     }) as Promise<IntegrationConfig>;
   }
 
-  async deleteIntegration(id: string): Promise<IntegrationConfig> {
+  async deleteIntegration(id: string, companyId: string): Promise<IntegrationConfig> {
+    const owned = await this.prisma.integration_config.findFirst({ where: { id, company_id: companyId } });
+    if (!owned) throw new Error('Integration not found');
+
     return this.prisma.integration_config.delete({ where: { id } }) as Promise<IntegrationConfig>;
   }
 
@@ -102,8 +117,11 @@ export class IntegrationRepository {
     }) as Promise<ApiKeyRegistry>;
   }
 
-  async findApiKeyById(id: string): Promise<ApiKeyRegistry | null> {
-    return this.prisma.api_key_registry.findUnique({ where: { id } }) as Promise<ApiKeyRegistry | null>;
+  /** company से बँधा — API key दूसरी कंपनी की नहीं पढ़ी जा सकती। */
+  async findApiKeyById(id: string, companyId: string): Promise<ApiKeyRegistry | null> {
+    return this.prisma.api_key_registry.findFirst({
+      where: { id, company_id: companyId },
+    }) as Promise<ApiKeyRegistry | null>;
   }
 
   /**
@@ -126,7 +144,11 @@ export class IntegrationRepository {
     }) as Promise<ApiKeyRegistry[]>;
   }
 
-  async deleteApiKey(id: string): Promise<ApiKeyRegistry> {
+  async deleteApiKey(id: string, companyId: string): Promise<ApiKeyRegistry> {
+    // बिना इस जाँच के कोई भी दूसरी कंपनी की API key रद्द कर सकता था (उनकी सेवा ठप)
+    const owned = await this.prisma.api_key_registry.findFirst({ where: { id, company_id: companyId } });
+    if (!owned) throw new Error('API key not found');
+
     return this.prisma.api_key_registry.delete({ where: { id } }) as Promise<ApiKeyRegistry>;
   }
 
@@ -151,10 +173,15 @@ export class IntegrationRepository {
     }) as Promise<WebhookLog | null>;
   }
 
+  /**
+   * ⚠️ अंदरूनी उपयोग ही — `webhook_log` में company_id है ही नहीं (यह कच्चा inbound journal है)।
+   * इसे किसी HTTP route से मत जोड़ना; जोड़ना हो तो पहले model में company_id आए।
+   */
   async findWebhookLogById(id: string): Promise<WebhookLog | null> {
     return this.prisma.webhook_log.findUnique({ where: { id } }) as Promise<WebhookLog | null>;
   }
 
+  /** ⚠️ अंदरूनी उपयोग ही — ऊपर वाला नोट पढ़ो (webhook_log में company_id नहीं है)। */
   async findWebhookLogsByProvider(provider: string, limit: number = 50): Promise<WebhookLog[]> {
     return this.prisma.webhook_log.findMany({
       where: { provider },
