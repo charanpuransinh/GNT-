@@ -27,6 +27,22 @@
 
 ---
 
+### टास्क #024-हिस्सा C — M02 Core (19:41 → 20:02)
+- **कौन सा task मिला:** CERT-003 की शर्त 1 — login की चाबी code हो, GSTIN नहीं
+- **क्या किया:** C1 `company_master.code` जोड़ा (unique, VarChar(20)) · C2 `findByUsernameAndCompany` अब `code:` से मिलाता है (gstin नहीं — #003 का अनुमान हटा); migration `008_M02_company_code_login.sql` (पुराने data का code नाम/gstin/id से भरना + NOT NULL + UNIQUE) · C3 auth/permission/session के Zod tests 11/11 (login companyCode 2..20, OTP, refresh, roles, users)
+- **कौन सी files बनाईं/बदलीं:** बदली `prisma/schema.prisma`, `m02.../repositories/user.repository.ts`; नई `database/migrations/008_...sql`, `m02.../tests/unit/auth.schema.test.ts`
+- **status:** पूरा — prisma valid, tsc 563, mount 18, commit bf70e25
+
+---
+
+### टास्क #024-हिस्सा D — M01 Foundation (20:03 → 20:15)
+- **कौन सा task मिला:** D1 audit-logger का M19 से जुड़ाव · D2 redis का सही इस्तेमाल · D3 M01 tests
+- **क्या किया:** D1 पहले से जुड़ा हुआ था (#014 का काम — verify करके दर्ज किया) · D2 `checkCacheConnection` में हर जाँच पर नया Redis client बनता था और बंद नहीं होता था — `finally { redis.disconnect() }` जोड़ा (leak ठीक) · D3 नए node:test शैली के tests: config enrichment (defaults/override/flags) + 5 schemas — 9/9 pass (TSX_TSCONFIG_PATH के साथ)
+- **कौन सी files बनाईं/बदलीं:** बदली `m01-foundation/repositories/app.repository.ts`; नई `m01-foundation/tests/unit/app.internal.test.ts`
+- **status:** पूरा — tsc 563, commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

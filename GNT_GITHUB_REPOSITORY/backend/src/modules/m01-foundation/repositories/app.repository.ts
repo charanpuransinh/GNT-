@@ -35,13 +35,16 @@ export const appRepository = {
   },
 
   async checkCacheConnection(): Promise<boolean> {
+    const redis = new Redis(cacheConfig.url || 'redis://localhost:6379', { lazyConnect: true });
     try {
-      const redis = new Redis(cacheConfig.url || 'redis://localhost:6379', { lazyConnect: true });
       await redis.ping();
       return true;
     } catch (error) {
       logger.error('Cache health check failed', { error });
       return false;
+    } finally {
+      // टास्क #024 — D2: हर जाँच का अपना client ज़रूर बंद हो (connection leak नहीं)
+      redis.disconnect();
     }
   },
 
