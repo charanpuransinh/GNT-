@@ -12,8 +12,8 @@ export const createSyncJobSchema = z.object({
   cronExpression: z.string().optional(),
   config: z.object({
     tables: z.array(z.string()),
-    filters: z.record(z.unknown()).optional(),
-    mappings: z.record(z.string()).optional(),
+    filters: z.record(z.string(), z.unknown()).optional(),
+    mappings: z.record(z.string(), z.string()).optional(),
     batchSize: z.number().min(1).max(1000).optional(),
     conflictResolution: z.enum(['local_wins', 'remote_wins', 'merge', 'manual']).optional()
   }).optional()
@@ -28,8 +28,8 @@ export const updateSyncJobSchema = z.object({
   cronExpression: z.string().optional(),
   config: z.object({
     tables: z.array(z.string()),
-    filters: z.record(z.unknown()).optional(),
-    mappings: z.record(z.string()).optional(),
+    filters: z.record(z.string(), z.unknown()).optional(),
+    mappings: z.record(z.string(), z.string()).optional(),
     batchSize: z.number().min(1).max(1000).optional(),
     conflictResolution: z.enum(['local_wins', 'remote_wins', 'merge', 'manual']).optional()
   }).optional(),
@@ -38,7 +38,7 @@ export const updateSyncJobSchema = z.object({
 
 export const resolveConflictSchema = z.object({
   resolution: z.enum(['local_wins', 'remote_wins', 'merge', 'manual']),
-  resolvedVersion: z.record(z.unknown()).optional(),
+  resolvedVersion: z.record(z.string(), z.unknown()).optional(),
   notes: z.string().optional()
 });
 

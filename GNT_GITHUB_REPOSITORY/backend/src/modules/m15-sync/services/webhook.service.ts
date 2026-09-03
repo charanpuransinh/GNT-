@@ -2,7 +2,7 @@
 // ⛔ टास्क #008 का फैसला: webhookEndpoint/webhookDelivery M15 की चीज़ नहीं — M18 की है।
 // इसलिए यहाँ prisma.webhook* के नए models नहीं बनाए गए; service अब एक साफ़ stub है
 // जो ज़ोर से बताता है कि webhook का असली काम M18 में जाएगा (चुपचाप ग़लत कुछ नहीं)।
-import { WebhookEndpoint, CreateWebhookDTO, WebhookEvent } from '../types/sync.types';
+import { WebhookEndpoint, WebhookDelivery, CreateWebhookDTO, WebhookEvent } from '../types/sync.types';
 import { AppError } from '../utils/sync.errors';
 
 const NOT_HERE = (): never => {
@@ -28,7 +28,7 @@ export class WebhookService {
   async toggleEndpoint(_tenantId: string, _id: string): Promise<WebhookEndpoint> {
     return NOT_HERE();
   }
-  async getDeliveries(_tenantId: string, _webhookId: string, _opts: { page: number; limit: number }) {
+  async getDeliveries(_tenantId: string, _webhookId: string, _opts: { page: number; limit: number }): Promise<{ deliveries: WebhookDelivery[]; meta: { page: number; limit: number; total: number; totalPages: number } }> {
     return NOT_HERE();
   }
   async testEndpoint(_tenantId: string, _id: string): Promise<{ success: boolean; statusCode?: number; response?: string; error?: string }> {

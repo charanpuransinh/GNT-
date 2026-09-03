@@ -18,7 +18,14 @@ export class IntegrationService {
     endpoints?: Record<string, unknown>;
     rateLimitConfig?: Record<string, unknown>;
   }): Promise<ExternalIntegration> {
-    return prisma.externalIntegration.create({ data });
+    return prisma.externalIntegration.create({
+      data: {
+        ...data,
+        authConfig: data.authConfig as never,
+        endpoints: data.endpoints as never,
+        rateLimitConfig: data.rateLimitConfig as never
+      }
+    });
   }
 
   static async getIntegration(id: string, tenantId: string): Promise<ExternalIntegration | null> {
@@ -115,7 +122,7 @@ export class IntegrationService {
     };
   }
 
-  static async healthCheckAll(tenantId: string): Promise<Array<ReturnType<typeof this.healthCheck>>> {
+  static async healthCheckAll(tenantId: string) {
     const integrations = await prisma.externalIntegration.findMany({
       where: { tenantId, status: 'ACTIVE' }
     });

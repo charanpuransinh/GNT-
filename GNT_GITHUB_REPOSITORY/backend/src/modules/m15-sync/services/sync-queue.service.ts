@@ -16,7 +16,7 @@ export class SyncQueueService {
       where,
       orderBy: { createdAt: 'asc' },
       take: 100
-    }) as Promise<SyncQueueItem[]>;
+    }) as unknown as Promise<SyncQueueItem[]>;
   }
 
   async addToQueue(tenantId: string, syncJobId: string, entityType: string, entityId: string, operation: string, payload: any): Promise<SyncQueueItem> {
@@ -30,7 +30,7 @@ export class SyncQueueService {
         payload: payload as any,
         status: 'pending'
       }
-    }) as SyncQueueItem;
+    }) as unknown as SyncQueueItem;
 
     return item;
   }
@@ -49,7 +49,7 @@ export class SyncQueueService {
         retryCount: { increment: 1 },
         errorMessage: null
       }
-    }) as SyncQueueItem;
+    }) as unknown as SyncQueueItem;
 
     return updated;
   }

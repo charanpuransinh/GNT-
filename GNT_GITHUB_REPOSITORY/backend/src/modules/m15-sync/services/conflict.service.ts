@@ -13,7 +13,7 @@ export class ConflictService {
     const { page, limit, status, entityType } = opts;
     const skip = (page - 1) * limit;
 
-    const where: any = { tenantId };
+    const where: Record<string, unknown> = { tenantId };
     if (status) where.status = status;
     if (entityType) where.entityType = entityType;
 
@@ -26,22 +26,22 @@ export class ConflictService {
   }
 
   async getConflictById(tenantId: string, id: string): Promise<SyncConflict | null> {
-    return this.prisma.syncConflict.findFirst({ where: { id, tenantId } }) as Promise<SyncConflict | null>;
+    return this.prisma.syncConflict.findFirst({ where: { id, tenantId } }) as unknown as Promise<SyncConflict | null>;
   }
 
   async resolveConflict(tenantId: string, id: string, dto: ResolveConflictDTO, userId: string): Promise<SyncConflict> {
     const conflict = await this.getConflictById(tenantId, id);
     if (!conflict) throw new AppError('CONFLICT_NOT_FOUND', 'Conflict not found', 404);
-    if (conflict.status === 'resolved') throw new AppError('CONFLICT_ALREADY_RESOLVED', 'Conflict already resolved', 409);
+    if (conflict.status === 'RESOLVED') throw new AppError('CONFLICT_ALREADY_RESOLVED', 'Conflict already resolved', 409);
 
-    let resolvedVersion = dto.resolvedVersion;
+    let mergedValue = dto.mergedValue;
 
     // Auto-resolve if strategy is not manual
-    if (dto.resolution !== 'manual') {
-      resolvedVersion = this.applyResolutionStrategy(conflict, dto.resolution);
+    if (dto.resolution !== 'MANUAL') {
+      mergedValue = this.applyResolutionStrategy(conflict, dto.resolution);
     }
 
-    if (!resolvedVersion) {
+    if (!mergedValue) {
       throw new AppError('RESOLVED_VERSION_REQUIRED', 'Resolved version required for manual resolution', 400);
     }
 
@@ -49,13 +49,12 @@ export class ConflictService {
       where: { id },
       data: {
         resolution: dto.resolution,
-        resolvedVersion: resolvedVersion as any,
+        mergedValue: mergedValue as never,
         resolvedBy: userId,
         resolvedAt: new Date(),
-        status: 'resolved',
-        notes: dto.notes
+        status: 'RESOLVED'
       }
-    }) as SyncConflict;
+    }) as unknown as SyncConflict;
 
     // Queue the resolved version for sync
     await this.prisma.syncQueueItem.create({
@@ -64,8 +63,8 @@ export class ConflictService {
         syncJobId: conflict.syncJobId,
         operation: 'push',
         entityType: conflict.entityType,
-        entityId: conflict.entityId,
-        payload: { data: resolvedVersion, checksum: '', version: 1 },
+        entityId: conflict.internalId,
+        payload: { data: mergedValue, checksum: '', version: 1 } as never,
         status: 'pending'
       }
     });
@@ -76,20 +75,20 @@ export class ConflictService {
 
   private applyResolutionStrategy(conflict: SyncConflict, strategy: ConflictResolutionStrategy): Record<string, unknown> {
     switch (strategy) {
-      case 'local_wins':
-        return conflict.localVersion;
-      case 'remote_wins':
-        return conflict.remoteVersion;
-      case 'merge':
-        return this.mergeVersions(conflict.localVersion, conflict.remoteVersion);
+      case 'INTERNAL_WINS':
+        return conflict.internalValue ?? {};
+      case 'EXTERNAL_WINS':
+        return conflict.externalValue ?? {};
+      case 'MERGED':
+        return this.mergeVersions(conflict.internalValue ?? {}, conflict.externalValue ?? {});
       default:
         throw new AppError('INVALID_RESOLUTION_STRATEGY', 'Invalid resolution strategy', 400);
     }
   }
 
-  private mergeVersions(local: Record<string, unknown>, remote: Record<string, unknown>): Record<string, unknown> {
-    const merged = { ...remote };
-    for (const [key, value] of Object.entries(local)) {
+  private mergeVersions(internal: Record<string, unknown>, external: Record<string, unknown>): Record<string, unknown> {
+    const merged = { ...external };
+    for (const [key, value] of Object.entries(internal)) {
       if (merged[key] === undefined || (typeof value === 'number' && (merged[key] as number) < value)) {
         merged[key] = value;
       }
@@ -103,21 +102,21 @@ export class ConflictService {
 
     const updated = await this.prisma.syncConflict.update({
       where: { id },
-      data: { status: 'ignored', resolvedAt: new Date() }
-    }) as SyncConflict;
+      data: { status: 'AUTO_RESOLVED', resolvedAt: new Date() }
+    }) as unknown as SyncConflict;
 
     this.eventEmitter.emit('conflict.ignored', { tenantId, conflictId: id });
     return updated;
   }
 
   async getConflictStats(tenantId: string) {
-    const [open, resolved, ignored, total] = await Promise.all([
-      this.prisma.syncConflict.count({ where: { tenantId, status: 'open' } }),
-      this.prisma.syncConflict.count({ where: { tenantId, status: 'resolved' } }),
-      this.prisma.syncConflict.count({ where: { tenantId, status: 'ignored' } }),
+    const [pending, resolved, autoResolved, total] = await Promise.all([
+      this.prisma.syncConflict.count({ where: { tenantId, status: 'PENDING' } }),
+      this.prisma.syncConflict.count({ where: { tenantId, status: 'RESOLVED' } }),
+      this.prisma.syncConflict.count({ where: { tenantId, status: 'AUTO_RESOLVED' } }),
       this.prisma.syncConflict.count({ where: { tenantId } })
     ]);
 
-    return { open, resolved, ignored, total };
+    return { open: pending, resolved, ignored: autoResolved, total };
   }
 }

@@ -19,8 +19,7 @@ export class IntegrationController {
 
   static async getIntegration(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
-      const integration = await IntegrationService.getIntegration(id, req.tenantId!);
+      const integration = await IntegrationService.getIntegration(String(req.params.id), req.tenantId!);
       if (!integration) return res.status(404).json({ success: false, error: 'Integration not found' });
       res.json({ success: true, data: integration });
     } catch (error: any) {
@@ -43,8 +42,7 @@ export class IntegrationController {
 
   static async updateIntegration(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
-      const integration = await IntegrationService.updateIntegration(id, req.tenantId!, req.body);
+      const integration = await IntegrationService.updateIntegration(String(req.params.id), req.tenantId!, req.body);
       res.json({ success: true, data: integration });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -53,8 +51,7 @@ export class IntegrationController {
 
   static async deleteIntegration(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
-      await IntegrationService.deleteIntegration(id, req.tenantId!);
+      await IntegrationService.deleteIntegration(String(req.params.id), req.tenantId!);
       res.json({ success: true, message: 'Integration deleted' });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -63,8 +60,7 @@ export class IntegrationController {
 
   static async healthCheck(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
-      const result = await IntegrationService.healthCheck(id, req.tenantId!);
+      const result = await IntegrationService.healthCheck(String(req.params.id), req.tenantId!);
       res.json({ success: true, data: result });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });

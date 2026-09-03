@@ -14,12 +14,12 @@ function makeConflict(overrides: Partial<SyncConflict> = {}): SyncConflict {
     tenantId: 'tenant-1',
     syncJobId: 'job-1',
     entityType: 'product',
-    entityId: 'prod-1',
-    localVersion: { name: 'local-name', price: 100 },
-    remoteVersion: { name: 'remote-name', price: 90 },
-    status: 'open',
+    internalId: 'prod-1',
+    externalId: 'ext-1',
+    internalValue: { name: 'local-name', price: 100 },
+    externalValue: { name: 'remote-name', price: 90 },
+    status: 'PENDING',
     createdAt: new Date(),
-    updatedAt: new Date(),
     ...overrides,
   } as SyncConflict;
 }
@@ -42,7 +42,7 @@ function makeMocks() {
       },
       update: async (args: Record<string, unknown>) => {
         calls.push(`update:${JSON.stringify(args)}`);
-        return makeConflict({ status: 'resolved' });
+        return makeConflict({ status: 'RESOLVED' });
       },
     },
     syncQueueItem: {
@@ -72,29 +72,29 @@ describe('ConflictService.getAllConflicts', () => {
 });
 
 describe('ConflictService.resolveConflict', () => {
-  it('local_wins: localVersion लेता है, status resolved करता है, queue बनाता है, event भेजता है', async () => {
+  it('INTERNAL_WINS: internalValue लेता है, status RESOLVED करता है, queue बनाता है, event भेजता है', async () => {
     const { prisma, emitter, calls } = makeMocks();
     const service = new ConflictService(prisma as never, emitter as never);
 
     const updated = await service.resolveConflict(
       'tenant-1',
       'conflict-1',
-      { resolution: 'local_wins' } as never,
+      { resolution: 'INTERNAL_WINS' } as never,
       'user-1',
     );
 
-    assert.equal(updated.status, 'resolved');
-    assert.ok(calls.some((c) => c.startsWith('update:') && c.includes('"status":"resolved"')));
+    assert.equal(updated.status, 'RESOLVED');
+    assert.ok(calls.some((c) => c.startsWith('update:') && c.includes('"status":"RESOLVED"')));
     assert.ok(calls.some((c) => c.startsWith('queue:') && c.includes('"operation":"push"')));
     assert.ok(calls.some((c) => c.startsWith('emit:conflict.resolved') && c.includes('conflict-1')));
   });
 
-  it('manual बिना resolvedVersion → 400', async () => {
+  it('MANUAL बिना mergedValue → 400', async () => {
     const { prisma, emitter } = makeMocks();
     const service = new ConflictService(prisma as never, emitter as never);
 
     await assert.rejects(
-      () => service.resolveConflict('tenant-1', 'conflict-1', { resolution: 'manual', resolvedVersion: undefined } as never, 'user-1'),
+      () => service.resolveConflict('tenant-1', 'conflict-1', { resolution: 'MANUAL', mergedValue: undefined } as never, 'user-1'),
       (err: unknown) => (err as { statusCode?: number }).statusCode === 400,
     );
   });
@@ -105,7 +105,7 @@ describe('ConflictService.resolveConflict', () => {
     const service = new ConflictService(prisma as never, emitter as never);
 
     await assert.rejects(
-      () => service.resolveConflict('tenant-1', 'ghost', { resolution: 'local_wins' } as never, 'user-1'),
+      () => service.resolveConflict('tenant-1', 'ghost', { resolution: 'INTERNAL_WINS' } as never, 'user-1'),
       (err: unknown) => (err as { statusCode?: number }).statusCode === 404,
     );
   });
@@ -116,13 +116,13 @@ describe('ConflictService.ignoreConflict', () => {
     const { prisma, emitter, calls } = makeMocks();
     prisma.syncConflict.update = async (args: Record<string, unknown>) => {
       calls.push(`update:${JSON.stringify(args)}`);
-      return makeConflict({ status: 'ignored' });
+      return makeConflict({ status: 'AUTO_RESOLVED' });
     };
     const service = new ConflictService(prisma as never, emitter as never);
 
     const updated = await service.ignoreConflict('tenant-1', 'conflict-1');
 
-    assert.equal(updated.status, 'ignored');
+    assert.equal(updated.status, 'AUTO_RESOLVED');
     assert.ok(calls.some((c) => c.startsWith('emit:conflict.ignored')));
   });
 });

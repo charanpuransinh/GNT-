@@ -7,25 +7,35 @@ import {
 import { AuthenticatedRequest } from '../middleware/tenant.middleware';
 
 export class ConflictController {
-  static async listConflicts(req: AuthenticatedRequest, res: Response) {
+  constructor(private conflictService: ConflictService) {}
+
+  async listConflicts(req: AuthenticatedRequest, res: Response) {
     try {
       const { syncJobId, entityType, status, limit } = req.query;
-      const conflicts = await ConflictService.listConflicts(req.tenantId!, {
-        syncJobId: syncJobId as string,
-        entityType: entityType as string,
-        status: status as string,
-        limit: limit ? parseInt(limit as string) : undefined
+      const result = await this.conflictService.getAllConflicts(req.tenantId!, {
+        page: 1,
+        limit: limit ? parseInt(String(limit)) : 20,
+        status: status as string | undefined,
+        entityType: entityType as string | undefined
       });
-      res.json({ success: true, data: conflicts });
+      res.json({ success: true, data: result.conflicts, meta: result.meta });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  static async getConflict(req: AuthenticatedRequest, res: Response) {
+  async getStats(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
-      const conflict = await ConflictService.getConflict(id, req.tenantId!);
+      const stats = await this.conflictService.getConflictStats(req.tenantId!);
+      res.json({ success: true, data: stats });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  async getConflict(req: AuthenticatedRequest, res: Response) {
+    try {
+      const conflict = await this.conflictService.getConflictById(req.tenantId!, String(req.params.id));
       if (!conflict) return res.status(404).json({ success: false, error: 'Conflict not found' });
       res.json({ success: true, data: conflict });
     } catch (error: any) {
@@ -33,41 +43,55 @@ export class ConflictController {
     }
   }
 
-  static async resolveConflict(req: AuthenticatedRequest, res: Response) {
+  async resolveConflict(req: AuthenticatedRequest, res: Response) {
     try {
       const parsed = conflictResolutionSchema.parse(req.body);
-      const conflict = await ConflictService.resolveConflict(parsed, req.tenantId!);
+      const conflict = await this.conflictService.resolveConflict(
+        req.tenantId!,
+        String(req.params.id),
+        { resolution: parsed.resolution, mergedValue: parsed.mergedValue },
+        parsed.resolvedBy
+      );
       res.json({ success: true, data: conflict });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
     }
   }
 
-  static async bulkResolve(req: AuthenticatedRequest, res: Response) {
+  async bulkResolve(req: AuthenticatedRequest, res: Response) {
     try {
       const parsed = bulkConflictResolutionSchema.parse(req.body);
-      const result = await ConflictService.bulkResolve(parsed, req.tenantId!);
-      res.json({ success: true, data: result });
+      const resolved: string[] = [];
+      for (const conflictId of parsed.conflictIds) {
+        await this.conflictService.resolveConflict(
+          req.tenantId!,
+          conflictId,
+          { resolution: parsed.resolution as 'INTERNAL_WINS' | 'EXTERNAL_WINS' | 'MERGED' | 'MANUAL' },
+          parsed.resolvedBy
+        );
+        resolved.push(conflictId);
+      }
+      res.json({ success: true, data: { resolved } });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
     }
   }
 
-  static async getStats(req: AuthenticatedRequest, res: Response) {
-    try {
-      const { syncJobId } = req.query;
-      const stats = await ConflictService.getConflictStats(req.tenantId!, syncJobId as string);
-      res.json({ success: true, data: stats });
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
-    }
-  }
-
-  static async autoResolve(req: AuthenticatedRequest, res: Response) {
+  async autoResolve(req: AuthenticatedRequest, res: Response) {
     try {
       const { jobId } = req.params;
-      const resolved = await ConflictService.autoResolveConflicts(jobId, req.tenantId!);
-      res.json({ success: true, data: { resolved } });
+      // Auto-resolve: सारे PENDING conflicts को INTERNAL_WINS से निपटाता है।
+      const conflicts = await this.conflictService.getAllConflicts(req.tenantId!, {
+        page: 1,
+        limit: 1000,
+        status: 'PENDING'
+      });
+      let resolved = 0;
+      for (const c of conflicts.conflicts) {
+        await this.conflictService.resolveConflict(req.tenantId!, c.id, { resolution: 'INTERNAL_WINS' }, 'system');
+        resolved++;
+      }
+      res.json({ success: true, data: { jobId, resolved } });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }

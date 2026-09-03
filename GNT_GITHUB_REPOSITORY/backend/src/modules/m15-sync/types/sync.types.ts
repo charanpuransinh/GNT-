@@ -88,20 +88,22 @@ export interface SyncLogDetails {
 
 export type QueueItemStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'conflict';
 
+// टास्क #025 B3 — Prisma SyncQueueItem (m15_sync_queue_items) से मिलाया गया।
 export interface SyncQueueItem {
   id: string;
   tenantId: string;
-  syncJobId: string;
-  operation: SyncDirection;
-  entityType: string;
-  entityId: string;
-  payload: QueuePayload;
-  status: QueueItemStatus;
+  syncJobId: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  operation: string;
+  payload: Record<string, unknown> | null;
+  status: string;
   retryCount: number;
   maxRetries: number;
-  errorMessage?: string;
-  processedAt?: Date;
+  errorMessage: string | null;
+  processedAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface QueuePayload {
@@ -114,32 +116,34 @@ export interface QueuePayload {
 // CONFLICT RESOLUTION TYPES
 // ───────────────────────────────────────────────
 
-export type ConflictResolutionStrategy = 'local_wins' | 'remote_wins' | 'merge' | 'manual';
-export type ConflictStatus = 'open' | 'resolved' | 'ignored';
+// टास्क #025 B3 — Prisma SyncConflict (m15_sync_conflicts) से मिलाया गया।
+export type ConflictResolutionStrategy = 'INTERNAL_WINS' | 'EXTERNAL_WINS' | 'MERGED' | 'MANUAL';
+export type ConflictStatus = 'PENDING' | 'RESOLVED' | 'AUTO_RESOLVED';
 
 export interface SyncConflict {
   id: string;
   tenantId: string;
   syncJobId: string;
-  syncLogId?: string;
   entityType: string;
-  entityId: string;
-  localVersion: Record<string, unknown>;
-  remoteVersion: Record<string, unknown>;
-  resolvedVersion?: Record<string, unknown>;
-  resolution?: ConflictResolutionStrategy;
-  resolvedBy?: string;
-  resolvedAt?: Date;
-  status: ConflictStatus;
-  notes?: string;
+  internalId: string;
+  externalId: string;
+  conflictType?: string;
+  conflictField?: string | null;
+  internalValue?: Record<string, unknown> | null;
+  externalValue?: Record<string, unknown> | null;
+  internalVersion?: string | null;
+  externalVersion?: string | null;
+  resolution?: string | null;
+  resolvedBy?: string | null;
+  resolvedAt?: Date | null;
+  mergedValue?: Record<string, unknown> | null;
+  status: string;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface ResolveConflictDTO {
   resolution: ConflictResolutionStrategy;
-  resolvedVersion?: Record<string, unknown>;
-  notes?: string;
+  mergedValue?: Record<string, unknown>;
 }
 
 // ───────────────────────────────────────────────
@@ -301,8 +305,14 @@ export interface SyncDashboardStats {
 export interface SyncEntityConfigInput {
   internalEntity: string;
   externalEntity?: string;
-  syncDirection?: SyncDirection;
-  fieldMappings?: Array<{ internalField: string; externalField: string; isKey?: boolean }>;
+  syncDirection?: string;
+  fieldMappings?: Array<{ internalField: string; externalField: string; isKey?: boolean; transform?: string }>;
+  sourceFilter?: Record<string, unknown> | null;
+  targetFilter?: Record<string, unknown> | null;
+  conflictResolution?: string;
+  syncMode?: string | null;
+  cronExpression?: string | null;
+  isActive?: boolean;
 }
 
 export interface CreateSyncConfigRequest {
@@ -311,7 +321,7 @@ export interface CreateSyncConfigRequest {
   description?: string | null;
   sourceSystem: string;
   sourceVersion?: string;
-  syncDirection: SyncDirection;
+  syncDirection: string;
   connectionType: string;
   connectionConfig?: Record<string, unknown> | null;
   syncMode?: string;
@@ -322,11 +332,11 @@ export interface CreateSyncConfigRequest {
 export interface UpdateSyncConfigRequest {
   name?: string;
   description?: string | null;
-  syncDirection?: SyncDirection;
+  syncDirection?: string;
   connectionConfig?: Record<string, unknown> | null;
   syncMode?: string;
   cronExpression?: string | null;
-  status?: SyncStatus;
+  status?: string;
   errorThreshold?: number;
 }
 
@@ -343,15 +353,31 @@ export interface SyncEntityRequest {
 
 export interface SyncProgress {
   jobId?: string;
-  status?: SyncStatus;
-  processed?: number;
-  total?: number;
-  percent?: number;
-  message?: string;
+  jobNumber?: string;
+  status?: string;
+  totalEntities?: number;
+  processedEntities?: number;
+  createdCount?: number;
+  updatedCount?: number;
+  deletedCount?: number;
+  skippedCount?: number;
+  errorCount?: number;
+  conflictCount?: number;
+  percentComplete?: number;
+  currentEntity?: string;
+  startedAt?: string;
+  estimatedCompletion?: string;
 }
 
 export interface SyncPreviewResponse {
-  totalRows?: number;
-  sample?: unknown[];
-  entityTypes?: string[];
+  jobId?: string;
+  jobNumber?: string;
+  status?: string;
+  estimatedRecords?: number;
+  entities?: Array<{
+    entityType: string;
+    internalCount: number;
+    externalCount: number;
+    changes: Array<Record<string, unknown>>;
+  }>;
 }

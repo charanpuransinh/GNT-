@@ -12,8 +12,8 @@ export const syncEntityConfigSchema = z.object({
   externalEntity: z.string().min(1),
   fieldMappings: z.array(fieldMappingSchema).min(1),
   syncDirection: z.enum(['BIDIRECTIONAL', 'TO_EXTERNAL', 'FROM_EXTERNAL']).default('BIDIRECTIONAL'),
-  sourceFilter: z.record(z.unknown()).optional(),
-  targetFilter: z.record(z.unknown()).optional(),
+  sourceFilter: z.record(z.string(), z.unknown()).optional(),
+  targetFilter: z.record(z.string(), z.unknown()).optional(),
   conflictResolution: z.enum(['INTERNAL_WINS', 'EXTERNAL_WINS', 'TIMESTAMP_WINS', 'MANUAL']).default('INTERNAL_WINS'),
   syncMode: z.string().optional(),
   cronExpression: z.string().optional(),
@@ -28,7 +28,7 @@ export const createSyncConfigSchema = z.object({
   sourceVersion: z.string().optional(),
   syncDirection: z.enum(['BIDIRECTIONAL', 'TO_EXTERNAL', 'FROM_EXTERNAL']),
   connectionType: z.enum(['API', 'DATABASE', 'FILE', 'WEBHOOK', 'SFTP']),
-  connectionConfig: z.record(z.unknown()),
+  connectionConfig: z.record(z.string(), z.unknown()),
   syncMode: z.enum(['MANUAL', 'SCHEDULED', 'REALTIME']).default('MANUAL'),
   cronExpression: z.string().optional(),
   entityConfigs: z.array(syncEntityConfigSchema).min(1)
@@ -38,7 +38,7 @@ export const updateSyncConfigSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
   syncDirection: z.enum(['BIDIRECTIONAL', 'TO_EXTERNAL', 'FROM_EXTERNAL']).optional(),
-  connectionConfig: z.record(z.unknown()).optional(),
+  connectionConfig: z.record(z.string(), z.unknown()).optional(),
   syncMode: z.enum(['MANUAL', 'SCHEDULED', 'REALTIME']).optional(),
   cronExpression: z.string().optional(),
   status: z.enum(['ACTIVE', 'PAUSED', 'ERROR', 'DISABLED']).optional(),
@@ -62,7 +62,7 @@ export const syncEntitySchema = z.object({
 export const conflictResolutionSchema = z.object({
   conflictId: z.string().cuid(),
   resolution: z.enum(['INTERNAL_WINS', 'EXTERNAL_WINS', 'MERGED', 'MANUAL']),
-  mergedValue: z.record(z.unknown()).optional(),
+  mergedValue: z.record(z.string(), z.unknown()).optional(),
   resolutionNotes: z.string().optional(),
   resolvedBy: z.string().min(1)
 });
@@ -78,7 +78,7 @@ export const backupJobSchema = z.object({
   description: z.string().optional(),
   scope: z.enum(['FULL', 'MODULE', 'ENTITY']),
   moduleCode: z.string().optional(),
-  entityFilter: z.record(z.unknown()).optional(),
+  entityFilter: z.record(z.string(), z.unknown()).optional(),
   compressionType: z.enum(['GZIP', 'ZIP', 'NONE']).default('GZIP')
 });
 
@@ -89,10 +89,10 @@ export const integrationSchema = z.object({
   provider: z.enum(['TALLY', 'ZOHO', 'QUICKBOOKS', 'SALESFORCE', 'RAZORPAY', 'GST_PORTAL', 'SHOPIFY']),
   providerVersion: z.string().optional(),
   authType: z.enum(['OAUTH2', 'API_KEY', 'BASIC', 'CERTIFICATE']),
-  authConfig: z.record(z.unknown()),
+  authConfig: z.record(z.string(), z.unknown()),
   baseUrl: z.string().url().optional(),
   apiVersion: z.string().optional(),
-  endpoints: z.record(z.unknown()).optional(),
+  endpoints: z.record(z.string(), z.unknown()).optional(),
   rateLimitConfig: z.object({
     requestsPerMinute: z.number().int().positive(),
     burstLimit: z.number().int().positive()

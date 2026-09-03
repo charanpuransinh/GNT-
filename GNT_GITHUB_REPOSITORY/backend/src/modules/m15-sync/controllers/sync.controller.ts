@@ -23,8 +23,7 @@ export class SyncController {
 
   static async getConfig(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
-      const config = await SyncService.getConfig(id, req.tenantId!);
+      const config = await SyncService.getConfig(String(req.params.id), req.tenantId!);
       if (!config) return res.status(404).json({ success: false, error: 'Config not found' });
       res.json({ success: true, data: config });
     } catch (error: any) {
@@ -47,9 +46,8 @@ export class SyncController {
 
   static async updateConfig(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
       const parsed = updateSyncConfigSchema.parse(req.body);
-      const config = await SyncService.updateConfig(id, req.tenantId!, parsed);
+      const config = await SyncService.updateConfig(String(req.params.id), req.tenantId!, parsed);
       res.json({ success: true, data: config });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -58,8 +56,7 @@ export class SyncController {
 
   static async deleteConfig(req: AuthenticatedRequest, res: Response) {
     try {
-      const { id } = req.params;
-      await SyncService.deleteConfig(id, req.tenantId!);
+      await SyncService.deleteConfig(String(req.params.id), req.tenantId!);
       res.json({ success: true, message: 'Config deleted' });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -80,8 +77,7 @@ export class SyncController {
 
   static async previewSync(req: AuthenticatedRequest, res: Response) {
     try {
-      const { configId } = req.params;
-      const preview = await SyncService.previewSync(configId, req.tenantId!);
+      const preview = await SyncService.previewSync(String(req.params.id), req.tenantId!);
       res.json({ success: true, data: preview });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -100,8 +96,7 @@ export class SyncController {
 
   static async getJobStatus(req: AuthenticatedRequest, res: Response) {
     try {
-      const { jobId } = req.params;
-      const job = await SyncService.getJobStatus(jobId, req.tenantId!);
+      const job = await SyncService.getJobStatus(String(req.params.id), req.tenantId!);
       if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
       res.json({ success: true, data: job });
     } catch (error: any) {
@@ -125,8 +120,7 @@ export class SyncController {
 
   static async cancelJob(req: AuthenticatedRequest, res: Response) {
     try {
-      const { jobId } = req.params;
-      const job = await SyncService.cancelJob(jobId, req.tenantId!);
+      const job = await SyncService.cancelJob(String(req.params.id), req.tenantId!);
       res.json({ success: true, data: job });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -135,8 +129,7 @@ export class SyncController {
 
   static async getJobProgress(req: AuthenticatedRequest, res: Response) {
     try {
-      const { jobId } = req.params;
-      const progress = await SyncService.getJobProgress(jobId);
+      const progress = await SyncService.getJobProgress(String(req.params.id));
       if (!progress) return res.status(404).json({ success: false, error: 'Job not found' });
       res.json({ success: true, data: progress });
     } catch (error: any) {

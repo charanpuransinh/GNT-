@@ -27,18 +27,18 @@ export class SyncService {
         sourceVersion: data.sourceVersion,
         syncDirection: data.syncDirection,
         connectionType: data.connectionType,
-        connectionConfig: data.connectionConfig,
+        connectionConfig: (data.connectionConfig ?? {}) as never,
         syncMode: data.syncMode || 'MANUAL',
         cronExpression: data.cronExpression,
         entityConfigs: {
           create: data.entityConfigs.map(ec => ({
             tenantId,
             internalEntity: ec.internalEntity,
-            externalEntity: ec.externalEntity,
-            fieldMappings: ec.fieldMappings,
+            externalEntity: ec.externalEntity ?? '',
+            fieldMappings: (ec.fieldMappings ?? []) as never,
             syncDirection: ec.syncDirection || data.syncDirection,
-            sourceFilter: ec.sourceFilter,
-            targetFilter: ec.targetFilter,
+            sourceFilter: (ec.sourceFilter ?? null) as never,
+            targetFilter: (ec.targetFilter ?? null) as never,
             conflictResolution: ec.conflictResolution || 'INTERNAL_WINS',
             syncMode: ec.syncMode,
             cronExpression: ec.cronExpression,
@@ -53,14 +53,14 @@ export class SyncService {
   static async getConfig(id: string, tenantId: string): Promise<SyncConfig | null> {
     return prisma.syncConfig.findFirst({
       where: { id, tenantId },
-      include: { entityConfigs: true, states: true }
+      include: { entityConfigs: true }
     });
   }
 
   static async getConfigByCode(configCode: string, tenantId: string): Promise<SyncConfig | null> {
     return prisma.syncConfig.findFirst({
       where: { configCode, tenantId },
-      include: { entityConfigs: true, states: true }
+      include: { entityConfigs: true }
     });
   }
 
@@ -71,7 +71,7 @@ export class SyncService {
         ...(filters?.sourceSystem && { sourceSystem: filters.sourceSystem }),
         ...(filters?.status && { status: filters.status })
       },
-      include: { entityConfigs: true, states: true },
+      include: { entityConfigs: true },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -83,7 +83,7 @@ export class SyncService {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.syncDirection && { syncDirection: data.syncDirection }),
-        ...(data.connectionConfig && { connectionConfig: data.connectionConfig }),
+        ...(data.connectionConfig && { connectionConfig: data.connectionConfig as never }),
         ...(data.syncMode && { syncMode: data.syncMode }),
         ...(data.cronExpression !== undefined && { cronExpression: data.cronExpression }),
         ...(data.status && { status: data.status }),
@@ -166,7 +166,7 @@ export class SyncService {
         if (!entityConfig.isActive) continue;
 
         // Fetch internal and external data (mock implementation)
-        const internalData = await this.fetchInternalEntities(entityConfig.internalEntity, tenantId);
+        const internalData = await this.fetchInternalEntities(entityConfig.internalEntity, job.tenantId);
         const externalData = await this.fetchExternalEntities(config, entityConfig);
 
         totalEntities += Math.max(internalData.length, externalData.length);
@@ -204,7 +204,7 @@ export class SyncService {
                 conflictType: 'UPDATE_BOTH',
                 internalValue: item,
                 externalValue: externalMatch,
-                conflictResolution: entityConfig.conflictResolution
+                resolution: entityConfig.conflictResolution
               }
             });
             logData.status = 'CONFLICT';
