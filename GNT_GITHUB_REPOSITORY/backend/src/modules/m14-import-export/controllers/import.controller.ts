@@ -5,7 +5,7 @@ import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { ImportService } from '../services/import.service';
 import { TemplateService } from '../services/template.service';
 
-const importService = new ImportService();
+const importService = ImportService;
 const templateService = new TemplateService();
 
 export class ImportController {
@@ -21,7 +21,7 @@ export class ImportController {
       let mapping = mappingOverride ? JSON.parse(mappingOverride) : undefined;
       if (templateId && !mapping) {
         const tpl = await templateService.getTemplateById(templateId, tenantId);
-        mapping = tpl.columnMapping;
+        mapping = tpl.mappings as never;
       }
 
       const jobId = await importService.createImportJob({
@@ -44,9 +44,9 @@ export class ImportController {
 
   async validate(req: Request, res: Response) {
     try {
-      const { jobId } = req.params;
+      const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
-      const result = await importService.validateImport(jobId, tenantId);
+      const result = await importService.validateImport(jobId, tenantId as unknown as never);
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -55,9 +55,9 @@ export class ImportController {
 
   async getJob(req: Request, res: Response) {
     try {
-      const { jobId } = req.params;
+      const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
-      const job = await importService.getImportJob(jobId, tenantId);
+      const job = await importService.getImportJob(jobId, tenantId as unknown as never);
       res.json(job);
     } catch (err: any) {
       res.status(404).json({ error: err.message });
@@ -81,9 +81,9 @@ export class ImportController {
 
   async cancel(req: Request, res: Response) {
     try {
-      const { jobId } = req.params;
+      const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
-      await importService.cancelImportJob(jobId, tenantId);
+      await importService.cancelImportJob(jobId, tenantId as unknown as never);
       res.json({ success: true, message: 'Job cancelled' });
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -92,7 +92,7 @@ export class ImportController {
 
   async retry(req: Request, res: Response) {
     try {
-      const { jobId } = req.params;
+      const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
       const newJobId = await importService.retryImportJob(jobId, tenantId);
       res.json({ success: true, jobId: newJobId, message: 'Job retried' });

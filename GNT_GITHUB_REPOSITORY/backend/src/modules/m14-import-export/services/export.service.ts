@@ -1,8 +1,8 @@
-import { PrismaClient, ExportJob, ExportStatus } from '@prisma/client';
+import { PrismaClient, ExportJob } from '@prisma/client';
 import { createObjectCsvWriter } from 'csv-writer';
 import * as XLSX from 'xlsx';
 import { writeFileSync } from 'fs';
-import { ExportConfig, ExportColumn } from '../types/export.types';
+import { ExportColumn } from '../types/export.types';
 import path from 'path';
 
 const prisma = new PrismaClient();
@@ -10,14 +10,26 @@ const prisma = new PrismaClient();
 export class ExportService {
   static async createJob(data: {
     tenantId: string;
-    fileName: string;
-    fileType: string;
-    entityType: string;
-    filters?: any;
-    columns?: any;
+    name: string;
+    format: string;
+    sourceEntity: string;
+    sourceModule?: string;
+    filters?: Record<string, unknown>;
+    columns?: unknown[];
     createdBy: string;
   }): Promise<ExportJob> {
-    return prisma.exportJob.create({ data });
+    return prisma.exportJob.create({
+      data: {
+        tenantId: data.tenantId,
+        name: data.name,
+        format: data.format,
+        sourceModule: data.sourceModule ?? 'M14',
+        sourceEntity: data.sourceEntity,
+        filters: data.filters as never,
+        columns: data.columns as never,
+        createdBy: data.createdBy,
+      },
+    });
   }
 
   static async processJob(jobId: string): Promise<void> {
@@ -26,23 +38,23 @@ export class ExportService {
 
     await prisma.exportJob.update({
       where: { id: jobId },
-      data: { status: ExportStatus.PROCESSING }
+      data: { status: 'PROCESSING' }
     });
 
     try {
       // Mock data fetch - in real app, query entity table
-      const mockData = await this.fetchEntityData(job.entityType, job.filters as any, job.columns as any);
-      const filePath = await this.generateFile(job, mockData);
+      const mockData = await this.fetchEntityData(job.sourceEntity, job.filters as never, job.columns as never);
+      const fileKey = await this.generateFile(job, mockData);
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
       await prisma.exportJob.update({
         where: { id: jobId },
         data: {
-          status: ExportStatus.COMPLETED,
-          filePath,
+          status: 'COMPLETED',
+          fileKey,
           fileUrl: `/api/exports/download/${jobId}`,
-          totalRows: mockData.length,
+          totalRecords: mockData.length,
           completedAt: new Date(),
           expiresAt
         }
@@ -50,7 +62,7 @@ export class ExportService {
     } catch (error) {
       await prisma.exportJob.update({
         where: { id: jobId },
-        data: { status: ExportStatus.FAILED, completedAt: new Date() }
+        data: { status: 'FAILED', completedAt: new Date() }
       });
       throw error;
     }
@@ -60,17 +72,17 @@ export class ExportService {
     const outputDir = 'uploads/exports/';
     const baseName = `${job.id}_${Date.now()}`;
 
-    switch (job.fileType.toLowerCase()) {
+    switch (job.format.toLowerCase()) {
       case 'csv':
-        return this.generateCSV(data, job.columns as ExportColumn[], path.join(outputDir, `${baseName}.csv`));
+        return this.generateCSV(data, job.columns as unknown as ExportColumn[], path.join(outputDir, `${baseName}.csv`));
       case 'xlsx':
-        return this.generateExcel(data, job.columns as ExportColumn[], path.join(outputDir, `${baseName}.xlsx`));
+        return this.generateExcel(data, job.columns as unknown as ExportColumn[], path.join(outputDir, `${baseName}.xlsx`));
       case 'json':
         return this.generateJSON(data, path.join(outputDir, `${baseName}.json`));
       case 'pdf':
-        return this.generatePDF(data, job.columns as ExportColumn[], path.join(outputDir, `${baseName}.pdf`));
+        return this.generatePDF(data, job.columns as unknown as ExportColumn[], path.join(outputDir, `${baseName}.pdf`));
       default:
-        throw new Error(`Unsupported export format: ${job.fileType}`);
+        throw new Error(`Unsupported export format: ${job.format}`);
     }
   }
 
@@ -122,9 +134,27 @@ export class ExportService {
     return prisma.exportJob.findUnique({ where: { id: jobId } });
   }
 
+  // ─── Legacy alias (टास्क #025 B2): पुराने controllers पुराने shapes से बुलाते हैं —
+  // unknown लेकर जो बन पड़े वो map करते हैं (ये routes अभी माउंट नहीं होतीं)
+  static async createExportJob(data: unknown): Promise<ExportJob> {
+    return ExportService.createJob(data as Parameters<typeof ExportService.createJob>[0]);
+  }
+  static async getExportJob(jobId: string, _tenantId?: string): Promise<ExportJob | null> {
+    return ExportService.getJobStatus(jobId);
+  }
+  static async listExportJobs(tenantId: string, _opts?: unknown): Promise<ExportJob[]> {
+    return ExportService.listJobs(tenantId);
+  }
+  static async cancelExportJob(jobId: string, _tenantId?: string): Promise<ExportJob> {
+    return prisma.exportJob.update({ where: { id: jobId }, data: { status: 'CANCELLED' } });
+  }
+  static async downloadExport(jobId: string, _tenantId?: string): Promise<ExportJob | null> {
+    return ExportService.getJobStatus(jobId);
+  }
+
   static async listJobs(tenantId: string, entityType?: string): Promise<ExportJob[]> {
     return prisma.exportJob.findMany({
-      where: { tenantId, ...(entityType && { entityType }) },
+      where: { tenantId, ...(entityType && { sourceEntity: entityType }) },
       orderBy: { createdAt: 'desc' },
       take: 50
     });

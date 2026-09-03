@@ -14,7 +14,7 @@ export class PayrollController {
       const payrolls = await this.service.generate(month, year, employeeIds);
       for (const payroll of payrolls) {
         await this.events.publish('PAYROLL_GENERATED', {
-          payrollId: payroll.id, employeeId: payroll.employeeId, amount: payroll.netSalary,
+          payrollId: payroll.id, employeeId: payroll.employeeId, amount: payroll.netPay,
           month, year, targetModule: 'M11'
         });
       }
@@ -26,7 +26,7 @@ export class PayrollController {
 
   async getByEmployee(req: Request, res: Response) {
     try {
-      const payrolls = await this.service.getByEmployee(req.params.employeeId);
+      const payrolls = await this.service.getByEmployee(String(req.params.employeeId));
       res.json({ success: true, data: payrolls });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -35,10 +35,10 @@ export class PayrollController {
 
   async processPayment(req: Request, res: Response) {
     try {
-      const payroll = await this.service.markAsPaid(req.params.id, req.body);
+      const payroll = await this.service.markAsPaid(String(req.params.id), req.body);
       await this.events.publish('PAYROLL_PAID', {
-        payrollId: payroll.id, employeeId: payroll.employeeId, amount: payroll.netSalary,
-        paymentRef: payroll.paymentRef, targetModule: 'M11'
+        payrollId: payroll.id, employeeId: payroll.employeeId, amount: payroll.netPay,
+        paymentRef: payroll.paymentTransactionId, targetModule: 'M11'
       });
       res.json({ success: true, data: payroll });
     } catch (error: any) {

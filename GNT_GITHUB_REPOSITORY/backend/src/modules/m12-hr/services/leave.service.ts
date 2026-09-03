@@ -13,15 +13,15 @@ export class LeaveService {
     return prisma.leave.create({ data: { ...data, days, status: 'PENDING' } });
   }
 
-  async approve(id: string, approvedBy: string, rejectionReason?: string) {
-    const leave = await prisma.leave.update({ where: { id }, data: { status: 'APPROVED', approvedBy, approvedAt: new Date() } });
-    await prisma.leaveBalance.updateMany({ where: { employeeId: leave.employeeId }, data: { used: { increment: leave.days } } });
+  async approve(id: string, approvedById: string, rejectionReason?: string) {
+    const leave = await prisma.leave.update({ where: { id }, data: { status: 'APPROVED', approvedById, approvedAt: new Date() } });
+    await prisma.leaveBalance.updateMany({ where: { employeeId: leave.employeeId }, data: { used: { increment: leave.daysRequested } } });
     await prisma.employee.update({ where: { id: leave.employeeId }, data: { status: 'ON_LEAVE' } });
     return leave;
   }
 
-  async reject(id: string, approvedBy: string, rejectionReason: string) {
-    return prisma.leave.update({ where: { id }, data: { status: 'REJECTED', approvedBy, approvedAt: new Date(), rejectionReason } });
+  async reject(id: string, approvedById: string, rejectionReason: string) {
+    return prisma.leave.update({ where: { id }, data: { status: 'REJECTED', approvedById, approvedAt: new Date(), rejectionReason } });
   }
 
   async getByEmployee(employeeId: string) {

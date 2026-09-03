@@ -2193,7 +2193,7 @@ model LeaveBalance {
 
 // टास्क #008 — नया model (code prisma.hrEventLog बुलाता था; hr.events.ts)
 // processed/module फील्ड कोड के असली इस्तेमाल से हैं
-model HREventLog {
+model HrEventLog {
   id         String   @id @default(cuid())
   employeeId String?
   eventType  String

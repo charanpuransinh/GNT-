@@ -7,13 +7,13 @@ const prisma = new PrismaClient();
 
 export class TemplateService {
   async createTemplate(data: {
-    tenantId: string; name: string; module: string; entityType: string;
+    tenantId: string; name: string; targetModule: string; targetEntity: string;
     fileType: string; columnMapping: ColumnMapping[]; sampleFileUrl?: string;
     isDefault?: boolean; userId: string;
   }) {
     if (data.isDefault) {
       await prisma.importMapping.updateMany({
-        where: { tenantId: data.tenantId, module: data.module, entityType: data.entityType, isDefault: true },
+        where: { tenantId: data.tenantId, targetModule: data.targetModule, targetEntity: data.targetEntity, isDefault: true },
         data: { isDefault: false }
       });
     }
@@ -21,8 +21,8 @@ export class TemplateService {
       data: {
         tenantId: data.tenantId,
         name: data.name,
-        module: data.module,
-        entityType: data.entityType,
+        targetModule: data.targetModule,
+        targetEntity: data.targetEntity,
         fileType: data.fileType,
         columnMapping: data.columnMapping as any,
         sampleFileUrl: data.sampleFileUrl,
@@ -34,7 +34,7 @@ export class TemplateService {
 
   async getTemplates(tenantId: string, module?: string, entityType?: string) {
     return prisma.importMapping.findMany({
-      where: { tenantId, ...(module && { module }), ...(entityType && { entityType }) },
+      where: { tenantId, ...(module && { targetModule: module }), ...(entityType && { targetEntity: entityType }) },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -45,9 +45,9 @@ export class TemplateService {
     return t;
   }
 
-  async getDefaultTemplate(tenantId: string, module: string, entityType: string) {
+  async getDefaultTemplate(tenantId: string, targetModule: string, targetEntity: string) {
     return prisma.importMapping.findFirst({
-      where: { tenantId, module, entityType, isDefault: true }
+      where: { tenantId, targetModule, targetEntity, isDefault: true }
     });
   }
 
@@ -65,7 +65,7 @@ export class TemplateService {
   async createExportTemplate(data: any) {
     if (data.isDefault) {
       await prisma.exportTemplate.updateMany({
-        where: { tenantId: data.tenantId, module: data.module, entityType: data.entityType, isDefault: true },
+        where: { tenantId: data.tenantId, targetModule: data.targetModule, targetEntity: data.targetEntity, isDefault: true },
         data: { isDefault: false }
       });
     }
@@ -78,5 +78,25 @@ export class TemplateService {
     return prisma.exportTemplate.findMany({
       where: { tenantId, ...(module && { module }), ...(entityType && { entityType }) }
     });
+  }
+
+  // ─── Legacy alias (टास्क #025 B2): पुराना template.controller यही नाम बुलाता है ───
+  async create(data: Parameters<TemplateService['createTemplate']>[0]) {
+    return this.createTemplate(data);
+  }
+  async update(id: string, tenantId?: string, data?: unknown) {
+    return this.updateTemplate(id, String(tenantId ?? ''), data as Parameters<TemplateService['updateTemplate']>[2]);
+  }
+  async delete(id: string, tenantId?: string) {
+    return this.deleteTemplate(id, String(tenantId ?? ''));
+  }
+  async getById(id: string, tenantId?: string) {
+    return this.getTemplateById(id, String(tenantId ?? ''));
+  }
+  async list(tenantId?: string, module?: string, entityType?: string) {
+    return this.getTemplates(String(tenantId ?? ''), module, entityType);
+  }
+  async getDefault(tenantId?: string, module?: string, entityType?: string) {
+    return this.getDefaultTemplate(String(tenantId ?? ''), String(module ?? ''), String(entityType ?? ''));
   }
 }

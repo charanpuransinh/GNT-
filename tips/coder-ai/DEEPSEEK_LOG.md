@@ -140,6 +140,14 @@
 
 ---
 
+### टास्क #025-हिस्सा B (आंशिक) — M12 पूरा, M14 96→16 (21:30 → 23:20)
+- **कौन सा task मिला:** Class C schema merge (M13 छोड़ो): M12→M14→M15→M11
+- **क्या किया:** **M12 (55→0):** HREventLog→HrEventLog rename, payroll.service को schema के असली fields (basicSalary/hra/pfEmployee/tds/netPay/status) से rewrite, employee.service status→employmentStatus + attendance→attendances, req.params String(), controllers netSalary→netPay · **M14 (96→16):** enum ExportStatus/ImportStatus→strings, req.params String(), ExportJob/ImportJob/ImportMapping/ExportTemplate के असली field नामों से मिलाया (format/sourceEntity/fileKey/targetModule/targetEntity/validationReport/totalRecords), dead routes (importRoutes/exportRoutes/import.routes/export.routes) हटाईं, services में legacy alias (पुराने controllers के नाम), json2csv ambient typing, processors fixes
+- **कौन सी files बनाईं/बदलीं:** ~25 files m12-hr + m14-import-export + `common/types/json2csv.d.ts`
+- **status:** M12 ✅ 0 · M14 ⚠️ **16 बचीं दर्ज** (parsers API mismatch — import.service CSVParser/preview उम्मीद करता है पर utils में parseCSV functions हैं; पुराने exportService.ts/formatter/parser/template के कुछ type gaps) — अलग काम, M15/M11 के बाद लौटूँगा; कुल tsc **510→387**; prisma valid; commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

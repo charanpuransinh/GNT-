@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { ExportService } from '../services/export.service';
 
-const exportService = new ExportService();
+const exportService = ExportService;
 
 export class ExportController {
   async create(req: Request, res: Response) {
@@ -25,7 +25,7 @@ export class ExportController {
 
   async getJob(req: Request, res: Response) {
     try {
-      const { jobId } = req.params;
+      const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
       const job = await exportService.getExportJob(jobId, tenantId);
       res.json(job);
@@ -51,7 +51,7 @@ export class ExportController {
 
   async cancel(req: Request, res: Response) {
     try {
-      const { jobId } = req.params;
+      const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
       await exportService.cancelExportJob(jobId, tenantId);
       res.json({ success: true, message: 'Export cancelled' });
@@ -62,14 +62,15 @@ export class ExportController {
 
   async download(req: Request, res: Response) {
     try {
-      const { jobId } = req.params;
+      const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
-      const file = await exportService.downloadExport(jobId, tenantId);
-      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-      res.setHeader('Content-Type', file.mimeType);
-      res.send(file.buffer);
+      const job = await exportService.downloadExport(jobId, tenantId);
+      if (!job || !job.fileUrl) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      return res.json({ success: true, data: { downloadUrl: job.fileUrl, fileName: job.name } });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: err.message });
     }
   }
 }

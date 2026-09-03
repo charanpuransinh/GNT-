@@ -55,7 +55,7 @@ export class AttendanceService {
       const key = r.employeeId;
       if (!acc[key]) acc[key] = { employee: r.employee, present: 0, absent: 0, late: 0, halfDay: 0, totalHours: 0, overtime: 0 };
       acc[key][r.status.toLowerCase()]++;
-      acc[key].totalHours += r.workHours || 0;
+      acc[key].totalHours += r.workingHours || 0;
       acc[key].overtime += r.overtimeHours || 0;
       return acc;
     }, {});

@@ -6,11 +6,9 @@
  */
 
 import { Router } from 'express';
-import importRoutesList from './routes/import.routes';
-import exportRoutesList from './routes/export.routes';
+// पुरानी import.routes/export.routes (दो अलग-अलग controller पीढ़ियाँ) हटा दी गईं —
+// असली router routes/index.ts है (टास्क #025 B2)
 
-export { default as importRoutes } from './routes/import.routes';
-export { default as exportRoutes } from './routes/export.routes';
 export * from './types/importExport.types';
 export * from './services/importService';
 export * from './services/exportService';

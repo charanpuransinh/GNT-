@@ -13,7 +13,7 @@ export class ImportProcessor {
   async process(jobId: string, fileBufferBase64: string, fileType: string, options?: any) {
     await prisma.importJob.update({
       where: { id: jobId },
-      data: { status: ImportStatus.PROCESSING }
+      data: { status: 'PROCESSING' }
     });
 
     try {
@@ -23,7 +23,7 @@ export class ImportProcessor {
       await prisma.importJob.update({
         where: { id: jobId },
         data: {
-          status: ImportStatus.COMPLETED,
+          status: 'COMPLETED',
           totalRows: result.meta.totalRows,
           processedRows: result.meta.validRows,
           successRows: result.meta.validRows,
@@ -45,7 +45,7 @@ export class ImportProcessor {
       await prisma.importJob.update({
         where: { id: jobId },
         data: {
-          status: ImportStatus.FAILED,
+          status: 'FAILED',
           errorLog: [{ message: err.message, code: 'PROCESSOR_ERROR' }] as any,
           completedAt: new Date(),
         }

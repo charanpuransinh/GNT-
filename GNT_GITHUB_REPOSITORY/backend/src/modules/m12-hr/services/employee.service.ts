@@ -13,7 +13,7 @@ export class EmployeeService {
 
   async findAll(filters: any) {
     const where: any = {};
-    if (filters.status) where.status = filters.status;
+    if (filters.status) where.employmentStatus = filters.status;
     if (filters.departmentId) where.departmentId = filters.departmentId;
     if (filters.search) {
       where.OR = [
@@ -25,7 +25,7 @@ export class EmployeeService {
     }
     const [data, total] = await Promise.all([
       prisma.employee.findMany({
-        where, include: { department: true, _count: { select: { attendance: true, leaves: true } } },
+        where, include: { department: true, _count: { select: { attendances: true, leaves: true } } },
         skip: (filters.page - 1) * filters.limit, take: filters.limit, orderBy: { createdAt: 'desc' }
       }),
       prisma.employee.count({ where })
@@ -38,7 +38,7 @@ export class EmployeeService {
       where: { id },
       include: {
         department: true, documents: true,
-        attendance: { take: 30, orderBy: { date: 'desc' } },
+        attendances: { take: 30, orderBy: { date: 'desc' } },
         leaves: { take: 10, orderBy: { createdAt: 'desc' } },
         payrolls: { take: 12, orderBy: { year: 'desc' } }
       }
@@ -50,7 +50,7 @@ export class EmployeeService {
   }
 
   async remove(id: string) {
-    return prisma.employee.update({ where: { id }, data: { status: 'TERMINATED', exitDate: new Date() } });
+    return prisma.employee.update({ where: { id }, data: { employmentStatus: 'TERMINATED', dateOfExit: new Date() } });
   }
 
   async addDocument(employeeId: string, docData: any) {
@@ -60,8 +60,8 @@ export class EmployeeService {
   async getDashboardStats() {
     const [total, active, onLeave, departments, newThisMonth] = await Promise.all([
       prisma.employee.count(),
-      prisma.employee.count({ where: { status: 'ACTIVE' } }),
-      prisma.employee.count({ where: { status: 'ON_LEAVE' } }),
+      prisma.employee.count({ where: { employmentStatus: 'ACTIVE' } }),
+      prisma.employee.count({ where: { employmentStatus: 'ON_LEAVE' } }),
       prisma.department.count(),
       prisma.employee.count({ where: { joinDate: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } })
     ]);

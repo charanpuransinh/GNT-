@@ -1,6 +1,6 @@
 // M14 — Export Job Processor
 // Lock: LOCK_13_PROCESSOR
-import { PrismaClient, ExportStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { FormatterService } from './services/formatter.service';
 import { EventBus } from './events/export.events';
 
@@ -16,17 +16,17 @@ export class ExportProcessor {
 
     await prisma.exportJob.update({
       where: { id: jobId },
-      data: { status: ExportStatus.PROCESSING }
+      data: { status: 'PROCESSING' }
     });
 
     try {
       // Fetch data from target module via PUBLIC API (cross-module rule)
-      const moduleData = await this.fetchModuleData(job.module, job.entityType, job.filters, job.tenantId);
+      const moduleData = await this.fetchModuleData(job.sourceModule, job.sourceEntity, job.filters, job.tenantId);
 
       const buffer = await formatter.format(
         moduleData,
         job.format,
-        job.columnConfig as string[] || undefined
+        job.columns as string[] || undefined
       );
 
       // Upload to storage (mock URL)
@@ -35,20 +35,20 @@ export class ExportProcessor {
       await prisma.exportJob.update({
         where: { id: jobId },
         data: {
-          status: ExportStatus.COMPLETED,
-          totalRows: moduleData.length,
+          status: 'COMPLETED',
+          totalRecords: moduleData.length,
           fileUrl,
           completedAt: new Date(),
         }
       });
 
-      await this.eventBus.publish('export.job.completed', { jobId, fileUrl, totalRows: moduleData.length });
+      await this.eventBus.publish('export.job.completed', { jobId, fileUrl, totalRecords: moduleData.length });
 
     } catch (err: any) {
       await prisma.exportJob.update({
         where: { id: jobId },
         data: {
-          status: ExportStatus.FAILED,
+          status: 'FAILED',
           completedAt: new Date(),
         }
       });

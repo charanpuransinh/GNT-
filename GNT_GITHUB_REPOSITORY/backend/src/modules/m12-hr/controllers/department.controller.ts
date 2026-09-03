@@ -25,7 +25,7 @@ export class DepartmentController {
 
   async update(req: Request, res: Response) {
     try {
-      const dept = await this.service.update(req.params.id, req.body);
+      const dept = await this.service.update(String(req.params.id), req.body);
       res.json({ success: true, data: dept });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -34,7 +34,7 @@ export class DepartmentController {
 
   async remove(req: Request, res: Response) {
     try {
-      await this.service.remove(req.params.id);
+      await this.service.remove(String(req.params.id));
       res.json({ success: true, message: 'Department deleted' });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });

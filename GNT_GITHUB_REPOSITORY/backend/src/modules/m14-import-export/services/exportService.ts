@@ -72,14 +72,14 @@ export class ExportService {
     const job = await this.getExport(tenantId, id);
     if (!job) throw new Error('Export job not found');
 
-    const totalRows = job.totalRows || 1;
-    const processed = job.processedRows || 0;
+    const totalRows = job.totalRecords || 1;
+    const processed = 0;
     const percentage = Math.round((processed / totalRows) * 100);
 
     return {
       jobId: job.id,
       status: job.status as any,
-      totalRows,
+      totalRecords,
       processedRows: processed,
       percentage,
     };

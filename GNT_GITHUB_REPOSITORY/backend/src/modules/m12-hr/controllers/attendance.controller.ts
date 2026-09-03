@@ -28,7 +28,7 @@ export class AttendanceController {
 
   async getByEmployee(req: Request, res: Response) {
     try {
-      const { employeeId } = req.params;
+      const employeeId = String(req.params.employeeId);
       // prefer POST with startDate/endDate in body.filters; fall back to query for compat
       const { startDate, endDate } = (req.body && req.body.filters) || req.query;
       const records = await this.service.getByEmployee(employeeId, {

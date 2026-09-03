@@ -48,7 +48,7 @@ export class ImportController {
   getImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const job = await this.importService.getImport(tenantId, id);
       if (!job) {
@@ -84,7 +84,7 @@ export class ImportController {
   updateImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
       const updates = req.body;
 
       const job = await this.importService.updateImport(tenantId, id, updates);
@@ -98,7 +98,7 @@ export class ImportController {
   deleteImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.importService.deleteImport(tenantId, id);
       res.json({ success: true, message: 'Import job deleted' });
@@ -128,7 +128,7 @@ export class ImportController {
   previewImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const preview = await this.importService.generatePreview(tenantId, id);
       res.json({ success: true, data: preview });
@@ -141,7 +141,7 @@ export class ImportController {
   validateImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const validation = await this.importService.validateImport(tenantId, id);
       res.json({ success: true, data: validation });
@@ -154,7 +154,7 @@ export class ImportController {
   executeImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       // Queue the import job for async processing
       await this.queueService.enqueueImport(tenantId, id);
@@ -170,7 +170,7 @@ export class ImportController {
   executeDryRun = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const result = await this.importService.executeDryRun(tenantId, id);
       res.json({ success: true, data: result });
@@ -183,7 +183,7 @@ export class ImportController {
   getProgress = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const progress = await this.importService.getProgress(tenantId, id);
       res.json({ success: true, data: progress });
@@ -196,7 +196,7 @@ export class ImportController {
   getErrors = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
       const { page = '1', limit = '50' } = req.query;
 
       const errors = await this.importService.getErrors(tenantId, id, {
@@ -214,7 +214,7 @@ export class ImportController {
   downloadErrorReport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const report = await this.importService.generateErrorReport(tenantId, id);
       res.setHeader('Content-Type', 'text/csv');
@@ -229,7 +229,7 @@ export class ImportController {
   cancelImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.queueService.cancelJob(id);
       const job = await this.importService.updateImport(tenantId, id, { status: 'failed' });
@@ -243,7 +243,7 @@ export class ImportController {
   retryImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.queueService.enqueueImport(tenantId, id);
       const job = await this.importService.updateImport(tenantId, id, {
@@ -276,7 +276,7 @@ export class ImportController {
   getTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const template = await this.importService.getTemplate(tenantId, id);
       if (!template) {
@@ -307,7 +307,7 @@ export class ImportController {
   updateTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const template = await this.importService.updateTemplate(tenantId, id, req.body);
       res.json({ success: true, data: template });
@@ -319,7 +319,7 @@ export class ImportController {
   deleteTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.importService.deleteTemplate(tenantId, id);
       res.json({ success: true, message: 'Template deleted' });

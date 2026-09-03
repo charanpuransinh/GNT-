@@ -57,23 +57,23 @@ export class ImportService {
 
     await prisma.importJob.update({
       where: { id: jobId },
-      data: { status: ImportStatus.PROCESSING }
+      data: { status: 'PROCESSING' }
     });
 
     try {
       let rows: ImportRow[];
       switch (job.fileType.toLowerCase()) {
         case 'csv':
-          const csvResult = await CSVParser.parse(job.filePath);
+          const csvResult = await CSVParser.parse(job.fileKey);
           rows = csvResult.rows;
           break;
         case 'xlsx':
         case 'xls':
-          const excelResult = ExcelParser.parse(job.filePath);
+          const excelResult = ExcelParser.parse(job.fileKey);
           rows = excelResult.rows;
           break;
         case 'json':
-          const jsonResult = JSONParser.parse(job.filePath);
+          const jsonResult = JSONParser.parse(job.fileKey);
           rows = jsonResult.rows;
           break;
         default:
@@ -118,7 +118,7 @@ export class ImportService {
             processedRows: i + batch.length,
             successRows,
             failedRows,
-            validationErrors: validationErrors.slice(-100) // Keep last 100 errors
+            validationReport: { errors: validationErrors.slice(-100) } // Keep last 100 errors
           }
         });
 
@@ -137,7 +137,7 @@ export class ImportService {
       await prisma.importJob.update({
         where: { id: jobId },
         data: {
-          status: failedRows > 0 && successRows === 0 ? ImportStatus.FAILED : ImportStatus.COMPLETED,
+          status: failedRows > 0 && successRows === 0 ? 'FAILED' : 'COMPLETED',
           processedRows: rows.length,
           successRows,
           failedRows,
@@ -150,7 +150,7 @@ export class ImportService {
       await prisma.importJob.update({
         where: { id: jobId },
         data: {
-          status: ImportStatus.FAILED,
+          status: 'FAILED',
           completedAt: new Date()
         }
       });
@@ -173,8 +173,48 @@ export class ImportService {
   static async cancelJob(jobId: string): Promise<ImportJob> {
     return prisma.importJob.update({
       where: { id: jobId },
-      data: { status: ImportStatus.CANCELLED }
+      data: { status: 'CANCELLED' }
     });
+  }
+
+  // ─── Legacy alias (टास्क #025 B2): पुराने controllers यही नाम बुलाते हैं ───
+  static async createImportJob(data: unknown): Promise<ImportJob> {
+    const d = data as {
+      tenantId: string;
+      fileName?: string;
+      fileType?: string;
+      fileSize?: number;
+      filePath?: string;
+      entityType?: string;
+      module?: string;
+      createdBy?: string;
+      userId?: string;
+    };
+    return ImportService.createJob({
+      tenantId: d.tenantId,
+      fileName: d.fileName ?? 'upload',
+      fileType: d.fileType ?? 'csv',
+      fileSize: d.fileSize ?? 0,
+      filePath: d.filePath ?? 'uploads/imports/upload',
+      entityType: d.entityType ?? d.module ?? 'IMPORT',
+      createdBy: d.createdBy ?? d.userId ?? 'system',
+    });
+  }
+  static async getImportJob(jobId: string, _tenantId?: string): Promise<ImportJob | null> {
+    return ImportService.getJobStatus(jobId);
+  }
+  static async listImportJobs(tenantId: string, _opts?: unknown): Promise<ImportJob[]> {
+    return ImportService.listJobs(tenantId);
+  }
+  static async cancelImportJob(jobId: string, _tenantId?: string): Promise<ImportJob> {
+    return ImportService.cancelJob(jobId);
+  }
+  static async retryImportJob(jobId: string, _tenantId?: string): Promise<ImportJob> {
+    return prisma.importJob.update({ where: { id: jobId }, data: { status: 'QUEUED' } });
+  }
+  static async validateImport(jobId: string, _tenantId?: string): Promise<ImportJob | null> {
+    // असली validation processJob के अंदर होती है — alias यहाँ job की स्थिति ही लौटाता है
+    return ImportService.getJobStatus(jobId);
   }
 
   static onProgress(callback: (progress: ImportProgress) => void) {

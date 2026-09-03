@@ -47,7 +47,7 @@ export class ExportController {
   getExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const job = await this.exportService.getExport(tenantId, id);
       if (!job) {
@@ -83,7 +83,7 @@ export class ExportController {
   updateExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
       const updates = req.body;
 
       const job = await this.exportService.updateExport(tenantId, id, updates);
@@ -97,7 +97,7 @@ export class ExportController {
   deleteExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.exportService.deleteExport(tenantId, id);
       res.json({ success: true, message: 'Export job deleted' });
@@ -110,7 +110,7 @@ export class ExportController {
   executeExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.queueService.enqueueExport(tenantId, id);
       const job = await this.exportService.updateExport(tenantId, id, { status: 'processing' });
@@ -125,7 +125,7 @@ export class ExportController {
   getProgress = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const progress = await this.exportService.getProgress(tenantId, id);
       res.json({ success: true, data: progress });
@@ -138,7 +138,7 @@ export class ExportController {
   downloadExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const job = await this.exportService.getExport(tenantId, id);
       if (!job || !job.fileUrl) {
@@ -156,7 +156,7 @@ export class ExportController {
   cancelExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.queueService.cancelJob(id);
       const job = await this.exportService.updateExport(tenantId, id, { status: 'failed' });
@@ -182,7 +182,7 @@ export class ExportController {
   getTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const template = await this.exportService.getTemplate(tenantId, id);
       if (!template) {
@@ -213,7 +213,7 @@ export class ExportController {
   updateTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       const template = await this.exportService.updateTemplate(tenantId, id, req.body);
       res.json({ success: true, data: template });
@@ -225,7 +225,7 @@ export class ExportController {
   deleteTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const { id } = req.params;
+      const id = String(req.params.id);
 
       await this.exportService.deleteTemplate(tenantId, id);
       res.json({ success: true, message: 'Template deleted' });

@@ -11,7 +11,7 @@ export class LeaveController {
     try {
       // accept sensitive filters in POST body only
       const leave = await this.service.apply(req.body);
-      await this.events.publish('LEAVE_APPLIED', { leaveId: leave.id, employeeId: leave.employeeId, days: leave.days });
+      await this.events.publish('LEAVE_APPLIED', { leaveId: leave.id, employeeId: leave.employeeId, days: leave.daysRequested });
       res.status(201).json({ success: true, data: leave });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -20,9 +20,9 @@ export class LeaveController {
 
   async approve(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const { approvedBy, rejectionReason } = req.body; // moved from query to body
-      const leave = await this.service.approve(id, approvedBy, rejectionReason);
+      const id = String(req.params.id);
+      const { approvedById, rejectionReason } = req.body; // moved from query to body
+      const leave = await this.service.approve(id, approvedById, rejectionReason);
       await this.events.publish('LEAVE_APPROVED', { leaveId: leave.id, employeeId: leave.employeeId });
       res.json({ success: true, data: leave });
     } catch (error: any) {
@@ -32,9 +32,9 @@ export class LeaveController {
 
   async reject(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const { approvedBy, rejectionReason } = req.body; // moved from query to body
-      const leave = await this.service.reject(id, approvedBy, rejectionReason);
+      const id = String(req.params.id);
+      const { approvedById, rejectionReason } = req.body; // moved from query to body
+      const leave = await this.service.reject(id, approvedById, rejectionReason);
       await this.events.publish('LEAVE_REJECTED', { leaveId: leave.id, employeeId: leave.employeeId, reason: rejectionReason });
       res.json({ success: true, data: leave });
     } catch (error: any) {
@@ -44,7 +44,7 @@ export class LeaveController {
 
   async getByEmployee(req: Request, res: Response) {
     try {
-      const leaves = await this.service.getByEmployee(req.params.employeeId);
+      const leaves = await this.service.getByEmployee(String(req.params.employeeId));
       res.json({ success: true, data: leaves });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -53,7 +53,7 @@ export class LeaveController {
 
   async getBalance(req: Request, res: Response) {
     try {
-      const balance = await this.service.getBalance(req.params.employeeId);
+      const balance = await this.service.getBalance(String(req.params.employeeId));
       res.json({ success: true, data: balance });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });

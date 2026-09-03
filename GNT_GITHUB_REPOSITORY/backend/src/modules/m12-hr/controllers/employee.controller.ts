@@ -32,7 +32,7 @@ export class EmployeeController {
 
   async findOne(req: Request, res: Response) {
     try {
-      const employee = await this.service.findOne(req.params.id);
+      const employee = await this.service.findOne(String(req.params.id));
       if (!employee) return res.status(404).json({ success: false, error: 'Employee not found' });
       res.json({ success: true, data: employee });
     } catch (error: any) {
@@ -42,7 +42,7 @@ export class EmployeeController {
 
   async update(req: Request, res: Response) {
     try {
-      const employee = await this.service.update(req.params.id, req.body);
+      const employee = await this.service.update(String(req.params.id), req.body);
       await this.events.publish('EMPLOYEE_UPDATED', { employeeId: employee.id, changes: Object.keys(req.body) });
       res.json({ success: true, data: employee });
     } catch (error: any) {
@@ -52,8 +52,8 @@ export class EmployeeController {
 
   async remove(req: Request, res: Response) {
     try {
-      await this.service.remove(req.params.id);
-      await this.events.publish('EMPLOYEE_DELETED', { employeeId: req.params.id });
+      await this.service.remove(String(req.params.id));
+      await this.events.publish('EMPLOYEE_DELETED', { employeeId: String(req.params.id) });
       res.json({ success: true, message: 'Employee deleted' });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -62,7 +62,7 @@ export class EmployeeController {
 
   async uploadDocument(req: Request, res: Response) {
     try {
-      const doc = await this.service.addDocument(req.params.id, req.body);
+      const doc = await this.service.addDocument(String(req.params.id), req.body);
       res.status(201).json({ success: true, data: doc });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
