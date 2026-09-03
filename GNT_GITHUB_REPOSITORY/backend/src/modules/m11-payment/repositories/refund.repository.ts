@@ -1,8 +1,9 @@
 // M11 Payment Module - Refund Repository
+// (टास्क #025 B4: Refund model के असली fields — originalTxnId/refundNumber/providerRef)
 
-import { PrismaClient, Prisma, Refund, RefundStatus } from '@prisma/client';
+import { PrismaClient, Prisma, Refund } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { RefundFilter, CreateRefundDto, UpdateRefundDto } from '../types';
+import { RefundFilter, CreateRefundDto, UpdateRefundDto, RefundStatus } from '../types';
 import { toDecimal } from '../utils/decimal.helper';
 
 export class RefundRepository {
@@ -11,7 +12,7 @@ export class RefundRepository {
   async findById(id: string, tenantId: string): Promise<Refund | null> {
     return this.prisma.refund.findFirst({
       where: { id, tenantId },
-      include: { transaction: true },
+      include: { originalTxn: true },
     });
   }
 
@@ -20,7 +21,7 @@ export class RefundRepository {
 
     const where: Prisma.RefundWhereInput = { tenantId };
     if (status) where.status = status;
-    if (transactionId) where.transactionId = transactionId;
+    if (transactionId) where.originalTxnId = transactionId;
 
     const [data, total] = await Promise.all([
       this.prisma.refund.findMany({
@@ -28,7 +29,7 @@ export class RefundRepository {
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
-        include: { transaction: { select: { id: true, amount: true, status: true, payerName: true } } },
+        include: { originalTxn: { select: { id: true, amount: true, status: true, partyName: true } } },
       }),
       this.prisma.refund.count({ where }),
     ]);
@@ -36,52 +37,43 @@ export class RefundRepository {
     return { data, total };
   }
 
-  async create(dto: CreateRefundDto, tenantId: string, userId: string): Promise<Refund> {
+  async create(dto: CreateRefundDto, tenantId: string, _userId: string): Promise<Refund> {
     return this.prisma.refund.create({
       data: {
         tenantId,
-        transactionId: dto.transactionId,
+        originalTxnId: dto.transactionId,
         amount: toDecimal(dto.amount),
-        currency: dto.currency || 'INR',
-        status: 'REQUESTED',
+        status: 'PENDING',
         reason: dto.reason,
-        reasonCode: dto.reasonCode || null,
-        createdBy: userId,
-        updatedBy: userId,
       },
     });
   }
 
-  async update(id: string, dto: UpdateRefundDto, tenantId: string, userId: string): Promise<Refund> {
-    return this.prisma.refund.update({
-      where: { id },
-      data: { ...dto, updatedBy: userId },
-    });
-  }
-
-  async approve(id: string, tenantId: string, approverId: string): Promise<Refund> {
+  async update(id: string, dto: UpdateRefundDto, _tenantId: string, _userId: string): Promise<Refund> {
     return this.prisma.refund.update({
       where: { id },
       data: {
-        status: 'APPROVED',
-        approvedBy: approverId,
-        approvedAt: new Date(),
-        updatedBy: approverId,
+        ...(dto.status !== undefined ? { status: dto.status as RefundStatus } : {}),
+        ...(dto.reason !== undefined ? { reason: dto.reason } : {}),
       },
     });
   }
 
-  async reject(id: string, tenantId: string, userId: string, reason?: string): Promise<Refund> {
+  async approve(id: string, _tenantId: string, _approverId: string): Promise<Refund> {
     return this.prisma.refund.update({
       where: { id },
-      data: {
-        status: 'REJECTED',
-        updatedBy: userId,
-      },
+      data: { status: 'APPROVED', processedAt: new Date() },
     });
   }
 
-  async delete(id: string, tenantId: string): Promise<Refund> {
+  async reject(id: string, _tenantId: string, _userId: string, _reason?: string): Promise<Refund> {
+    return this.prisma.refund.update({
+      where: { id },
+      data: { status: 'REJECTED' },
+    });
+  }
+
+  async delete(id: string, _tenantId: string): Promise<Refund> {
     return this.prisma.refund.delete({ where: { id } });
   }
 }

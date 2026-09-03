@@ -154,6 +154,14 @@
 
 ---
 
+### टास्क #025-हिस्सा B (आगे) — M11 152→88 (01:15)
+- **क्या किया:** refund.repository + ledger.repository को असली models (Refund: originalTxnId/refundNumber; PaymentLedgerEntry: entryType/amount/fiscalYear/period) से rewrite
+- **status:** B आंशिक — बची गहरी field-mapping दर्ज (M11 88: reconciliation.service + invoice/payment/refund/reconciliation controllers + validators; M15 109: sync.service types design; M14 16: parsers API) — **C (frontend) शुरू कर रहा हूँ**, B की बची सूची समीक्षक के लिए नीचे लिखी है; कुल tsc **510→301**, mount 19, prisma valid
+
+**B की बची गहरी मरम्मत (दर्ज, समीक्षक की नज़र के लिए):** M11 reconciliation.service (PaymentReconciliation/Item fields) + controllers/validators · M15 sync.service (missing types: UpdateSyncConfigRequest/TriggerSyncRequest/SyncProgress + SyncConfig.states relation + syncState unique) · M14 import.service (CSVParser/preview vs utils parseCSV mismatch)
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03
