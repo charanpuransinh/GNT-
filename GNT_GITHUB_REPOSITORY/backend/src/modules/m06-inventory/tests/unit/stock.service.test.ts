@@ -32,6 +32,7 @@ describe.runIf(process.env.TEST_DB === '1')(
     mockStockRepo.prototype.findByProduct.mockResolvedValue([{ id: 's1', quantity: 20, batch_id: null }] as any);
     mockStockRepo.prototype.updateQuantity.mockResolvedValue({ id: 's1', quantity: 15 } as any);
     mockStockRepo.prototype.findOrCreate.mockResolvedValue({ id: 's2', quantity: 0 } as any);
+    mockStockRepo.prototype.updateAvgPrice.mockResolvedValue({ id: 's2', quantity: 5 } as any);
     const result = await service.transferStock({ product_id: 'p1', from_branch_id: 'b1', to_branch_id: 'b2', quantity: 5 } as any, 'c1');
     expect(result.from).toBeDefined();
     expect(result.to).toBeDefined();
@@ -57,7 +58,7 @@ describe.runIf(process.env.TEST_DB === '1')(
 
   it('✓ checkAvailability returns correct data', async () => {
     mockStockRepo.prototype.getTotalQuantity.mockResolvedValue(50);
-    const result = await service.checkAvailability({ product_id: 'p1', requested_qty: 30 } as any);
+    const result = await service.checkAvailability({ product_id: 'p1', requested_qty: 30 } as any, 'c1');
     expect(result.available).toBe(true);
     expect(result.current_qty).toBe(50);
   });
