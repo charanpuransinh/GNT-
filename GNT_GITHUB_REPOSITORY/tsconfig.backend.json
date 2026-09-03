@@ -2,7 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["backend/src/*"] } },
   "include": ["backend/src/**/*.ts"],
-  "exclude": ["**/*.test.ts", "**/tests/**",
+  "exclude": [
     "backend/src/modules/m13-automation/ActionRegistry.ts",
     "backend/src/modules/m13-automation/SendEmailAction.ts",
     "backend/src/modules/m13-automation/WorkflowEngine.ts",

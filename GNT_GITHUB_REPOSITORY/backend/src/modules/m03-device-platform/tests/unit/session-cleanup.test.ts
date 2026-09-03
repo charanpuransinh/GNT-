@@ -3,7 +3,7 @@
 // pure logic: expired-session filter + zod schemas (DB नहीं चाहिए)
 // ============================================================================
 
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import { buildExpiredSessionsFilter, SESSION_CLEANUP_INTERVAL_MS } from '../../services/session-cleanup';
 import {

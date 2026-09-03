@@ -179,7 +179,7 @@ describe('M02 - authService', () => {
 
   describe('refreshToken', () => {
     it('should return new tokens for valid refresh token', async () => {
-      vi.mocked(authInternal.verifyRefreshToken).mockReturnValue({
+      vi.mocked(authInternal.verifyRefreshToken).mockResolvedValue({
         userId: 'user-123',
         roles: ['role-1'],
       });

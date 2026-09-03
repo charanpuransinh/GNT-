@@ -1,3 +1,5 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+
 import request from 'supertest';
 import express from 'express';
 import accountingRoutes from '../../routes/accounting.routes';

@@ -2,7 +2,7 @@
  * M21 — Malik ke 3 faislon ki jaanch (2026-09-03).
  * Har faisle ke DONO raaste test hote hain — default aur UI toggle.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { DataSenseService } from '../../services/dataSense.service';
 import { DEFAULT_OPTIONS } from '../../types/dataSense.types';

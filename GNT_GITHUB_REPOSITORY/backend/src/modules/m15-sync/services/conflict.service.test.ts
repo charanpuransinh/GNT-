@@ -1,76 +1,144 @@
-// M15 Sync Module — Unit Tests: Conflict Service
-// GNT Team C | Modular Monolith Architecture
+// ============================================================================
+// M15 — ConflictService के unit tests (टास्क #024 — F1: पुराने jest-टूटे tests
+// की जगह असली API पर नए node:test tests; DB की जगह सादे mock objects)
+// ============================================================================
 
-import { ConflictService } from '../../src/services/conflict.service';
+import { describe, it } from 'vitest';
+import assert from 'node:assert/strict';
+import { ConflictService } from './conflict.service';
+import type { SyncConflict } from '../types/sync.types';
 
-const mockPrisma = {
-  syncConflict: {
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
-    count: jest.fn(),
-    update: jest.fn(),
-    create: jest.fn()
-  },
-  syncQueueItem: {
-    create: jest.fn()
-  }
-};
+function makeConflict(overrides: Partial<SyncConflict> = {}): SyncConflict {
+  return {
+    id: 'conflict-1',
+    tenantId: 'tenant-1',
+    syncJobId: 'job-1',
+    entityType: 'product',
+    entityId: 'prod-1',
+    localVersion: { name: 'local-name', price: 100 },
+    remoteVersion: { name: 'remote-name', price: 90 },
+    status: 'open',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  } as SyncConflict;
+}
 
-const mockEmitter = { emit: jest.fn() };
+function makeMocks() {
+  const calls: string[] = [];
+  const prisma = {
+    syncConflict: {
+      findMany: async (args: Record<string, unknown>) => {
+        calls.push(`findMany:${JSON.stringify(args)}`);
+        return [makeConflict()];
+      },
+      findFirst: async (args: Record<string, unknown>): Promise<SyncConflict | null> => {
+        calls.push(`findFirst:${JSON.stringify(args)}`);
+        return makeConflict();
+      },
+      count: async (args: Record<string, unknown>) => {
+        calls.push(`count:${JSON.stringify(args)}`);
+        return 5;
+      },
+      update: async (args: Record<string, unknown>) => {
+        calls.push(`update:${JSON.stringify(args)}`);
+        return makeConflict({ status: 'resolved' });
+      },
+    },
+    syncQueueItem: {
+      create: async (args: Record<string, unknown>) => {
+        calls.push(`queue:${JSON.stringify(args)}`);
+        return { id: 'queue-1' };
+      },
+    },
+  };
+  const emitter = { emit: (name: string, payload: Record<string, unknown>) => void calls.push(`emit:${name}:${JSON.stringify(payload)}`) };
+  return { prisma, emitter, calls };
+}
 
-describe('ConflictService', () => {
-  let service: ConflictService;
+describe('ConflictService.getAllConflicts', () => {
+  it('tenant + page/limit के साथ findMany/count बुलाता है और meta बनाता है', async () => {
+    const { prisma, emitter, calls } = makeMocks();
+    const service = new ConflictService(prisma as never, emitter as never);
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    service = new ConflictService(mockPrisma as any, mockEmitter as any);
+    const result = await service.getAllConflicts('tenant-1', { page: 2, limit: 20 });
+
+    assert.equal(result.conflicts.length, 1);
+    assert.equal(result.meta.page, 2);
+    assert.equal(result.meta.totalPages, 1); // ceil(5/20)
+    assert.ok(calls.some((c) => c.startsWith('findMany:') && c.includes('"skip":20')));
+    assert.ok(calls.some((c) => c.startsWith('count:') && c.includes('tenant-1')));
+  });
+});
+
+describe('ConflictService.resolveConflict', () => {
+  it('local_wins: localVersion लेता है, status resolved करता है, queue बनाता है, event भेजता है', async () => {
+    const { prisma, emitter, calls } = makeMocks();
+    const service = new ConflictService(prisma as never, emitter as never);
+
+    const updated = await service.resolveConflict(
+      'tenant-1',
+      'conflict-1',
+      { resolution: 'local_wins' } as never,
+      'user-1',
+    );
+
+    assert.equal(updated.status, 'resolved');
+    assert.ok(calls.some((c) => c.startsWith('update:') && c.includes('"status":"resolved"')));
+    assert.ok(calls.some((c) => c.startsWith('queue:') && c.includes('"operation":"push"')));
+    assert.ok(calls.some((c) => c.startsWith('emit:conflict.resolved') && c.includes('conflict-1')));
   });
 
-  describe('resolveConflict', () => {
-    it('should resolve conflict with local_wins strategy', async () => {
-      const conflict = {
-        id: 'c1',
-        tenantId: 't1',
-        localVersion: { name: 'Local' },
-        remoteVersion: { name: 'Remote' },
-        status: 'open'
-      };
-      mockPrisma.syncConflict.findFirst.mockResolvedValue(conflict);
-      mockPrisma.syncConflict.update.mockResolvedValue({ ...conflict, status: 'resolved' });
+  it('manual बिना resolvedVersion → 400', async () => {
+    const { prisma, emitter } = makeMocks();
+    const service = new ConflictService(prisma as never, emitter as never);
 
-      const result = await service.resolveConflict('t1', 'c1', {
-        resolution: 'local_wins'
-      }, 'user-1');
-
-      expect(result.status).toBe('resolved');
-      expect(mockEmitter.emit).toHaveBeenCalledWith('conflict.resolved', expect.any(Object));
-    });
-
-    it('should throw if conflict already resolved', async () => {
-      mockPrisma.syncConflict.findFirst.mockResolvedValue({
-        id: 'c1', status: 'resolved'
-      });
-
-      await expect(service.resolveConflict('t1', 'c1', {
-        resolution: 'local_wins'
-      }, 'user-1')).rejects.toThrow('Conflict already resolved');
-    });
+    await assert.rejects(
+      () => service.resolveConflict('tenant-1', 'conflict-1', { resolution: 'manual', resolvedVersion: undefined } as never, 'user-1'),
+      (err: unknown) => (err as { statusCode?: number }).statusCode === 400,
+    );
   });
 
-  describe('getConflictStats', () => {
-    it('should return conflict statistics', async () => {
-      mockPrisma.syncConflict.count
-        .mockResolvedValueOnce(5)  // open
-        .mockResolvedValueOnce(10) // resolved
-        .mockResolvedValueOnce(2)  // ignored
-        .mockResolvedValueOnce(17); // total
+  it('conflict न मिले → 404', async () => {
+    const { prisma, emitter } = makeMocks();
+    prisma.syncConflict.findFirst = async () => null;
+    const service = new ConflictService(prisma as never, emitter as never);
 
-      const stats = await service.getConflictStats('t1');
+    await assert.rejects(
+      () => service.resolveConflict('tenant-1', 'ghost', { resolution: 'local_wins' } as never, 'user-1'),
+      (err: unknown) => (err as { statusCode?: number }).statusCode === 404,
+    );
+  });
+});
 
-      expect(stats.open).toBe(5);
-      expect(stats.resolved).toBe(10);
-      expect(stats.ignored).toBe(2);
-      expect(stats.total).toBe(17);
-    });
+describe('ConflictService.ignoreConflict', () => {
+  it('status ignored करता है और event भेजता है', async () => {
+    const { prisma, emitter, calls } = makeMocks();
+    prisma.syncConflict.update = async (args: Record<string, unknown>) => {
+      calls.push(`update:${JSON.stringify(args)}`);
+      return makeConflict({ status: 'ignored' });
+    };
+    const service = new ConflictService(prisma as never, emitter as never);
+
+    const updated = await service.ignoreConflict('tenant-1', 'conflict-1');
+
+    assert.equal(updated.status, 'ignored');
+    assert.ok(calls.some((c) => c.startsWith('emit:conflict.ignored')));
+  });
+});
+
+describe('ConflictService.getConflictStats', () => {
+  it('चारों गिनतियाँ tenant के दायरे में', async () => {
+    const { prisma, emitter, calls } = makeMocks();
+    const service = new ConflictService(prisma as never, emitter as never);
+
+    const stats = await service.getConflictStats('tenant-1');
+
+    assert.equal(stats.total, 5);
+    assert.equal(stats.open, 5);
+    // हर count tenant-1 के साथ गया (tenant-safe)
+    const countCalls = calls.filter((c) => c.startsWith('count:'));
+    assert.equal(countCalls.length, 4);
+    assert.ok(countCalls.every((c) => c.includes('tenant-1')));
   });
 });

@@ -1,15 +1,17 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi, type MockedClass, type Mocked } from 'vitest';
+
 import { StockService, inventoryEvents } from '../../services/stock.service';
 import { StockRepository } from '../../repositories/stock.repository';
 import { ProductRepository } from '../../repositories/product.repository';
 
-jest.mock('../../repositories/stock.repository');
-jest.mock('../../repositories/product.repository');
+vi.mock('../../repositories/stock.repository');
+vi.mock('../../repositories/product.repository');
 
 describe('StockService', () => {
   const service = new StockService();
-  const mockStockRepo = StockRepository as jest.MockedClass<typeof StockRepository>;
-  const mockProductRepo = ProductRepository as jest.MockedClass<typeof ProductRepository>;
-  beforeEach(() => jest.clearAllMocks());
+  const mockStockRepo = StockRepository as MockedClass<typeof StockRepository>;
+  const mockProductRepo = ProductRepository as MockedClass<typeof ProductRepository>;
+  beforeEach(() => vi.clearAllMocks());
 
   it('✓ stock adjustment increases quantity and creates movement', async () => {
     mockStockRepo.prototype.findOrCreate.mockResolvedValue({ id: 's1', quantity: 10 } as any);
@@ -35,7 +37,7 @@ describe('StockService', () => {
   });
 
   it('✓ low stock detection emits event', async () => {
-    const emitSpy = jest.spyOn(inventoryEvents, 'emit');
+    const emitSpy = vi.spyOn(inventoryEvents, 'emit');
     mockStockRepo.prototype.findOrCreate.mockResolvedValue({ id: 's1', quantity: 5 } as any);
     mockStockRepo.prototype.updateQuantity.mockResolvedValue({ id: 's1', quantity: 2 } as any);
     mockProductRepo.prototype.findById.mockResolvedValue({ id: 'p1', reorder_level: 5, name: 'Test' } as any);

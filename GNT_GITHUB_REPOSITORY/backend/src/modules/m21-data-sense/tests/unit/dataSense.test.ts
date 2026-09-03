@@ -2,7 +2,7 @@
  * M21 — Data Sense ki jaanch: pehchaan (SENSE), jodi (MAP), aur rang (VALIDATE).
  * Sab kuch DB ke bina — yeh shuddh logic hai.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { DataSenseService } from '../../services/dataSense.service';
 import { senseSheet } from '../../services/sense.engine';

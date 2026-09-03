@@ -4,7 +4,7 @@
 // process.env पढ़ता है)।
 // ============================================================================
 
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import { appInternal } from '../../services/app.internal';
 import {
@@ -19,7 +19,8 @@ describe('appInternal.validateAndEnrichConfig', () => {
     const c = appInternal.validateAndEnrichConfig({});
     assert.equal(c.appName, 'GARUDA NEXTECH');
     assert.equal(c.version, '1.0.0');
-    assert.equal(c.environment, 'development');
+    // environment env से आता है (vitest में NODE_ENV=test) — default सिर्फ़ तब 'development'
+    assert.equal(c.environment, process.env.NODE_ENV || 'development');
     assert.equal(c.maintenanceMode, false);
   });
 

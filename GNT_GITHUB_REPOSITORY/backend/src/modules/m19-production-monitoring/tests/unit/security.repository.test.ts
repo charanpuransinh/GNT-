@@ -1,7 +1,7 @@
 /**
  * M19 — security event doosri company ki band nahi kar sakte.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { SecurityRepository } from '../../repositories/security.repository';

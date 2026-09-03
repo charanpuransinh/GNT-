@@ -1,3 +1,5 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+
 describe('Accounting Integration', () => {
   it('Voucher create → post → ledger entries → balance update (atomic)', async () => {
     expect(true).toBe(true);

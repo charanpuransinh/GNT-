@@ -1,12 +1,14 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi, type MockedClass, type Mocked } from 'vitest';
+
 import { ProductService } from '../../services/product.service';
 import { ProductRepository } from '../../repositories/product.repository';
 
-jest.mock('../../repositories/product.repository');
+vi.mock('../../repositories/product.repository');
 
 describe('ProductService', () => {
   const service = new ProductService();
-  const mockRepo = ProductRepository as jest.MockedClass<typeof ProductRepository>;
-  beforeEach(() => jest.clearAllMocks());
+  const mockRepo = ProductRepository as MockedClass<typeof ProductRepository>;
+  beforeEach(() => vi.clearAllMocks());
 
   it('✓ creates product with valid data', async () => {
     const data = { company_id: 'c1', name: 'Test Product', code: 'TP001', barcode: '123456' };

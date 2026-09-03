@@ -2,7 +2,7 @@
  * M20 — Customs duty ganit ki jaanch (DB ke bina, nakli prisma se).
  * Yeh asli business logic hai: BCD → SWS → ACD/SAD/CVD → IGST base → IGST + Cess → total.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { CustomsService } from '../../services/customs.service';

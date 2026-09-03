@@ -1,13 +1,15 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+
 import { StockRepository } from '../../repositories/stock.repository';
 
 describe('StockRepository', () => {
   const repo = new StockRepository();
 
   it('✓ findOrCreate returns existing stock', async () => {
-    const mockFindFirst = jest.fn().mockResolvedValue({ id: 's1', quantity: 10 });
-    const mockCreate = jest.fn();
-    jest.doMock('@prisma/client', () => ({
-      PrismaClient: jest.fn().mockImplementation(() => ({
+    const mockFindFirst = vi.fn().mockResolvedValue({ id: 's1', quantity: 10 });
+    const mockCreate = vi.fn();
+    vi.doMock('@prisma/client', () => ({
+      PrismaClient: vi.fn().mockImplementation(() => ({
         stock_master: { findFirst: mockFindFirst, create: mockCreate }
       }))
     }));

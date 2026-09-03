@@ -4,7 +4,7 @@
 // यही यहाँ जाँची जाती है। सब pure (Zod), DB नहीं चाहिए।
 // ============================================================================
 
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   loginSchema,

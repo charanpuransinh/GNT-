@@ -2,7 +2,7 @@
  * M19 — Audit trail sabse sanvedansheel hai: companyId chhoot jaye to
  * har company ka itihaas khul jata tha (Prisma undefined shart ko hata deta hai).
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { AuditRepository } from '../../repositories/audit.repository';

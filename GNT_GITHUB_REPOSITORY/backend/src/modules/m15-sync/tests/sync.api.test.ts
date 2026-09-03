@@ -1,93 +1,26 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+// ============================================================================
+// M15 — Sync API का auth-द्वार test (टास्क #024 — F1)
+//
+// पुराना test '../../src/index' (अब नहीं है) और x-tenant-id/x-user-id headers
+// (टास्क #009 के बाद काम नहीं करते — पहचान सिर्फ़ token से) पर टिका था।
+// असली हालत: main app, /api/v1/sync, बिना token 401।
+// ============================================================================
+
+import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import app from '../../src/index';
+import { app } from '../../../app';
 
-describe('M15 Sync API Integration', () => {
-  const tenantId = 'tenant-integration';
-  const headers = {
-    'x-tenant-id': tenantId,
-    'x-user-id': 'user-test',
-    'x-user-role': 'admin'
-  };
-
-  describe('GET /api/m15/sync/configs', () => {
-    it('should return sync configs for tenant', async () => {
-      const res = await request(app)
-        .get('/api/m15/sync/configs')
-        .set(headers);
-
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(Array.isArray(res.body.data)).toBe(true);
-    });
+describe('M15 /api/v1/sync — auth द्वार', () => {
+  it('बिना token GET /api/v1/sync/configs → 401', async () => {
+    const res = await request(app).get('/api/v1/sync/configs');
+    expect(res.status).toBe(401);
   });
 
-  describe('POST /api/m15/sync/configs', () => {
-    it('should create a new sync config', async () => {
-      const config = {
-        configCode: 'SYNC-TEST-001',
-        name: 'Test Sync',
-        sourceSystem: 'TALLY',
-        syncDirection: 'BIDIRECTIONAL',
-        connectionType: 'API',
-        connectionConfig: { baseUrl: 'http://test' },
-        entityConfigs: [{
-          internalEntity: 'ITEM',
-          externalEntity: 'Products',
-          fieldMappings: [{ internalField: 'id', externalField: 'productId', isKey: true }]
-        }]
-      };
-
-      const res = await request(app)
-        .post('/api/m15/sync/configs')
-        .set(headers)
-        .send(config);
-
-      expect([200, 201, 400]).toContain(res.status);
-    });
-  });
-
-  describe('GET /api/m15/sync/jobs', () => {
-    it('should return sync jobs', async () => {
-      const res = await request(app)
-        .get('/api/m15/sync/jobs')
-        .set(headers);
-
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-    });
-  });
-
-  describe('GET /api/m15/conflicts', () => {
-    it('should return conflicts', async () => {
-      const res = await request(app)
-        .get('/api/m15/conflicts')
-        .set(headers);
-
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-    });
-  });
-
-  describe('GET /api/m15/backups', () => {
-    it('should return backup jobs', async () => {
-      const res = await request(app)
-        .get('/api/m15/backups')
-        .set(headers);
-
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-    });
-  });
-
-  describe('GET /api/m15/integrations', () => {
-    it('should return integrations', async () => {
-      const res = await request(app)
-        .get('/api/m15/integrations')
-        .set(headers);
-
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-    });
+  it('पुराने x-tenant-id headers अब पहचान नहीं दिलाते — फिर भी 401', async () => {
+    const res = await request(app)
+      .get('/api/v1/sync/configs')
+      .set('x-tenant-id', 'tenant-integration')
+      .set('x-user-id', 'user-test');
+    expect(res.status).toBe(401);
   });
 });

@@ -1,17 +1,19 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi, type Mocked } from 'vitest';
+
 import { VoucherService } from '../../services/voucher.service';
 import { PrismaClient } from '@prisma/client';
 
 describe('VoucherService', () => {
   const mockPrisma = {
     voucher: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
     },
-  } as unknown as PrismaClient;
+  };
 
-  const service = new VoucherService(mockPrisma);
+  const service = new VoucherService(mockPrisma as unknown as PrismaClient);
 
   it('Voucher debit = credit validation', async () => {
     await expect(

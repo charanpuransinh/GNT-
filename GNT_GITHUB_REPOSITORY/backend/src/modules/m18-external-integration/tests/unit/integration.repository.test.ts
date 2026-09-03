@@ -1,7 +1,7 @@
 /**
  * M18 — Gateway config sabhi companies ka leak na ho.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { IntegrationRepository } from '../../repositories/integration.repository';

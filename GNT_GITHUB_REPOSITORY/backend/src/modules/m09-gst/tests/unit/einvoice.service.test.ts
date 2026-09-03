@@ -1,16 +1,18 @@
-import { EInvoiceService } from '../../services/einvoice.service';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi, type Mocked } from 'vitest';
+
+import { EInvoiceService, type IRPProvider } from '../../services/einvoice.service';
 import { EInvoiceRepository } from '../../repositories/einvoice.repository';
 
 describe('EInvoiceService', () => {
   const mockRepo = {
-    getInvoiceData: jest.fn(),
-    createEInvoice: jest.fn(),
-    findByIRN: jest.fn(),
-    updateEInvoiceStatus: jest.fn(),
-    createEWayBill: jest.fn(),
-  } as unknown as EInvoiceRepository;
+    getInvoiceData: vi.fn(),
+    createEInvoice: vi.fn(),
+    findByIRN: vi.fn(),
+    updateEInvoiceStatus: vi.fn(),
+    createEWayBill: vi.fn(),
+  } as unknown as Mocked<EInvoiceRepository>;
 
-  const service = new EInvoiceService(mockRepo);
+  const service = new EInvoiceService(mockRepo, {} as unknown as IRPProvider);
 
   it('E-Invoice JSON generation matches GST schema', async () => {
     mockRepo.getInvoiceData.mockResolvedValue({ company_id: 'c1', id: 'inv1', total_amount: 75000 });

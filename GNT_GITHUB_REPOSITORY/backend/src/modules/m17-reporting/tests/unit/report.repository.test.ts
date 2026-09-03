@@ -2,7 +2,7 @@
  * M17 — report config doosri company ka badla na ja sake
  * (updateConfig companyId leta tha par istemal nahi karta tha).
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { ReportRepository } from '../../repositories/report.repository';

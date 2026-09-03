@@ -6,7 +6,7 @@
 // (नक़ली success दिखाना मना)।
 // ============================================================================
 
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { app } from '../../../../app';

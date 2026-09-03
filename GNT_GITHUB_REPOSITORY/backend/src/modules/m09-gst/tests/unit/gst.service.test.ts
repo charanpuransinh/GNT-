@@ -1,17 +1,19 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi, type Mocked } from 'vitest';
+
 import { GSTService } from '../../services/gst.service';
 import { GSTRepository } from '../../repositories/gst.repository';
 
 describe('GSTService', () => {
   const mockRepo = {
-    getTaxSlabsAsMap: jest.fn(),
-    getCompanyTurnoverCr: jest.fn(),
-    compileGSTR1: jest.fn(),
-    compileGSTR3B: jest.fn(),
-    reconcileAgainstGSTR2B: jest.fn(),
-  } as unknown as GSTRepository;
+    getTaxSlabsAsMap: vi.fn(),
+    getCompanyTurnoverCr: vi.fn(),
+    compileGSTR1: vi.fn(),
+    compileGSTR3B: vi.fn(),
+    reconcileAgainstGSTR2B: vi.fn(),
+  } as unknown as Mocked<GSTRepository>;
 
   const service = new GSTService(mockRepo);
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('Intra-state CGST+SGST calculation', async () => {
     mockRepo.getTaxSlabsAsMap.mockResolvedValue({ '1001': { cgst_rate: 9, sgst_rate: 9, igst_rate: 18, cess_rate: 0 } });

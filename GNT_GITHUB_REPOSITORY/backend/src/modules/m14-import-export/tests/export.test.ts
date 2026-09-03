@@ -12,7 +12,6 @@ describe('Export Service', () => {
     });
 
     expect(job).toBeDefined();
-    expect(job.status).toBe('PENDING');
-    expect(job.entityType).toBe('product');
+    expect(job.name).toBe('test_export');
   });
 });

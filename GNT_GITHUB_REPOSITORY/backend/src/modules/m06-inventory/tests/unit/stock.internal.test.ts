@@ -1,3 +1,5 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+
 import { StockInternalService } from '../../services/stock.internal';
 
 describe('StockInternalService', () => {
@@ -15,8 +17,8 @@ describe('StockInternalService', () => {
 
   it('✓ checkLowStock returns false when above reorder', async () => {
     const { PrismaClient } = require('@prisma/client');
-    jest.spyOn(PrismaClient.prototype.product_master, 'findFirst').mockResolvedValue({ reorder_level: 10 } as any);
-    jest.spyOn(PrismaClient.prototype.stock_master, 'aggregate').mockResolvedValue({ _sum: { quantity: 20 } } as any);
+    vi.spyOn(PrismaClient.prototype.product_master, 'findFirst').mockResolvedValue({ reorder_level: 10 } as any);
+    vi.spyOn(PrismaClient.prototype.stock_master, 'aggregate').mockResolvedValue({ _sum: { quantity: 20 } } as any);
     const result = await service.checkLowStock('p1', 'c1');
     expect(result).toBe(false);
   });

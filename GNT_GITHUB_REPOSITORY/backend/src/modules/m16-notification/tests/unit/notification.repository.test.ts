@@ -3,7 +3,7 @@
  * Pehle findMany companyId ke bina bhi chal jaati thi → doosri company ki notification dikh sakti thi.
  * Ab fail-closed hai. Yeh test usi ki raksha karta hai.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { notificationRepository } from '../../repositories/notification.repository';
 

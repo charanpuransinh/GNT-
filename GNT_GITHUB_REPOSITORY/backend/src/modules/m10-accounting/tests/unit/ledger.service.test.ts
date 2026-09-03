@@ -1,13 +1,15 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi, type Mocked } from 'vitest';
+
 import { LedgerService } from '../../services/ledger.service';
 import { LedgerRepository } from '../../repositories/ledger.repository';
 import { PrismaClient } from '@prisma/client';
 
 describe('LedgerService', () => {
   const mockRepo = {
-    getLedgerEntries: jest.fn(),
-    getBalanceAsOfDate: jest.fn(),
-    getLedgerSumsByAccount: jest.fn(),
-  } as unknown as LedgerRepository;
+    getLedgerEntries: vi.fn(),
+    getBalanceAsOfDate: vi.fn(),
+    getLedgerSumsByAccount: vi.fn(),
+  } as unknown as Mocked<LedgerRepository>;
 
   const mockPrisma = {} as PrismaClient;
   const service = new LedgerService(mockRepo, mockPrisma);
