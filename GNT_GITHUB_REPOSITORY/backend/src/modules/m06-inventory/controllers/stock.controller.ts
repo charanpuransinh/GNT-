@@ -1,5 +1,6 @@
 // GNT M06 — Stock Controller
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { StockService } from '../services/stock.service';
 import {
   stockAdjustmentSchema,
@@ -14,7 +15,7 @@ const stockService = new StockService();
 export class StockController {
   async getStock(req: Request, res: Response) {
     try {
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const filter = {
@@ -33,7 +34,7 @@ export class StockController {
   async getStockByProduct(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       const branch_id = req.query.branch_id as string | undefined;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
@@ -47,8 +48,8 @@ export class StockController {
   async adjustStock(req: Request, res: Response) {
     try {
       const validated = stockAdjustmentSchema.parse(req.body);
-      const company_id = (req as any).tenant?.company_id;
-      const userId = (req as any).user?.id;
+      const company_id = requireTenant(req).companyId;
+      const userId = req.user?.id;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const stock = await stockService.adjustStock(validated, company_id, userId);
@@ -61,8 +62,8 @@ export class StockController {
   async transferStock(req: Request, res: Response) {
     try {
       const validated = stockTransferSchema.parse(req.body);
-      const company_id = (req as any).tenant?.company_id;
-      const userId = (req as any).user?.id;
+      const company_id = requireTenant(req).companyId;
+      const userId = req.user?.id;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const result = await stockService.transferStock(validated, company_id, userId);
@@ -74,7 +75,7 @@ export class StockController {
 
   async getStockMovements(req: Request, res: Response) {
     try {
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const parsed = movementFilterSchema.parse(req.query);
@@ -92,7 +93,7 @@ export class StockController {
 
   async getLowStock(req: Request, res: Response) {
     try {
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       const branch_id = req.query.branch_id as string | undefined;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
@@ -106,7 +107,7 @@ export class StockController {
   async checkAvailability(req: Request, res: Response) {
     try {
       const validated = availabilityCheckSchema.parse(req.body);
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       // Inject company_id for repository context

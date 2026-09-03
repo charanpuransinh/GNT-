@@ -65,7 +65,7 @@ export class ImportController {
   createImport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const userId = (req as any).user?.id || 'system';
+      const userId = req.user?.id || 'system';
       const data = req.body;
 
       const job = await this.importService.createImport({
@@ -291,7 +291,7 @@ export class ImportController {
   createTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const userId = (req as any).user?.id || 'system';
+      const userId = req.user?.id || 'system';
 
       const template = await this.importService.createTemplate({
         ...req.body,

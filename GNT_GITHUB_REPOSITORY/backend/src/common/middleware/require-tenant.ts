@@ -14,9 +14,23 @@ export interface TenantContext {
   branchId?: string;
 }
 
+export interface UserContext {
+  id: string;
+  companyId?: string;
+  branchId?: string;
+}
+
 export function requireTenant(req: Request): TenantContext {
   if (!req.tenant) {
     throw new AppError('TENANT_REQUIRED', 'Tenant required', 401);
   }
   return req.tenant;
+}
+
+/** auth के बाद user हमेशा होना चाहिए — गायब हो तो 401 (चुपचाप undefined नहीं) */
+export function requireUser(req: Request): UserContext {
+  if (!req.user) {
+    throw new AppError('AUTH_REQUIRED', 'User required', 401);
+  }
+  return req.user;
 }

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { deviceService } from '../services/device.service';
 import { AppError } from '@/common/errors/error-classes';
 import { logger } from '@/common/logging/logger';
@@ -6,7 +7,7 @@ import { logger } from '@/common/logging/logger';
 export const deviceController = {
   async getActiveSessions(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = requireUser(req).id;
       const sessions = await deviceService.getActiveSessions(userId);
       res.json({
         success: true,
@@ -23,7 +24,7 @@ export const deviceController = {
 
   async terminateSession(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = requireUser(req).id;
       const sessionId = String(req.params.sessionId);
       await deviceService.terminateSession(userId, sessionId);
       res.json({
@@ -41,8 +42,9 @@ export const deviceController = {
 
   async terminateAllSessions(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
-      const currentSessionId = (req as any).sessionId;
+      const userId = requireUser(req).id;
+      // sessionId कहीं set नहीं होता (route /sessions — सब ख़त्म) — undefined ही जाता है
+      const currentSessionId = undefined;
       await deviceService.terminateAllSessions(userId, currentSessionId);
       res.json({
         success: true,
@@ -59,7 +61,7 @@ export const deviceController = {
 
   async registerDevice(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = requireUser(req).id;
       const device = await deviceService.registerDevice(userId, req.body);
       res.status(201).json({
         success: true,
@@ -76,7 +78,7 @@ export const deviceController = {
 
   async getRegisteredDevices(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = requireUser(req).id;
       const devices = await deviceService.getRegisteredDevices(userId);
       res.json({
         success: true,
@@ -128,7 +130,7 @@ export const deviceController = {
 
   async getDeploymentSettings(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as any).company?.id;
+      const companyId = requireTenant(req).companyId;
       const settings = await deviceService.getDeploymentSettings(companyId);
       res.json({
         success: true,
@@ -145,7 +147,7 @@ export const deviceController = {
 
   async updateDeploymentSettings(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as any).company?.id;
+      const companyId = requireTenant(req).companyId;
       const settings = await deviceService.updateDeploymentSettings(companyId, req.body);
       res.json({
         success: true,

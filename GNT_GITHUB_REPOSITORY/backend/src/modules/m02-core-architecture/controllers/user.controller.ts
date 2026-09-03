@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { userService } from '../services/user.service';
 import { logger } from '@/common/logging/logger';
 
 export const userController = {
   async listUsers(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as any).company?.id;
+      const companyId = requireTenant(req).companyId;
       const users = await userService.listUsers(companyId);
       res.json({
         success: true,
@@ -39,7 +40,7 @@ export const userController = {
 
   async createUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as any).company?.id;
+      const companyId = requireTenant(req).companyId;
       const user = await userService.createUser({ ...req.body, companyId });
       res.status(201).json({
         success: true,

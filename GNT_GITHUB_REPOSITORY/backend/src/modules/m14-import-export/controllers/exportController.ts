@@ -64,7 +64,7 @@ export class ExportController {
   createExport = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const userId = (req as any).user?.id || 'system';
+      const userId = req.user?.id || 'system';
       const data = req.body;
 
       const job = await this.exportService.createExport({
@@ -197,7 +197,7 @@ export class ExportController {
   createTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const userId = (req as any).user?.id || 'system';
+      const userId = req.user?.id || 'system';
 
       const template = await this.exportService.createTemplate({
         ...req.body,

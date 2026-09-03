@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { roleService } from '../services/role.service';
 
 export const roleController = {
   async listRoles(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as any).company?.id;
+      const companyId = requireTenant(req).companyId;
       const roles = await roleService.listRoles(companyId);
       res.json({
         success: true,
@@ -38,7 +39,7 @@ export const roleController = {
 
   async createRole(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as any).company?.id;
+      const companyId = requireTenant(req).companyId;
       const role = await roleService.createRole({ ...req.body, companyId });
       res.status(201).json({
         success: true,

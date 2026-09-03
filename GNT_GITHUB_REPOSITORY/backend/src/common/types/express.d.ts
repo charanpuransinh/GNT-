@@ -8,7 +8,7 @@ export {};
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; companyId?: string };
+      user?: { id: string; companyId?: string; branchId?: string };
       // tenant?: — middleware सिर्फ़ authenticated (गैर-public) रास्तों पर चलता है (CERT-003 शर्त 2)।
       // हर पढ़ने वाली जगह guard ज़रूरी — req.tenant?.companyId या पहले से जाँच।
       tenant?: { companyId: string; branchId?: string };

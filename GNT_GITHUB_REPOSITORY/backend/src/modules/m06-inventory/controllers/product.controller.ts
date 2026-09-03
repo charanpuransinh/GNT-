@@ -1,5 +1,6 @@
 // GNT M06 — Product Controller
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { ProductService } from '../services/product.service';
 import {
   productSchema,
@@ -13,7 +14,7 @@ export class ProductController {
   async createProduct(req: Request, res: Response) {
     try {
       const validated = productSchema.parse(req.body);
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const product = await productService.createProduct({ ...validated, company_id });
@@ -25,7 +26,7 @@ export class ProductController {
 
   async getProducts(req: Request, res: Response) {
     try {
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const filter = productFilterSchema.parse(req.query);
@@ -39,7 +40,7 @@ export class ProductController {
   async getProductById(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const product = await productService.getProductById(id, company_id);
@@ -54,7 +55,7 @@ export class ProductController {
     try {
       const id = String(req.params.id);
       const validated = productUpdateSchema.parse(req.body);
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const product = await productService.updateProduct(id, validated, company_id);
@@ -67,7 +68,7 @@ export class ProductController {
   async deleteProduct(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const product = await productService.deleteProduct(id, company_id);
@@ -80,7 +81,7 @@ export class ProductController {
   async getProductStock(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       const branch_id = req.query.branch_id as string | undefined;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
@@ -93,7 +94,7 @@ export class ProductController {
 
   async bulkImportProducts(req: Request, res: Response) {
     try {
-      const company_id = (req as any).tenant?.company_id;
+      const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
 
       const products = req.body.products?.map((p: any) => ({ ...p, company_id }));

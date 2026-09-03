@@ -9,8 +9,8 @@ export class ExportController {
   async create(req: Request, res: Response) {
     try {
       const { module, entityType, format, filters, columns, sort, templateId } = req.body;
-      const tenantId = (req as any).tenantId;
-      const userId = (req as any).userId;
+      const tenantId = req.tenantId;
+      const userId = req.userId;
 
       const jobId = await exportService.createExportJob({
         module, entityType, format, filters, columns, sort, templateId,
@@ -25,7 +25,7 @@ export class ExportController {
   async getJob(req: Request, res: Response) {
     try {
       const { jobId } = req.params;
-      const tenantId = (req as any).tenantId;
+      const tenantId = req.tenantId;
       const job = await exportService.getExportJob(jobId, tenantId);
       res.json(job);
     } catch (err: any) {
@@ -35,7 +35,7 @@ export class ExportController {
 
   async listJobs(req: Request, res: Response) {
     try {
-      const tenantId = (req as any).tenantId;
+      const tenantId = req.tenantId;
       const { module, entityType, status } = req.query;
       const jobs = await exportService.listExportJobs(tenantId, {
         ...(module && { module: String(module) }),
@@ -51,7 +51,7 @@ export class ExportController {
   async cancel(req: Request, res: Response) {
     try {
       const { jobId } = req.params;
-      const tenantId = (req as any).tenantId;
+      const tenantId = req.tenantId;
       await exportService.cancelExportJob(jobId, tenantId);
       res.json({ success: true, message: 'Export cancelled' });
     } catch (err: any) {
@@ -62,7 +62,7 @@ export class ExportController {
   async download(req: Request, res: Response) {
     try {
       const { jobId } = req.params;
-      const tenantId = (req as any).tenantId;
+      const tenantId = req.tenantId;
       const file = await exportService.downloadExport(jobId, tenantId);
       res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
       res.setHeader('Content-Type', file.mimeType);

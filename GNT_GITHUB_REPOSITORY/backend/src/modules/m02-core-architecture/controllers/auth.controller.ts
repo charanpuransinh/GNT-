@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireUser } from '@/common/middleware/require-tenant';
 import { authService } from '../services/auth.service';
 import { AppError } from '@/common/errors/error-classes';
 import { logger } from '@/common/logging/logger';
@@ -80,7 +81,7 @@ export const authController = {
 
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = requireUser(req).id;
       await authService.logout(userId);
 
       auditLogger.log({
@@ -107,7 +108,7 @@ export const authController = {
 
   async getCurrentUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = requireUser(req).id;
       const user = await authService.getCurrentUser(userId);
       res.json({
         success: true,
@@ -124,7 +125,7 @@ export const authController = {
 
   async unlockSession(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = requireUser(req).id;
       const { pin } = req.body;
       await authService.unlockSession(userId, pin);
       res.json({
