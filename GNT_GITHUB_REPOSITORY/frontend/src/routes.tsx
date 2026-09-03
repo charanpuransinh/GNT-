@@ -70,6 +70,21 @@ export const routes: ReadonlyArray<AppRoute> = [
   { path: '/sales/receipt',    label: 'ग्राहक रसीद',   element: page(() => import('./modules/m08-sales/pages/CustomerReceiptPage'), 'CustomerReceiptPage') },
   { path: '/sales/print-share', label: 'छापें/भेजें',   element: page(() => import('./modules/m08-sales/pages/InvoicePrintSharePage'), 'InvoicePrintSharePage') },
 
+  // M09 — GST (M09 mount का इंतज़ार — पेज तैयार)
+  { path: '/gst/config',        label: 'GST सेटिंग',   element: page(() => import('./modules/m09-gst/pages/GSTConfigPage'), 'GSTConfigPage') },
+  { path: '/gst/calculate',     label: 'GST गणना',     element: page(() => import('./modules/m09-gst/pages/GSTCalculationPage'), 'GSTCalculationPage') },
+  { path: '/gst/returns',       label: 'GST Returns',  element: page(() => import('./modules/m09-gst/pages/GSTReturnsPage'), 'GSTReturnsPage') },
+  { path: '/gst/reconcile',     label: 'GSTR2B मिलान', element: page(() => import('./modules/m09-gst/pages/GSTR2BReconciliationPage'), 'GSTR2BReconciliationPage') },
+  { path: '/gst/eway',          label: 'ई-वे/ई-इनवॉइस', element: page(() => import('./modules/m09-gst/pages/EWayEInvoicePage'), 'EWayEInvoicePage') },
+
+  // M10 — Accounting (ROUGH पेज — DeepSeek)
+  { path: '/accounting/voucher',   label: 'वाउचर',            element: page(() => import('./modules/m10-accounting/pages/JournalVoucherPage'), 'JournalVoucherPage') },
+  { path: '/accounting/income-expense', label: 'आमदनी/ख़र्च', element: page(() => import('./modules/m10-accounting/pages/IncomeExpenseVoucherPage'), 'IncomeExpenseVoucherPage') },
+  { path: '/accounting/ledger',    label: 'बही (Ledger)',     element: page(() => import('./modules/m10-accounting/pages/LedgerViewerPage'), 'LedgerViewerPage') },
+  { path: '/accounting/reports',   label: 'तुलन-पत्र/नफ़ा-नुक़सान', element: page(() => import('./modules/m10-accounting/pages/FinalAccountsPage'), 'FinalAccountsPage') },
+  { path: '/accounting/cash-bank', label: 'रोकड़/बैंक बही',   element: page(() => import('./modules/m10-accounting/pages/CashBankBookPage'), 'CashBankBookPage') },
+  { path: '/accounting/brs',       label: 'बैंक मिलान (BRS)', element: page(() => import('./modules/m10-accounting/pages/BRSPage'), 'BRSPage') },
+
   // M16 — Notification (टास्क: M16–M21 पूरा — Claude, 2026-09-03)
   { path: '/notifications',          label: 'सूचनाएँ',        element: pageDefault(() => import('./modules/m16-notification/pages/NotificationCenterPage')) },
   { path: '/notifications/settings', label: 'सूचना सेटिंग',   element: pageDefault(() => import('./modules/m16-notification/pages/NotificationSettingsPage')) },

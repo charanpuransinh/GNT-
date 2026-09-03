@@ -1,78 +1,71 @@
-import React, { useState } from 'react';
-import { AccountingService } from '../services/accounting.service';
-import { useAccountingStore } from '../state/accounting.store';
+// ============================================================================
+// M10 ACCOUNTING — IncomeExpenseVoucherPage (आमदनी/ख़र्च वाउचर, ROUGH)
+// JournalVoucherPage वाला ही रास्ता — type के साथ
+// ============================================================================
 
-const IncomeExpenseVoucherPage: React.FC<{ companyId: string }> = ({ companyId }) => {
-  const { accounts } = useAccountingStore();
-  const [type, setType] = useState<'income' | 'expense'>('expense');
-  const [amount, setAmount] = useState(0);
-  const [accountId, setAccountId] = useState('');
-  const [cashBankId, setCashBankId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+import React, { useEffect, useState } from 'react';
+import { apiClient } from '@/core/api-client';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { type Account, type ListResponse } from '../types/accounting.types';
+
+export const IncomeExpenseVoucherPage: React.FC = () => {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [kind, setKind] = useState<'income' | 'expense'>('income');
+  const [date, setDate] = useState('');
+  const [amount, setAmount] = useState('');
   const [narration, setNarration] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const filteredAccounts = accounts.filter((a) => a.type === type);
-  const cashBankAccounts = accounts.filter((a) => a.is_bank_account || a.name.toLowerCase().includes('cash'));
+  useEffect(() => {
+    apiClient.get<ListResponse<Account>>('/accounting/accounts').then((r) => setAccounts(r.data.data ?? [])).catch(() => undefined);
+  }, []);
 
-  const handleSave = async () => {
-    const isIncome = type === 'income';
-    await AccountingService.createVoucher({
-      company_id: companyId,
-      voucher_type: isIncome ? 'cash_receipt' : 'cash_payment',
-      voucher_number: `${type.toUpperCase()}-${Date.now()}`,
-      voucher_date: date,
-      narration,
-      items: [
-        { account_id: cashBankId, debit_amount: isIncome ? amount : 0, credit_amount: isIncome ? 0 : amount },
-        { account_id: accountId, debit_amount: isIncome ? 0 : amount, credit_amount: isIncome ? amount : 0 },
-      ],
-    });
-    setAmount(0);
-    setNarration('');
+  const submit = async () => {
+    if (!date) return setError('तारीख़ ज़रूरी है');
+    const amt = Number(amount);
+    if (!(amt > 0)) return setError('रकम 0 से ज़्यादा हो');
+    setSaving(true);
+    setError('');
+    try {
+      await apiClient.post('/accounting/vouchers', {
+        voucher_date: date,
+        type: kind,
+        narration: narration.trim() || undefined,
+        items: [
+          { account_id: accounts[0]?.id, debit_amount: kind === 'expense' ? amt : 0, credit_amount: kind === 'income' ? amt : 0 },
+        ],
+      });
+      setMessage('वाउचर बन गया ✅');
+      setAmount('');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'गलती');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="p-6 bg-[#F8FAFC] min-h-screen">
-      <h1 className="text-2xl font-bold text-[#0F172A] mb-6">Income / Expense Voucher</h1>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm max-w-2xl">
-        <div className="flex gap-4 mb-6">
-          <button onClick={() => setType('expense')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${type === 'expense' ? 'bg-[#DC2626] text-white' : 'bg-[#F8FAFC] text-[#64748B]'}`}>Expense</button>
-          <button onClick={() => setType('income')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${type === 'income' ? 'bg-[#16A34A] text-white' : 'bg-[#F8FAFC] text-[#64748B]'}`}>Income</button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">{type === 'income' ? 'Income Account' : 'Expense Account'}</label>
-            <select className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-              <option value="">Select</option>
-              {filteredAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">Cash / Bank Account</label>
-            <select className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={cashBankId} onChange={(e) => setCashBankId(e.target.value)}>
-              <option value="">Select</option>
-              {cashBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-[#64748B] mb-1">Amount</label>
-              <input type="number" className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={amount || ''} onChange={(e) => setAmount(Number(e.target.value))} />
-            </div>
-            <div>
-              <label className="block text-xs text-[#64748B] mb-1">Date</label>
-              <input type="date" className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">Narration</label>
-            <input className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={narration} onChange={(e) => setNarration(e.target.value)} />
-          </div>
-          <button onClick={handleSave} disabled={!accountId || !cashBankId || amount <= 0} className="w-full py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">Save {type === 'income' ? 'Income' : 'Expense'}</button>
-        </div>
-      </div>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">आमदनी/ख़र्च वाउचर</h1>
+      <Card className="space-y-3 max-w-xl">
+        <label className="block text-sm font-medium text-slate-700">
+          किस्म
+          <select className="mt-1 block w-full rounded border border-slate-300 p-2 text-sm" value={kind} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setKind(e.target.value as 'income' | 'expense')}>
+            <option value="income">आमदनी</option>
+            <option value="expense">ख़र्च</option>
+          </select>
+        </label>
+        <Input label="तारीख़" type="date" value={date} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDate(e.target.value)} />
+        <Input label="रकम (₹)" value={amount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmount(e.target.value)} />
+        <Input label="विवरण" value={narration} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNarration(e.target.value)} />
+        <Button variant="primary" loading={saving} onClick={() => void submit()}>वाउचर बनाएँ</Button>
+      </Card>
+      {message ? <p className="text-sm text-green-700">{message}</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </div>
   );
 };
-
-export default IncomeExpenseVoucherPage;

@@ -1,53 +1,58 @@
-import React, { useEffect, useState } from 'react';
-import { useAccountingStore } from '../state/accounting.store';
-import { AccountingActions } from '../state/accounting.actions';
-import { LedgerTable } from '../components/LedgerTable';
-import { AccountSelector } from '../components/AccountSelector';
+// ============================================================================
+// M10 ACCOUNTING — LedgerViewerPage (बही/खाता देखना, ROUGH)
+// ============================================================================
 
-const LedgerViewerPage: React.FC<{ companyId: string }> = ({ companyId }) => {
-  const { accounts, ledgers, selectedAccount, loading } = useAccountingStore();
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+import React, { useEffect, useState } from 'react';
+import { apiClient } from '@/core/api-client';
+import { Card } from '@/components/ui/Card';
+import { type Account, type LedgerEntry, type ListResponse } from '../types/accounting.types';
+
+export const LedgerViewerPage: React.FC = () => {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountId, setAccountId] = useState('');
+  const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    AccountingActions.fetchAccounts(companyId);
-  }, [companyId]);
+    apiClient.get<ListResponse<Account>>('/accounting/accounts').then((r) => setAccounts(r.data.data ?? [])).catch(() => undefined);
+  }, []);
 
-  const handleView = () => {
-    if (selectedAccount) {
-      AccountingActions.fetchLedger(selectedAccount.id, fromDate || undefined, toDate || undefined);
-    }
-  };
+  useEffect(() => {
+    if (!accountId) return;
+    setLoading(true);
+    apiClient
+      .get<ListResponse<LedgerEntry>>(`/accounting/ledger?account_id=${accountId}`)
+      .then((r) => setEntries(r.data.data ?? []))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'गलती'))
+      .finally(() => setLoading(false));
+  }, [accountId]);
 
   return (
-    <div className="p-6 bg-[#F8FAFC] min-h-screen">
-      <h1 className="text-2xl font-bold text-[#0F172A] mb-6">Ledger Viewer</h1>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm mb-6">
-        <div className="grid grid-cols-4 gap-4 items-end">
-          <div className="col-span-1">
-            <AccountSelector
-              accounts={accounts}
-              selected={selectedAccount}
-              onSelect={(acc) => useAccountingStore.getState().setSelectedAccount(acc)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">From Date</label>
-            <input type="date" className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">To Date</label>
-            <input type="date" className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-          </div>
-          <button onClick={handleView} className="px-6 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-blue-700">View Ledger</button>
-        </div>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">बही (Ledger)</h1>
+      <label className="block text-sm font-medium text-slate-700 max-w-xl">
+        खाता
+        <select className="mt-1 block w-full rounded border border-slate-300 p-2 text-sm" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+          <option value="">चुनें…</option>
+          {accounts.map((a) => (<option key={a.id} value={a.id}>{a.name} ({a.code})</option>))}
+        </select>
+      </label>
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {loading ? <p className="text-sm text-slate-500">लोड हो रहा है…</p> : null}
+      <div className="space-y-2">
+        {entries.map((e) => (
+          <Card key={e.id} className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">{e.narration ?? '—'}</p>
+              <p className="text-sm text-slate-500">{e.transaction_date ?? ''}</p>
+            </div>
+            <p className="text-sm">
+              नाम ₹{e.debit_amount ?? 0} · जमा ₹{e.credit_amount ?? 0}
+            </p>
+          </Card>
+        ))}
       </div>
-      {loading && <div className="text-center py-8 text-[#64748B]">Loading ledger...</div>}
-      {selectedAccount && ledgers.length > 0 && (
-        <LedgerTable entries={ledgers} accountName={selectedAccount.name} openingBalance={selectedAccount.opening_balance} />
-      )}
     </div>
   );
 };
-
-export default LedgerViewerPage;

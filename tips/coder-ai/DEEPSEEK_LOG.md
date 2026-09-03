@@ -116,6 +116,14 @@
 
 ---
 
+### अनुवर्ती 9 — M09 GST + M10 Accounting frontend पेज (01:42 → 02:12)
+- **कौन सा task मिला:** blueprint के M09 (5) और M10 (6) के UI पेज
+- **क्या किया:** M10 असली (mounted है): JournalVoucherPage (नाम/जमा वाउचर), IncomeExpenseVoucherPage, LedgerViewerPage, FinalAccountsPage (तुलन-पत्र/नफ़ा-नुक़सान/बैलेंस-शीट), CashBankBookPage + BRSPage (ईमानदार placeholders — routes अभी नहीं); M09 के 5 पेज तैयार (GSTConfig/GSTCalculation असली API बुलाते हैं, GSTReturns/GSTR2B/EWayEInvoice ईमानदार placeholders — M09 mount का इंतज़ार: cess_rate फैसला); पुरानी index/routes files को named-exports में मिलाया; **M09 backend में भी body.company_id गैप दर्ज** (gst.controller body से company_id/state codes लेता है — M09 mount वाले काम के साथ ठीक होगा)
+- **कौन सी files बनाईं/बदलीं:** नई `frontend/.../m09-gst/pages/*` (5) + `m10-accounting/{types,6 pages}`; बदली m09/m10 की index/routes files + `routes.tsx`
+- **status:** पूरा — frontend tsc **217 → 216** (1 पुरानी बची: accounting.actions getVouchers — pre-existing); commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

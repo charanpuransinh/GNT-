@@ -1,8 +1,8 @@
-export { default as GSTConfigPage } from './pages/GSTConfigPage';
-export { default as GSTCalculationPage } from './pages/GSTCalculationPage';
-export { default as GSTReturnsPage } from './pages/GSTReturnsPage';
-export { default as GSTR2BReconciliationPage } from './pages/GSTR2BReconciliationPage';
-export { default as EWayEInvoicePage } from './pages/EWayEInvoicePage';
+export { GSTConfigPage } from './pages/GSTConfigPage';
+export { GSTCalculationPage } from './pages/GSTCalculationPage';
+export { GSTReturnsPage } from './pages/GSTReturnsPage';
+export { GSTR2BReconciliationPage } from './pages/GSTR2BReconciliationPage';
+export { EWayEInvoicePage } from './pages/EWayEInvoicePage';
 
 export { TaxSlabManager } from './components/TaxSlabManager';
 export { HSNCodeSearch } from './components/HSNCodeSearch';

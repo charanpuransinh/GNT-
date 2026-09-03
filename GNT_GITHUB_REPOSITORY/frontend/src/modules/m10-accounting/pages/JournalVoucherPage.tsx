@@ -1,60 +1,94 @@
-import React, { useState } from 'react';
-import { useAccountingStore } from '../state/accounting.store';
-import { AccountingService } from '../services/accounting.service';
-import { VoucherEntryGrid } from '../components/VoucherEntryGrid';
+// ============================================================================
+// M10 ACCOUNTING — JournalVoucherPage (जर्नल/भुगतान वाउचर, ROUGH)
+// ============================================================================
 
-const JournalVoucherPage: React.FC<{ companyId: string }> = ({ companyId }) => {
-  const { accounts } = useAccountingStore();
-  const [items, setItems] = useState([{ account_id: '', debit_amount: 0, credit_amount: 0, narration: '' }]);
-  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().split('T')[0]);
-  const [voucherNumber, setVoucherNumber] = useState('');
+import React, { useEffect, useState } from 'react';
+import { apiClient } from '@/core/api-client';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { type Account, type Voucher, type ListResponse } from '../types/accounting.types';
+
+export const JournalVoucherPage: React.FC = () => {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [date, setDate] = useState('');
   const [narration, setNarration] = useState('');
+  const [rows, setRows] = useState<Array<{ account_id: string; debit: string; credit: string }>>([
+    { account_id: '', debit: '', credit: '' },
+    { account_id: '', debit: '', credit: '' },
+  ]);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const totalDebit = items.reduce((s, i) => s + i.debit_amount, 0);
-  const totalCredit = items.reduce((s, i) => s + i.credit_amount, 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+  useEffect(() => {
+    apiClient.get<ListResponse<Account>>('/accounting/accounts').then((r) => setAccounts(r.data.data ?? [])).catch(() => undefined);
+    apiClient.get<ListResponse<Voucher>>('/accounting/vouchers').then((r) => setVouchers(r.data.data ?? [])).catch(() => undefined);
+  }, []);
 
-  const handleSave = async () => {
-    await AccountingService.createVoucher({
-      company_id: companyId,
-      voucher_type: 'journal',
-      voucher_number: voucherNumber,
-      voucher_date: voucherDate,
-      narration,
-      items,
-    });
-    setItems([{ account_id: '', debit_amount: 0, credit_amount: 0, narration: '' }]);
+  const setRow = (i: number, field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [field]: e.target.value } : r)));
+
+  const submit = async () => {
+    if (!date) return setError('तारीख़ ज़रूरी है');
+    const items = rows
+      .filter((r) => r.account_id)
+      .map((r) => ({ account_id: r.account_id, debit_amount: Number(r.debit) || 0, credit_amount: Number(r.credit) || 0 }));
+    if (items.length < 2) return setError('कम से कम दो पंक्तियाँ (नाम/जमा) ज़रूरी हैं');
+    setSaving(true);
+    setError('');
+    try {
+      await apiClient.post('/accounting/vouchers', {
+        voucher_date: date,
+        narration: narration.trim() || undefined,
+        items,
+      });
+      setMessage('वाउचर बन गया ✅');
+      apiClient.get<ListResponse<Voucher>>('/accounting/vouchers').then((r) => setVouchers(r.data.data ?? [])).catch(() => undefined);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'गलती (नाम/जमा बराबर होने चाहिए)');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="p-6 bg-[#F8FAFC] min-h-screen">
-      <h1 className="text-2xl font-bold text-[#0F172A] mb-6">Journal Voucher</h1>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm mb-6">
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">Voucher No</label>
-            <input className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={voucherNumber} onChange={(e) => setVoucherNumber(e.target.value)} />
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">वाउचर (Journal)</h1>
+      <Card className="space-y-3 max-w-2xl">
+        <Input label="तारीख़" type="date" value={date} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDate(e.target.value)} />
+        <Input label="विवरण" value={narration} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNarration(e.target.value)} />
+        {rows.map((row, i) => (
+          <div key={i} className="flex gap-2 items-end">
+            <label className="flex-1 text-sm">
+              खाता
+              <select className="mt-1 block w-full rounded border border-slate-300 p-2 text-sm" value={row.account_id} onChange={setRow(i, 'account_id')}>
+                <option value="">चुनें…</option>
+                {accounts.map((a) => (<option key={a.id} value={a.id}>{a.name} ({a.code})</option>))}
+              </select>
+            </label>
+            <Input label="नाम (₹)" value={row.debit} onChange={setRow(i, 'debit')} />
+            <Input label="जमा (₹)" value={row.credit} onChange={setRow(i, 'credit')} />
           </div>
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">Date</label>
-            <input type="date" className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">Narration</label>
-            <input className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={narration} onChange={(e) => setNarration(e.target.value)} />
-          </div>
-        </div>
-        <VoucherEntryGrid accounts={accounts} items={items} onChange={setItems} />
-        <div className="flex justify-between items-center mt-4 pt-4 border-t border-[#E2E8F0]">
-          <div className="flex gap-6">
-            <div className={`text-sm font-medium ${isBalanced ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>Total Debit: ₹{totalDebit.toFixed(2)}</div>
-            <div className={`text-sm font-medium ${isBalanced ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>Total Credit: ₹{totalCredit.toFixed(2)}</div>
-          </div>
-          <button onClick={handleSave} disabled={!isBalanced || !voucherNumber} className="px-6 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">Save Voucher</button>
-        </div>
+        ))}
+        <Button size="sm" variant="secondary" onClick={() => setRows((rs) => [...rs, { account_id: '', debit: '', credit: '' }])}>+ पंक्ति</Button>
+        <Button variant="primary" loading={saving} onClick={() => void submit()}>वाउचर बनाएँ</Button>
+      </Card>
+      {message ? <p className="text-sm text-green-700">{message}</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      <div className="space-y-2">
+        {vouchers.map((v) => (
+          <Card key={v.id} className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">{v.voucher_no ?? v.id}</p>
+              <p className="text-sm text-slate-500">नाम ₹{v.total_debit ?? 0} · जमा ₹{v.total_credit ?? 0}</p>
+            </div>
+            <Badge variant="info">{v.status ?? 'draft'}</Badge>
+          </Card>
+        ))}
       </div>
     </div>
   );
 };
-
-export default JournalVoucherPage;

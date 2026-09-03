@@ -1,41 +1,61 @@
-import React, { useState } from 'react';
-import { GSTActions } from '../state/gst.actions';
-import { GSTBreakupPanel } from '../components/GSTBreakupPanel';
+// ============================================================================
+// M09 GST — GSTCalculationPage (टैक्स गणना, ROUGH)
+// M09 mount होते ही (cess_rate फैसला) चलेगा — body में state codes के साथ
+// ============================================================================
 
-const GSTCalculationPage: React.FC<{ companyId: string }> = ({ companyId }) => {
-  const [items, setItems] = useState([{ hsn_code: '', taxable_amount: 0, quantity: 1 }]);
+import React, { useState } from 'react';
+import { apiClient } from '@/core/api-client';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+
+export const GSTCalculationPage: React.FC = () => {
+  const [hsn, setHsn] = useState('');
+  const [amount, setAmount] = useState('');
   const [stateCode, setStateCode] = useState('');
   const [companyStateCode, setCompanyStateCode] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleCalculate = async () => {
-    const res = await GSTActions.calculateTax(items, stateCode, companyStateCode, companyId);
-    setResult(res);
+  const submit = async () => {
+    const amt = Number(amount);
+    if (!hsn.trim() || !(amt > 0)) return setError('HSN और रकम ज़रूरी हैं');
+    if (!stateCode.trim() || !companyStateCode.trim()) return setError('दोनों राज्य कोड ज़रूरी हैं');
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiClient.post<{ success?: boolean; data?: unknown }>('/gst/calculate', {
+        items: [{ hsn_code: hsn.trim(), taxable_amount: amt }],
+        state_code: stateCode.trim(),
+        company_state_code: companyStateCode.trim(),
+        company_id: 'pending-m09-mount',
+      });
+      setResult(res.data.data ?? res.data);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'M09 अभी चालू नहीं (cess_rate फैसला बाकी)');
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="p-6 bg-[#F8FAFC] min-h-screen">
-      <h1 className="text-2xl font-bold text-[#0F172A] mb-6">GST Tax Calculator</h1>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm mb-6">
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <input placeholder="Company State Code (e.g. 27)" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={companyStateCode} onChange={(e) => setCompanyStateCode(e.target.value)} maxLength={2} />
-          <input placeholder="Party State Code (e.g. 08)" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={stateCode} onChange={(e) => setStateCode(e.target.value)} maxLength={2} />
-        </div>
-        {items.map((item, idx) => (
-          <div key={idx} className="grid grid-cols-3 gap-3 mb-3">
-            <input placeholder="HSN Code" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={item.hsn_code} onChange={(e) => { const n = [...items]; n[idx].hsn_code = e.target.value; setItems(n); }} />
-            <input placeholder="Taxable Amount" type="number" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={item.taxable_amount || ''} onChange={(e) => { const n = [...items]; n[idx].taxable_amount = Number(e.target.value); setItems(n); }} />
-            <input placeholder="Qty" type="number" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={item.quantity || ''} onChange={(e) => { const n = [...items]; n[idx].quantity = Number(e.target.value); setItems(n); }} />
-          </div>
-        ))}
-        <div className="flex gap-3">
-          <button onClick={() => setItems([...items, { hsn_code: '', taxable_amount: 0, quantity: 1 }])} className="px-4 py-2 border border-[#E2E8F0] rounded-lg text-sm text-[#64748B] hover:bg-gray-50">+ Add Item</button>
-          <button onClick={handleCalculate} className="px-6 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-blue-700">Calculate Tax</button>
-        </div>
-      </div>
-      {result && <GSTBreakupPanel data={result} isInterState={stateCode !== companyStateCode} />}
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">GST गणना</h1>
+      <Card className="space-y-3 max-w-xl">
+        <Input label="HSN कोड" value={hsn} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHsn(e.target.value)} />
+        <Input label="रकम (₹)" value={amount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmount(e.target.value)} />
+        <Input label="खरीदार का राज्य कोड (2 अंक)" value={stateCode} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStateCode(e.target.value)} />
+        <Input label="अपना राज्य कोड (2 अंक)" value={companyStateCode} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCompanyStateCode(e.target.value)} />
+        <Button variant="primary" loading={loading} onClick={() => void submit()}>गणना करें</Button>
+      </Card>
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {result !== null ? (
+        <Card>
+          <pre className="text-xs overflow-auto">{JSON.stringify(result, null, 2)}</pre>
+        </Card>
+      ) : null}
     </div>
   );
 };
-
-export default GSTCalculationPage;

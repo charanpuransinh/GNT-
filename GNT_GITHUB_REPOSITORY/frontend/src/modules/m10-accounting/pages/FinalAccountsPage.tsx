@@ -1,59 +1,56 @@
+// ============================================================================
+// M10 ACCOUNTING — FinalAccountsPage (तुलन-पत्र/नफ़ा-नुक़सान/बैलेंस-शीट, ROUGH)
+// ============================================================================
+
 import React, { useState } from 'react';
-import { useAccountingStore } from '../state/accounting.store';
-import { AccountingActions } from '../state/accounting.actions';
-import { TrialBalanceTree } from '../components/TrialBalanceTree';
-import { ProfitLossReport } from '../components/ProfitLossReport';
-import { BalanceSheetReport } from '../components/BalanceSheetReport';
+import { apiClient } from '@/core/api-client';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
-const FinalAccountsPage: React.FC<{ companyId: string }> = ({ companyId }) => {
-  const [activeTab, setActiveTab] = useState<'tb' | 'pl' | 'bs'>('tb');
-  const { trialBalance, loading } = useAccountingStore();
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
+type ReportKind = 'trial-balance' | 'profit-loss' | 'balance-sheet';
 
-  const handleGenerate = async () => {
-    if (activeTab === 'tb') {
-      await AccountingActions.generateTrialBalance(companyId, asOfDate);
+export const FinalAccountsPage: React.FC = () => {
+  const [data, setData] = useState<unknown>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [kind, setKind] = useState<ReportKind>('trial-balance');
+
+  const fetchReport = async (k: ReportKind) => {
+    setKind(k);
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiClient.get<{ success: boolean; data: unknown }>(`/accounting/${k}`);
+      setData(res.data.data ?? res.data);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'गलती');
+      setData(null);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const label: Record<ReportKind, string> = {
+    'trial-balance': 'तुलन-पत्र (Trial Balance)',
+    'profit-loss': 'नफ़ा-नुक़सान (P&L)',
+    'balance-sheet': 'बैलेंस-शीट',
+  };
+
   return (
-    <div className="p-6 bg-[#F8FAFC] min-h-screen">
-      <h1 className="text-2xl font-bold text-[#0F172A] mb-6">Final Accounts</h1>
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm mb-6">
-        <div className="flex gap-4 items-end">
-          <div className="flex bg-[#F8FAFC] rounded-lg p-1">
-            <button onClick={() => setActiveTab('tb')} className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'tb' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-[#64748B]'}`}>Trial Balance</button>
-            <button onClick={() => setActiveTab('pl')} className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'pl' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-[#64748B]'}`}>Profit & Loss</button>
-            <button onClick={() => setActiveTab('bs')} className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'bs' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-[#64748B]'}`}>Balance Sheet</button>
-          </div>
-          {activeTab === 'tb' || activeTab === 'bs' ? (
-            <div>
-              <label className="block text-xs text-[#64748B] mb-1">As of Date</label>
-              <input type="date" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} />
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className="block text-xs text-[#64748B] mb-1">From</label>
-                <input type="date" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-xs text-[#64748B] mb-1">To</label>
-                <input type="date" className="px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-              </div>
-            </>
-          )}
-          <button onClick={handleGenerate} className="px-6 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium">Generate</button>
-        </div>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">{label[kind]}</h1>
+      <div className="flex gap-2">
+        <Button variant="secondary" onClick={() => void fetchReport('trial-balance')}>तुलन-पत्र</Button>
+        <Button variant="secondary" onClick={() => void fetchReport('profit-loss')}>नफ़ा-नुक़सान</Button>
+        <Button variant="secondary" onClick={() => void fetchReport('balance-sheet')}>बैलेंस-शीट</Button>
       </div>
-      {loading && <div className="text-center py-8 text-[#64748B]">Generating...</div>}
-      {activeTab === 'tb' && trialBalance.length > 0 && <TrialBalanceTree data={trialBalance} />}
-      {activeTab === 'pl' && <ProfitLossReport companyId={companyId} fromDate={fromDate} toDate={toDate} />}
-      {activeTab === 'bs' && <BalanceSheetReport companyId={companyId} asOfDate={asOfDate} />}
+      {loading ? <p className="text-sm text-slate-500">लोड हो रहा है…</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {data !== null ? (
+        <Card>
+          <pre className="text-xs overflow-auto">{JSON.stringify(data, null, 2)}</pre>
+        </Card>
+      ) : null}
     </div>
   );
 };
-
-export default FinalAccountsPage;

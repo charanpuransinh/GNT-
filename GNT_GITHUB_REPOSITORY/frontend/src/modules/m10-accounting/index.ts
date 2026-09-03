@@ -1,9 +1,9 @@
-export { default as CashBankBookPage } from './pages/CashBankBookPage';
-export { default as JournalVoucherPage } from './pages/JournalVoucherPage';
-export { default as IncomeExpenseVoucherPage } from './pages/IncomeExpenseVoucherPage';
-export { default as LedgerViewerPage } from './pages/LedgerViewerPage';
-export { default as BRSPage } from './pages/BRSPage';
-export { default as FinalAccountsPage } from './pages/FinalAccountsPage';
+export { CashBankBookPage } from './pages/CashBankBookPage';
+export { JournalVoucherPage } from './pages/JournalVoucherPage';
+export { IncomeExpenseVoucherPage } from './pages/IncomeExpenseVoucherPage';
+export { LedgerViewerPage } from './pages/LedgerViewerPage';
+export { BRSPage } from './pages/BRSPage';
+export { FinalAccountsPage } from './pages/FinalAccountsPage';
 
 export { LedgerTable } from './components/LedgerTable';
 export { VoucherEntryGrid } from './components/VoucherEntryGrid';
