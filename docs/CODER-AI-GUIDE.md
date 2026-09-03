@@ -224,3 +224,22 @@ echo "लंबी रिपोर्ट..." | tools/notify.sh -
 ## याद रखने वाली बात
 - कोडिंग और उसकी टेस्टिंग दोनों तुम्हारी ज़िम्मेदारी है — पूरा, टेस्ट किया हुआ काम ही "complete" कहलाएगा
 - अंतिम verify/OK समीक्षक AI देगा — उसका OK ही मान्य (final) माना जाएगा, इसलिए अपनी रिपोर्ट में टेस्ट का पूरा विवरण साफ़-साफ़ देना ज़रूरी है ताकि वो जल्दी और भरोसे से OK दे सके
+
+---
+
+## 🔴 पक्का नियम (मालिक पूरन सिंह, 2026-09-03 21:25) — **हर session, हर module पर लागू**
+
+**वजह:** यह free/trial सर्वर है, **कभी भी बिना चेतावनी बंद हो सकता है**। बिना push किया काम = खोया काम।
+(आज इसी वजह से 22 commits बिना push पड़े थे — 21:26 पर push हुए।)
+
+1. **जो भी module/fix पूरा और verified हो (tsc + test पास) — तुरंत `git add` + `commit` + `git push origin main`।**
+   पूरे task के ख़त्म होने का इंतज़ार **मत करो**; हर verified checkpoint पर push।
+2. **commit message में साफ़ लिखो:** module का नाम + error count + test की हालत
+   — जैसे: `M12 HR: tsc 55→0, vitest 18/18 पास, mount ✅`. GitHub की history से ही status पता चले।
+3. **हर push के बाद पुष्टि करो:** `git status` साफ़ हो और `git rev-list --count origin/main..HEAD` = **0**।
+4. **session शुरू होते ही सबसे पहले** `git status` और `git log -3` चलाकर बताओ — पिछला push कब हुआ,
+   working tree साफ़ है या नहीं।
+5. यह नियम **दोनों AI पर** लागू है — कोडर AI भी हर verified chunk पर commit+push करेगा,
+   session के अंत तक रुकेगा नहीं।
+
+**credential:** अब मशीन पर मौजूद है (`credential.helper=store`, 2026-09-03 21:24 से) — push चलता है, जाँचा हुआ।
