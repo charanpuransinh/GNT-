@@ -1,4 +1,5 @@
 // GNT M06 — Frontend Route Definitions
+import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import { ItemListPage } from '../pages/ItemListPage';
 import { CategoryUnitPage } from '../pages/CategoryUnitPage';

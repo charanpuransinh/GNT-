@@ -1,42 +1,73 @@
-import React, { useState } from 'react';
-import { inventoryService } from '../services/inventory.service';
-import { StockAdjustmentForm } from '../services/inventory.types';
+// ============================================================================
+// M06 INVENTORY — StockAdjustmentPage (माल घटाना/बढ़ाना, ROUGH)
+// ============================================================================
+
+import React, { useEffect, useState } from 'react';
+import { apiClient } from '@/core/api-client';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { type Product, type ProductListResponse } from '../types/inventory.types';
 
 export const StockAdjustmentPage: React.FC = () => {
-  const [form, setForm] = useState<StockAdjustmentForm>({ product_id: '', branch_id: '', batch_id: '', quantity: 0, reason: '', reference: '', rate: 0 });
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productId, setProductId] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.reason.trim()) { setResult('Reason is required'); return; }
-    setLoading(true);
-    try { await inventoryService.adjustStock(form); setResult('Stock adjusted successfully!'); setForm({ product_id: '', branch_id: '', batch_id: '', quantity: 0, reason: '', reference: '', rate: 0 }); }
-    catch (err: any) { setResult(err.message || 'Adjustment failed'); }
-    finally { setLoading(false); }
+  useEffect(() => {
+    apiClient
+      .get<ProductListResponse>('/inventory/products')
+      .then((res) => setProducts(res.data.data ?? []))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'सूची लाने में गलती'));
+  }, []);
+
+  const submit = async () => {
+    const qty = Number(quantity);
+    if (!productId) return setError('माल चुनें');
+    if (Number.isNaN(qty) || qty === 0) return setError('मात्रा 0 नहीं हो सकती');
+    if (!reason.trim()) return setError('वजह ज़रूरी है');
+    setSaving(true);
+    setError('');
+    setMessage('');
+    try {
+      await apiClient.post('/inventory/stock/adjustment', {
+        product_id: productId,
+        quantity: qty,
+        reason: reason.trim(),
+      });
+      setMessage('माल घटाया/बढ़ाया गया ✅');
+      setQuantity('');
+      setReason('');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'गलती');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6" style={{ fontFamily: 'Inter' }}>
-      <div className="max-w-xl mx-auto bg-white rounded-xl border border-[#E2E8F0] p-6">
-        <h1 className="text-xl font-bold text-[#0F172A] mb-2">Stock Adjustment</h1>
-        <p className="text-[#64748B] text-sm mb-6">Use positive quantity to add, negative to reduce</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label className="block text-sm font-medium text-[#0F172A] mb-1">Product ID</label><input value={form.product_id} onChange={e => setForm({ ...form, product_id: e.target.value })} className="w-full border border-[#E2E8F0] rounded-lg px-4 py-2.5 text-sm" required /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-[#0F172A] mb-1">Branch ID</label><input value={form.branch_id} onChange={e => setForm({ ...form, branch_id: e.target.value })} className="w-full border border-[#E2E8F0] rounded-lg px-4 py-2.5 text-sm" /></div>
-            <div><label className="block text-sm font-medium text-[#0F172A] mb-1">Batch ID</label><input value={form.batch_id} onChange={e => setForm({ ...form, batch_id: e.target.value })} className="w-full border border-[#E2E8F0] rounded-lg px-4 py-2.5 text-sm" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-[#0F172A] mb-1">Quantity (+/-)</label><input type="number" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} className="w-full border border-[#E2E8F0] rounded-lg px-4 py-2.5 text-sm" required /></div>
-            <div><label className="block text-sm font-medium text-[#0F172A] mb-1">Rate</label><input type="number" value={form.rate || ''} onChange={e => setForm({ ...form, rate: Number(e.target.value) })} className="w-full border border-[#E2E8F0] rounded-lg px-4 py-2.5 text-sm" /></div>
-          </div>
-          <div><label className="block text-sm font-medium text-[#0F172A] mb-1">Reason *</label><input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="w-full border border-[#E2E8F0] rounded-lg px-4 py-2.5 text-sm" required /></div>
-          <div><label className="block text-sm font-medium text-[#0F172A] mb-1">Reference</label><input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} className="w-full border border-[#E2E8F0] rounded-lg px-4 py-2.5 text-sm" /></div>
-          <button type="submit" disabled={loading} className="w-full px-4 py-2.5 bg-[#F59E0B] text-white rounded-lg text-sm font-medium disabled:opacity-50">{loading ? 'Adjusting...' : 'Adjust Stock'}</button>
-          {result && <p className={`text-sm text-center mt-2 ${result.includes('success') ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>{result}</p>}
-        </form>
-      </div>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">माल घटाना/बढ़ाना (Adjustment)</h1>
+      <Card className="space-y-3 max-w-xl">
+        <label className="block text-sm font-medium text-slate-700">
+          माल
+          <select className="mt-1 block w-full rounded border border-slate-300 p-2 text-sm" value={productId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProductId(e.target.value)}>
+            <option value="">चुनें…</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+        <Input label="मात्रा (+ बढ़ाना, − घटाना)" value={quantity} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuantity(e.target.value)} />
+        <Input label="वजह (ज़रूरी)" value={reason} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReason(e.target.value)} />
+        <Button variant="primary" loading={saving} onClick={() => void submit()}>लागू करें</Button>
+      </Card>
+      {message ? <p className="text-sm text-green-700">{message}</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </div>
   );
 };

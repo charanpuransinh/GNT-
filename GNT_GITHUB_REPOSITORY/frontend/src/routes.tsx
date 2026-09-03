@@ -48,6 +48,13 @@ export const routes: ReadonlyArray<AppRoute> = [
   { path: '/parties',      label: 'पार्टी (ग्राहक/सप्लायर)', element: page(() => import('./modules/m05-party-management/pages/PartyListPage'), 'PartyListPage') },
   { path: '/parties/:id',                                element: page(() => import('./modules/m05-party-management/pages/PartyDetailHubPage'), 'PartyDetailHubPage') },
 
+  // M06 — Inventory (ROUGH पेज — DeepSeek, टास्क #024 अनुवर्ती)
+  { path: '/inventory',             label: 'माल (Items)',          element: page(() => import('./modules/m06-inventory/pages/ItemListPage'), 'ItemListPage') },
+  { path: '/inventory/categories',  label: 'वर्ग (Categories)',    element: page(() => import('./modules/m06-inventory/pages/CategoryUnitPage'), 'CategoryUnitPage') },
+  { path: '/inventory/transfer',    label: 'माल भेजना (Transfer)', element: page(() => import('./modules/m06-inventory/pages/StockTransferPage'), 'StockTransferPage') },
+  { path: '/inventory/adjustment',  label: 'घटाना/बढ़ाना',         element: page(() => import('./modules/m06-inventory/pages/StockAdjustmentPage'), 'StockAdjustmentPage') },
+  { path: '/inventory/low-stock',   label: 'कम माल की चेतावनी',   element: page(() => import('./modules/m06-inventory/pages/LowStockAlertPage'), 'LowStockAlertPage') },
+
   // M16 — Notification (टास्क: M16–M21 पूरा — Claude, 2026-09-03)
   { path: '/notifications',          label: 'सूचनाएँ',        element: pageDefault(() => import('./modules/m16-notification/pages/NotificationCenterPage')) },
   { path: '/notifications/settings', label: 'सूचना सेटिंग',   element: pageDefault(() => import('./modules/m16-notification/pages/NotificationSettingsPage')) },

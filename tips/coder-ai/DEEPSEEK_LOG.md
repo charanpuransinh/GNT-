@@ -92,6 +92,14 @@
 
 ---
 
+### अनुवर्ती 6 — M06 Inventory के frontend पेज (23:50 → 00:20)
+- **कौन सा task मिला:** blueprint के M06 UI पेज (समीक्षक ने M16–M20 बना लिए थे, M06 बचा था — routes में inventory.routes.ts पहले से पेजों का इंतज़ार कर रही थी)
+- **क्या किया:** 6 पेज बनाए (समीक्षक के stub की जगह backend के असली API से मिलाए हुए): ItemListPage (सूची+खोज), ItemEntryDrawer (नया/बदलाव, validation), CategoryUnitPage, StockTransferPage (शाखा-से-शाखा, branches M04 से), StockAdjustmentPage (+/−, वजह ज़रूरी), LowStockAlertPage + `types/inventory.types.ts` + routes.tsx में 5 routes; पुरानी 2 errors भी ठीकीं (StockBadge null-check, inventory.routes React import)
+- **कौन सी files बनाईं/बदलीं:** नई `frontend/.../m06-inventory/types/inventory.types.ts`; बदली 6 pages + routes.tsx + StockBadge + inventory.routes.ts
+- **status:** पूरा — frontend tsc **224 → 217**, कोई नई error नहीं; commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03
