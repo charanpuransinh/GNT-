@@ -678,6 +678,7 @@ model tax_rate_master {
   cgst_rate      Decimal?  @db.Decimal(5, 2)
   sgst_rate      Decimal?  @db.Decimal(5, 2)
   igst_rate      Decimal?  @db.Decimal(5, 2)
+  cess_rate      Decimal?  @default(0) @db.Decimal(5, 2)
   effective_from DateTime? @db.Date
   effective_to   DateTime? @db.Date
   is_active      Boolean   @default(true)
