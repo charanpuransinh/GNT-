@@ -19,15 +19,15 @@ describe.runIf(process.env.TEST_DB === '1')(
   const customerId = 'cust-test-001';
 
   beforeAll(async () => {
-    // Clean test data
+    // Clean test data (FK order: returns → invoices → orders → quotations)
+    await prisma.salesReturnItem.deleteMany({ where: { salesReturn: { companyId } } });
+    await prisma.salesReturn.deleteMany({ where: { companyId } });
     await prisma.salesInvoiceItem.deleteMany({ where: { salesInvoice: { companyId } } });
     await prisma.salesInvoice.deleteMany({ where: { companyId } });
     await prisma.salesOrderItem.deleteMany({ where: { salesOrder: { companyId } } });
     await prisma.salesOrder.deleteMany({ where: { companyId } });
     await prisma.quotationItem.deleteMany({ where: { quotation: { companyId } } });
     await prisma.quotation.deleteMany({ where: { companyId } });
-    await prisma.salesReturnItem.deleteMany({ where: { salesReturn: { companyId } } });
-    await prisma.salesReturn.deleteMany({ where: { companyId } });
   });
 
   afterAll(async () => {
@@ -50,7 +50,7 @@ describe.runIf(process.env.TEST_DB === '1')(
 
     const invoice = await salesService.createInvoice(invoiceDto);
     expect(invoice.status).toBe('draft');
-    expect(invoice.grandTotal).toBeGreaterThan(0);
+    expect(Number(invoice.grandTotal)).toBeGreaterThan(0);
 
     // Approve then post
     const approved = await salesService.approveInvoice(invoice.id, companyId, 'user-001');
@@ -135,6 +135,8 @@ describe.runIf(process.env.TEST_DB === '1')(
       ],
     };
     const invoice = await salesService.createInvoice(invoiceDto);
+    // recordPayment सिर्फ़ approved/posted invoice पर चलता है — पहले approve करो
+    await salesService.approveInvoice(invoice.id, companyId, 'user-001');
     const grandTotal = Number(invoice.grandTotal);
 
     // Partial payment

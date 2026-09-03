@@ -26,7 +26,9 @@ describe.runIf(process.env.TEST_DB === '1')(
 
     it('should handle missing config gracefully', async () => {
       const originalGetConfig = appRepository.getConfig;
+      const originalAppName = process.env.APP_NAME;
       appRepository.getConfig = async () => ({});
+      delete process.env.APP_NAME; // fallback 'GARUDA NEXTECH' तक पहुंचने के लिए
 
       const config = await appService.getAppConfig();
 
@@ -34,6 +36,7 @@ describe.runIf(process.env.TEST_DB === '1')(
       expect(config.features.offlineMode).toBe(true);
 
       appRepository.getConfig = originalGetConfig;
+      process.env.APP_NAME = originalAppName;
     });
   });
 });
