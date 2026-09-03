@@ -108,6 +108,14 @@
 
 ---
 
+### अनुवर्ती 8 — M08 Sales: companyId गैप fix + 6 frontend पेज (01:05 → 01:40)
+- **कौन सा task मिला:** M08 के frontend पेज — बीच में वही #009 गैप मिला (schemas में `companyId` body में माँगते थे)
+- **क्या किया:** backend fix: create schemas (invoice/quotation/order/return/challan) से `companyId` हटाया, 3 controllers tenant से भरते हैं; query schemas/types में optional companyId मिलाया; frontend 6 पेज: SalesInvoicePage, QuotationPage, DeliveryChallanPage (ईमानदार placeholder — challan के routes अभी नहीं बने), SalesReturnPage, CustomerReceiptPage, InvoicePrintSharePage — decimalString को string रूप में भेजते हैं
+- **कौन सी files बनाईं/बदलीं:** बदली `m08.../validators/sales.schema.ts`, `types/sales.types.ts`, 3 controllers; नई `frontend/.../m08-sales/types/sales.types.ts` + 6 pages; बदली `routes.tsx`
+- **status:** पूरा — backend tsc 510, mount 19, frontend tsc 217; commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

@@ -15,7 +15,7 @@ export class ReturnController {
   // ─── CREATE RETURN ───
   async createReturn(req: Request, res: Response): Promise<void> {
     try {
-      const dto = salesReturnSchema.parse(req.body);
+      const dto = { ...salesReturnSchema.parse(req.body), companyId: requireTenant(req).companyId };
       const salesReturn = await returnService.createReturn(dto);
       res.status(201).json({ success: true, data: salesReturn });
     } catch (error: any) {

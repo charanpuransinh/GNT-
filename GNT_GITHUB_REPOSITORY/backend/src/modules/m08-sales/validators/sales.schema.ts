@@ -33,7 +33,6 @@ export const quotationItemSchema = z.object({
 
 export const quotationSchema = z.object({
   id: uuid.optional(),
-  companyId: uuid,
   branchId: uuid,
   customerId: uuid,
   quotationNumber: z.string().max(100).optional(),
@@ -69,7 +68,6 @@ export const salesOrderItemSchema = z.object({
 
 export const salesOrderSchema = z.object({
   id: uuid.optional(),
-  companyId: uuid,
   branchId: uuid,
   customerId: uuid,
   quotationId: uuid.optional(),
@@ -107,7 +105,6 @@ export const salesInvoiceItemSchema = z.object({
 
 export const salesInvoiceSchema = z.object({
   id: uuid.optional(),
-  companyId: uuid,
   branchId: uuid,
   customerId: uuid,
   salesOrderId: uuid.optional(),
@@ -154,7 +151,6 @@ export const salesReturnItemSchema = z.object({
 
 export const salesReturnSchema = z.object({
   id: uuid.optional(),
-  companyId: uuid,
   salesInvoiceId: uuid,
   customerId: uuid,
   returnNumber: z.string().max(100).optional(),
@@ -177,7 +173,6 @@ export const deliveryChallanItemSchema = z.object({
 
 export const deliveryChallanSchema = z.object({
   id: uuid.optional(),
-  companyId: uuid,
   salesOrderId: uuid,
   customerId: uuid,
   challanNumber: z.string().max(100).optional(),
@@ -205,6 +200,8 @@ export const shareRequestSchema = z.object({
 // ─── QUERY PARAMS ───
 
 export const invoiceQuerySchema = z.object({
+  // query में companyId controller खुद tenant से जोड़ता है — client से नहीं आता
+  companyId: uuid.optional(),
   customerId: uuid.optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
@@ -212,39 +209,38 @@ export const invoiceQuerySchema = z.object({
   paymentStatus: z.string().optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
-  companyId: uuid,
 });
 
 export const quotationQuerySchema = z.object({
+  companyId: uuid.optional(),
   customerId: uuid.optional(),
   status: z.string().optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
-  companyId: uuid,
 });
 
 export const orderQuerySchema = z.object({
+  companyId: uuid.optional(),
   customerId: uuid.optional(),
   status: z.string().optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
-  companyId: uuid,
 });
 
 export const returnQuerySchema = z.object({
+  companyId: uuid.optional(),
   customerId: uuid.optional(),
   status: z.string().optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
-  companyId: uuid,
 });
 
 export const challanQuerySchema = z.object({
+  companyId: uuid.optional(),
   salesOrderId: uuid.optional(),
   status: z.string().optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
-  companyId: uuid,
 });
 
 // ─── TYPE EXPORTS ───

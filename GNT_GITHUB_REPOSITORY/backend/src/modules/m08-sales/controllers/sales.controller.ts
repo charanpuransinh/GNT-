@@ -18,7 +18,7 @@ export class SalesController {
   // ─── CREATE INVOICE ───
   async createInvoice(req: Request, res: Response): Promise<void> {
     try {
-      const dto = salesInvoiceSchema.parse(req.body);
+      const dto = { ...salesInvoiceSchema.parse(req.body), companyId: requireTenant(req).companyId };
       const invoice = await salesService.createInvoice(dto);
       res.status(201).json({ success: true, data: invoice });
     } catch (error: any) {

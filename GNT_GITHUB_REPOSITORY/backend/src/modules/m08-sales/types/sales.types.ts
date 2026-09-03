@@ -205,6 +205,7 @@ export interface ShareRequestDTO {
 // ─── QUERY PARAMS ───
 
 export interface InvoiceQueryParams {
+  companyId?: string;
   customerId?: string;
   fromDate?: string;
   toDate?: string;
@@ -212,15 +213,14 @@ export interface InvoiceQueryParams {
   paymentStatus?: string;
   page?: number;
   limit?: number;
-  companyId: string;
 }
 
 export interface QuotationQueryParams {
+  companyId?: string;
   customerId?: string;
   status?: string;
   page?: number;
   limit?: number;
-  companyId: string;
 }
 
 export interface OrderQueryParams {
@@ -232,11 +232,11 @@ export interface OrderQueryParams {
 }
 
 export interface ReturnQueryParams {
+  companyId?: string;
   customerId?: string;
   status?: string;
   page?: number;
   limit?: number;
-  companyId: string;
 }
 
 export interface ChallanQueryParams {

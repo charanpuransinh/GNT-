@@ -62,6 +62,14 @@ export const routes: ReadonlyArray<AppRoute> = [
   { path: '/purchase/payments',  label: 'सप्लायर भुगतान', element: page(() => import('./modules/m07-purchase/pages/SupplierPaymentPage'), 'SupplierPaymentPage') },
   { path: '/purchase/history',   label: 'खरीद इतिहास',    element: page(() => import('./modules/m07-purchase/pages/PurchaseHistoryPage'), 'PurchaseHistoryPage') },
 
+  // M08 — Sales (ROUGH पेज — DeepSeek, टास्क #024 अनुवर्ती)
+  { path: '/sales/invoice',    label: 'नई बिक्री',     element: page(() => import('./modules/m08-sales/pages/SalesInvoicePage'), 'SalesInvoicePage') },
+  { path: '/sales/quotation',  label: 'भाव-पत्र',      element: page(() => import('./modules/m08-sales/pages/QuotationPage'), 'QuotationPage') },
+  { path: '/sales/challan',    label: 'चालान',         element: page(() => import('./modules/m08-sales/pages/DeliveryChallanPage'), 'DeliveryChallanPage') },
+  { path: '/sales/return',     label: 'बिक्री वापसी',  element: page(() => import('./modules/m08-sales/pages/SalesReturnPage'), 'SalesReturnPage') },
+  { path: '/sales/receipt',    label: 'ग्राहक रसीद',   element: page(() => import('./modules/m08-sales/pages/CustomerReceiptPage'), 'CustomerReceiptPage') },
+  { path: '/sales/print-share', label: 'छापें/भेजें',   element: page(() => import('./modules/m08-sales/pages/InvoicePrintSharePage'), 'InvoicePrintSharePage') },
+
   // M16 — Notification (टास्क: M16–M21 पूरा — Claude, 2026-09-03)
   { path: '/notifications',          label: 'सूचनाएँ',        element: pageDefault(() => import('./modules/m16-notification/pages/NotificationCenterPage')) },
   { path: '/notifications/settings', label: 'सूचना सेटिंग',   element: pageDefault(() => import('./modules/m16-notification/pages/NotificationSettingsPage')) },

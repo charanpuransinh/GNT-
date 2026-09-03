@@ -16,7 +16,7 @@ export class QuotationController {
   // ─── CREATE QUOTATION ───
   async createQuotation(req: Request, res: Response): Promise<void> {
     try {
-      const dto = quotationSchema.parse(req.body);
+      const dto = { ...quotationSchema.parse(req.body), companyId: requireTenant(req).companyId };
       const quotation = await quotationService.createQuotation(dto);
       res.status(201).json({ success: true, data: quotation });
     } catch (error: any) {
