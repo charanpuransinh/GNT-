@@ -22,8 +22,15 @@ export class PayrollService {
       const payroll = await prisma.payroll.create({
         data: {
           employeeId: emp.id,
+          payrollNumber: `PAY-${year}-${String(month).padStart(2, '0')}-${emp.id}`,
           month,
           year,
+          periodStart: new Date(year, month - 1, 1),
+          periodEnd: new Date(year, month, 0),
+          daysWorked: 0,
+          daysLeave: 0,
+          daysAbsent: 0,
+          daysHoliday: 0,
           basicSalary,
           hra,
           totalEarnings,

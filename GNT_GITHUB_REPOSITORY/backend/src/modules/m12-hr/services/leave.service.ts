@@ -15,8 +15,8 @@ export class LeaveService {
 
   async approve(id: string, approvedById: string, rejectionReason?: string) {
     const leave = await prisma.leave.update({ where: { id }, data: { status: 'APPROVED', approvedById, approvedAt: new Date() } });
-    await prisma.leaveBalance.updateMany({ where: { employeeId: leave.employeeId }, data: { used: { increment: leave.daysRequested } } });
-    await prisma.employee.update({ where: { id: leave.employeeId }, data: { status: 'ON_LEAVE' } });
+    await prisma.leaveBalance.updateMany({ where: { employeeId: leave.employeeId }, data: { used: { increment: Number(leave.daysRequested) } } });
+    await prisma.employee.update({ where: { id: leave.employeeId }, data: { employmentStatus: 'ON_LEAVE' } });
     return leave;
   }
 

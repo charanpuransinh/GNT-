@@ -63,7 +63,7 @@ export class EmployeeService {
       prisma.employee.count({ where: { employmentStatus: 'ACTIVE' } }),
       prisma.employee.count({ where: { employmentStatus: 'ON_LEAVE' } }),
       prisma.department.count(),
-      prisma.employee.count({ where: { joinDate: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } })
+      prisma.employee.count({ where: { dateOfJoining: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } })
     ]);
     return { total, active, onLeave, departments, newThisMonth };
   }

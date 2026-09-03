@@ -11,8 +11,9 @@ export class AttendanceService {
     if (existing) throw new Error('Already checked in today');
     const now = new Date();
     const status = now.getHours() > 9 ? 'LATE' : 'PRESENT';
+    const emp = await prisma.employee.findUnique({ where: { id: employeeId }, select: { tenantId: true } });
     return prisma.attendance.create({
-      data: { employeeId, date: today, checkIn: now, status, location: data.location, notes: data.notes }
+      data: { employeeId, date: today, checkIn: now, status, checkInLocation: data.location as never, remarks: data.notes, tenantId: emp?.tenantId ?? 'default' }
     });
   }
 
@@ -29,7 +30,7 @@ export class AttendanceService {
     const overtimeHours = workHours > 8 ? workHours - 8 : 0;
     return prisma.attendance.update({
       where: { id: record.id },
-      data: { checkOut: now, workHours: Math.round(workHours * 100) / 100, overtimeHours: Math.round(overtimeHours * 100) / 100, notes: notes || record.notes }
+      data: { checkOut: now, workingHours: Math.round(workHours * 100) / 100, overtimeHours: Math.round(overtimeHours * 100) / 100, remarks: notes || record.remarks }
     });
   }
 
