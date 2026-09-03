@@ -10,18 +10,18 @@ import {
 } from '../types/purchase.types';
 
 interface StockService {
-  addStock(data: { product_id: string; quantity: number; rate: number; batch_id?: string; reference: string }): Promise<void>;
-  deductStock(data: { product_id: string; quantity: number; reference: string }): Promise<void>;
+  addStock(data: { product_id: string; quantity: number; rate: number; batch_id?: string; reference: string; company_id: string }): Promise<void>;
+  deductStock(data: { product_id: string; quantity: number; reference: string; company_id: string }): Promise<void>;
 }
 
 interface GSTService {
-  calculateInputTax(data: { invoice_id: string; items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }> }): Promise<void>;
-  reverseInputTax(data: { return_id: string; items: Array<{ product_id: string; tax_amount: number }> }): Promise<void>;
+  calculateInputTax(data: { invoice_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }> }): Promise<void>;
+  reverseInputTax(data: { return_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number }> }): Promise<void>;
 }
 
 interface LedgerService {
-  createPurchaseEntry(data: { invoice_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void>;
-  createPurchaseReturnEntry(data: { return_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void>;
+  createPurchaseEntry(data: { invoice_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void>;
+  createPurchaseReturnEntry(data: { return_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void>;
 }
 
 interface EventBus { publish(event: string, payload: unknown): Promise<void>; }
@@ -44,14 +44,16 @@ export class PurchaseEventHandlers {
 
     for (const item of items) {
       if (item.quantity <= 0 || item.rate < 0) throw new Error(`Invalid invoice item for ${item.product_id}`);
-      await this.stockService.addStock({ product_id: item.product_id, quantity: item.quantity, rate: item.rate, reference: `PI-${invoice_id}` });
+      await this.stockService.addStock({ product_id: item.product_id, quantity: item.quantity, rate: item.rate, reference: `PI-${invoice_id}`, company_id });
     }
     await this.gstService.calculateInputTax({
       invoice_id,
+      company_id,
       items: items.map(i => ({ product_id: i.product_id, tax_amount: i.tax_amount })),
     });
     await this.ledgerService.createPurchaseEntry({
       invoice_id,
+      company_id,
       supplier_id,
       amount: total_amount,
       tax_amount,
@@ -69,14 +71,16 @@ export class PurchaseEventHandlers {
 
     for (const item of items) {
       if (item.quantity <= 0 || item.rate < 0) throw new Error(`Invalid return item for ${item.product_id}`);
-      await this.stockService.deductStock({ product_id: item.product_id, quantity: item.quantity, reference: `PR-${return_id}` });
+      await this.stockService.deductStock({ product_id: item.product_id, quantity: item.quantity, reference: `PR-${return_id}`, company_id });
     }
     await this.gstService.reverseInputTax({
       return_id,
+      company_id,
       items: items.map(i => ({ product_id: i.product_id, tax_amount: i.tax_amount })),
     });
     await this.ledgerService.createPurchaseReturnEntry({
       return_id,
+      company_id,
       supplier_id,
       amount: total_amount,
       tax_amount,

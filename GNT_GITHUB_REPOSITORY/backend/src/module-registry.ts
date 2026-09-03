@@ -46,11 +46,10 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   { code: 'M07', path: '/api/v1/purchase', mounted: true,
     load: async () => {
       // टास्क #016 — M07 की composition (M18 के load() वाला तरीक़ा)
-      // ⚠️ दर्ज: PurchaseEventHandlers m06/m09/m10 की जिस object-style API से बुलाता है
-      // (addStock({...}) / calculateInputTax({...}) / createPurchaseEntry({...})),
-      // असली services में वो API है ही नहीं (positional args + company_id मांगते हैं) —
-      // यह कोड-level गैप है जो #016 के दायरे से बाहर है (business logic छेड़ना मना)।
-      // इसलिए यहाँ typed adapters दिए जो ज़ोर से fail करते हैं — चुपचाप ग़लत डेटा कभी नहीं।
+      // ✅ Stock wiring अब असली StockService से जुड़ी है (अनुवर्ती)।
+      // ⚠️ दर्ज: GST + ledger की असली wiring बाक़ी — वहाँ डिज़ाइन-फ़ैसले चाहिए
+      // (ledger की डबल-एंट्री रचना + purchase account का चुनाव + GST में state का स्रोत);
+      // तब तक वे ज़ोर से fail करते हैं — चुपचाप ग़लत डेटा कभी नहीं।
       const [
         { PurchaseController },
         { PurchaseOrderController },
@@ -60,6 +59,7 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         { prisma },
         { eventBus },
         { createPurchaseRouter },
+        { StockService },
       ] = await Promise.all([
         import('./modules/m07-purchase/controllers/purchase.controller'),
         import('./modules/m07-purchase/controllers/purchase-order.controller'),
@@ -69,36 +69,36 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         import('./common/config/prisma'),
         import('./common/events/event-bus'),
         import('./modules/m07-purchase/routes/purchase.routes'),
+        import('./modules/m06-inventory/services/stock.service'),
       ]);
 
+      const stockSvc = new StockService();
       const stockServiceForHandlers = {
-        async addStock(data: { product_id: string; quantity: number; rate: number; batch_id?: string; reference: string }): Promise<void> {
-          void data;
-          throw new Error('M07→M06 stock wiring अभी बाक़ी है — handlers की object-API और असली StockService का मेल अगले task में होगा (टास्क #016 नोट)');
+        async addStock(data: { product_id: string; quantity: number; rate: number; batch_id?: string; reference: string; company_id: string }): Promise<void> {
+          await stockSvc.addStock(data.product_id, data.quantity, data.company_id, null, data.batch_id ?? null, data.rate ?? null, 'purchase', data.reference);
         },
-        async deductStock(data: { product_id: string; quantity: number; reference: string }): Promise<void> {
-          void data;
-          throw new Error('M07→M06 stock wiring अभी बाक़ी है (टास्क #016 नोट)');
+        async deductStock(data: { product_id: string; quantity: number; reference: string; company_id: string }): Promise<void> {
+          await stockSvc.deductStock(data.product_id, data.quantity, data.company_id, null, null, 'purchase_return', data.reference);
         },
       };
       const gstServiceForHandlers = {
-        async calculateInputTax(data: { invoice_id: string; items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }> }): Promise<void> {
+        async calculateInputTax(data: { invoice_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }> }): Promise<void> {
           void data;
-          throw new Error('M07→M09 GST wiring अभी बाक़ी है (टास्क #016 नोट)');
+          throw new Error('M07→M09 GST wiring अभी बाक़ी है — डिज़ाइन फ़ैसले समीक्षक AI के (state का स्रोत: party.state_code/company GSTIN); notify किया गया है');
         },
-        async reverseInputTax(data: { return_id: string; items: Array<{ product_id: string; tax_amount: number }> }): Promise<void> {
+        async reverseInputTax(data: { return_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number }> }): Promise<void> {
           void data;
-          throw new Error('M07→M09 GST wiring अभी बाक़ी है (टास्क #016 नोट)');
+          throw new Error('M07→M09 GST wiring अभी बाक़ी है (ऊपर वाला नोट)');
         },
       };
       const ledgerServiceForHandlers = {
-        async createPurchaseEntry(data: { invoice_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
+        async createPurchaseEntry(data: { invoice_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
           void data;
-          throw new Error('M07→M10 ledger wiring अभी बाक़ी है (टास्क #016 नोट)');
+          throw new Error('M07→M10 ledger wiring अभी बाक़ी है — डिज़ाइन फ़ैसले समीक्षक AI के (डबल-एंट्री रचना + purchase account); notify किया गया है');
         },
-        async createPurchaseReturnEntry(data: { return_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
+        async createPurchaseReturnEntry(data: { return_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
           void data;
-          throw new Error('M07→M10 ledger wiring अभी बाक़ी है (टास्क #016 नोट)');
+          throw new Error('M07→M10 ledger wiring अभी बाक़ी है (ऊपर वाला नोट)');
         },
       };
 

@@ -76,6 +76,14 @@
 
 ---
 
+### अनुवर्ती 3 — M07→M06 stock wiring जुड़ी (22:46 → 23:08)
+- **कौन सा task मिला:** #016 का दर्ज गैप — M07 की असली event wiring
+- **क्या किया:** handlers के interfaces में `company_id` जोड़ा (payload में पहले से validated था — अब services तक पहुँचता है); module-registry में **असली StockService** से addStock/deductStock जोड़ी (reference_type 'purchase'/'purchase_return', batch/rate सही मैपिंग) — अब purchase invoice approve होने पर stock सच में बढ़ेगा
+- **कौन सी files बनाईं/बदलीं:** बदली `m07-purchase/events/purchase.handlers.ts`, `module-registry.ts`
+- **status:** आंशिक — stock वाला हिस्सा पूरा; **GST + ledger की wiring अटकी (डिज़ाइन फ़ैसले चाहिए)** — समीक्षक को notify किया: (1) ledger की डबल-एंट्री रचना + purchase account का चुनाव (2) GST में state का स्रोत (party.state_code/company GSTIN); तब तक वे ज़ोर से fail करते हैं — गलत डेटा नहीं; tsc 510, mount 19
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03
