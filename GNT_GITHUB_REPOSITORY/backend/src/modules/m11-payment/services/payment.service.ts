@@ -79,9 +79,9 @@ export class PaymentService {
       amount: payment.amount.toString(),
       currency: payment.currency,
       paymentMethodId: payment.paymentMethodId,
-      invoiceId: payment.invoiceId || undefined,
-      payerId: payment.payerId || undefined,
-      payerType: payment.payerType || undefined,
+      invoiceId: payment.referenceId || undefined,
+      payerId: payment.partyId || undefined,
+      payerType: payment.partyType || undefined,
       timestamp: new Date(),
     });
 
@@ -106,8 +106,8 @@ export class PaymentService {
       await pRepo.updateStatus(id, 'COMPLETED', tenantId, userId, gatewayRef, gatewayResponse);
 
       // Update invoice if linked
-      if (payment.invoiceId) {
-        await iRepo.updatePaidAmount(payment.invoiceId, amount, tenantId, userId);
+      if (payment.referenceId) {
+        await iRepo.updatePaidAmount(payment.referenceId, amount, tenantId, userId);
       }
 
       // Update bank account if linked
@@ -122,7 +122,7 @@ export class PaymentService {
           accountCode: 'CASH_BANK', // Asset account
           debitAmount: amount,
           creditAmount: zeroDecimal(),
-          narration: `Payment received - ${payment.description || id}`,
+          narration: `Payment received - ${payment.narration || id}`,
           entryDate: new Date(),
         },
         {
@@ -130,7 +130,7 @@ export class PaymentService {
           accountCode: 'SALES_REVENUE', // Revenue account
           debitAmount: zeroDecimal(),
           creditAmount: amount,
-          narration: `Revenue recognized - ${payment.description || id}`,
+          narration: `Revenue recognized - ${payment.narration || id}`,
           entryDate: new Date(),
         },
       ], tenantId, userId);
@@ -143,15 +143,15 @@ export class PaymentService {
       amount: amount.toString(),
       currency: payment.currency,
       paymentMethodId: payment.paymentMethodId,
-      invoiceId: payment.invoiceId || undefined,
-      payerId: payment.payerId || undefined,
-      payerType: payment.payerType || undefined,
+      invoiceId: payment.referenceId || undefined,
+      payerId: payment.partyId || undefined,
+      payerType: payment.partyType || undefined,
       timestamp: new Date(),
     };
 
     this.eventBus.publish('payment.completed', event);
     this.eventBus.publish('invoice.payment_received', { // M06 notification
-      invoiceId: payment.invoiceId,
+      invoiceId: payment.referenceId,
       tenantId,
       amount: amount.toString(),
       transactionId: id,

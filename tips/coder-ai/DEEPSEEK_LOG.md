@@ -148,6 +148,12 @@
 
 ---
 
+### टास्क #025-हिस्सा B (जारी) — M11 152→101 (00:45)
+- **क्या किया:** prisma.invoice repo → stub (#008 फैसला: invoice M07/M08 की चीज़); payment.repository + payment.service को PaymentTransaction के असली fields से rewrite (direction/partyName/partyId/partyType/partyContact/narration/referenceId/providerRef); req.params String(); requireUser
+- **status:** आंशिक — M11 101 बचीं (refund/ledger/reconciliation/validators/controllers की field mapping); कुल tsc **510→325**; जारी है
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

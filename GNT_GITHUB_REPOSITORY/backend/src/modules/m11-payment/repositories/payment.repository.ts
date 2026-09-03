@@ -1,26 +1,19 @@
 // M11 Payment Module - Payment Transaction Repository
 // Data Access Layer - Prisma queries with tenant isolation
+// (टास्क #025 B4: PaymentTransaction model के असली fields से मिलाया गया)
 
-import { PrismaClient, Prisma, PaymentTransaction, PaymentStatus, TransactionType } from '@prisma/client';
-import { requireTenant } from '@/common/middleware/require-tenant';
+import { PrismaClient, Prisma, PaymentTransaction } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { PaymentFilter, CreatePaymentDto, UpdatePaymentDto } from '../types';
+import { PaymentFilter, CreatePaymentDto, UpdatePaymentDto, PaymentStatus, TransactionType } from '../types';
 import { toDecimal } from '../utils/decimal.helper';
 
 export class PaymentRepository {
   constructor(private prisma: PrismaClient) {}
 
-  // ==================== CRUD ====================
   async findById(id: string, tenantId: string): Promise<PaymentTransaction | null> {
     return this.prisma.paymentTransaction.findFirst({
       where: { id, tenantId },
-      include: {
-        paymentMethod: true,
-        invoice: { include: { lineItems: true } },
-        bankAccount: true,
-        refunds: true,
-        ledgerEntries: true,
-      },
+      include: { paymentMethod: true },
     });
   }
 
@@ -45,16 +38,16 @@ export class PaymentRepository {
     const where: Prisma.PaymentTransactionWhereInput = { tenantId };
 
     if (status) where.status = status;
-    if (type) where.type = type;
+    if (type) where.direction = type;
     if (paymentMethodId) where.paymentMethodId = paymentMethodId;
-    if (invoiceId) where.invoiceId = invoiceId;
-    if (payerId) where.payerId = payerId;
+    if (invoiceId) where.referenceId = invoiceId;
+    if (payerId) where.partyId = payerId;
     if (search) {
       where.OR = [
-        { payerName: { contains: search, mode: 'insensitive' } },
-        { payerEmail: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { gatewayRef: { contains: search, mode: 'insensitive' } },
+        { partyName: { contains: search, mode: 'insensitive' } },
+        { partyContact: { contains: search, mode: 'insensitive' } },
+        { narration: { contains: search, mode: 'insensitive' } },
+        { providerRef: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (minAmount || maxAmount) {
@@ -75,9 +68,7 @@ export class PaymentRepository {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
-          paymentMethod: { select: { id: true, name: true, type: true } },
-          invoice: { select: { id: true, invoiceNumber: true, status: true } },
-          bankAccount: { select: { id: true, accountName: true, accountNumber: true } },
+          paymentMethod: { select: { id: true, name: true } },
         },
       }),
       this.prisma.paymentTransaction.count({ where }),
@@ -93,19 +84,17 @@ export class PaymentRepository {
         amount: toDecimal(dto.amount),
         currency: dto.currency || 'INR',
         status: 'PENDING',
-        type: 'PAYMENT',
+        direction: 'OUT',
         paymentMethodId: dto.paymentMethodId,
-        invoiceId: dto.invoiceId || null,
+        referenceType: dto.invoiceId ? 'INVOICE' : null,
+        referenceId: dto.invoiceId || null,
         bankAccountId: dto.bankAccountId || null,
-        payerName: dto.payerName || null,
-        payerEmail: dto.payerEmail || null,
-        payerPhone: dto.payerPhone || null,
-        payerId: dto.payerId || null,
-        payerType: dto.payerType || null,
-        description: dto.description || null,
-        metadata: dto.metadata || null,
+        partyName: dto.payerName || '',
+        partyContact: dto.payerEmail || null,
+        partyId: dto.payerId || '',
+        partyType: dto.payerType || null,
+        narration: dto.description || null,
         createdBy: userId,
-        updatedBy: userId,
       },
     });
   }
@@ -114,31 +103,29 @@ export class PaymentRepository {
     return this.prisma.paymentTransaction.update({
       where: { id },
       data: {
-        ...dto,
-        updatedBy: userId,
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(dto.description !== undefined ? { narration: dto.description } : {}),
+        ...(dto.gatewayRef !== undefined ? { providerRef: dto.gatewayRef } : {}),
+        ...(dto.gatewayResponse !== undefined ? { providerResponse: dto.gatewayResponse as never } : {}),
       },
     });
   }
 
-  async updateStatus(id: string, status: PaymentStatus, tenantId: string, userId: string, gatewayRef?: string, gatewayResponse?: Record<string, unknown>): Promise<PaymentTransaction> {
+  async updateStatus(id: string, status: PaymentStatus, _tenantId: string, _userId: string, providerRef?: string, providerResponse?: Record<string, unknown>): Promise<PaymentTransaction> {
     return this.prisma.paymentTransaction.update({
       where: { id },
       data: {
         status,
-        gatewayRef: gatewayRef || undefined,
-        gatewayResponse: gatewayResponse || undefined,
-        updatedBy: userId,
+        providerRef: providerRef || undefined,
+        providerResponse: (providerResponse as never) || undefined,
       },
     });
   }
 
-  async delete(id: string, tenantId: string): Promise<PaymentTransaction> {
-    return this.prisma.paymentTransaction.delete({
-      where: { id },
-    });
+  async delete(id: string, _tenantId: string): Promise<PaymentTransaction> {
+    return this.prisma.paymentTransaction.delete({ where: { id } });
   }
 
-  // ==================== AGGREGATIONS ====================
   async getDashboardStats(tenantId: string, startDate?: Date, endDate?: Date) {
     const dateFilter: Prisma.PaymentTransactionWhereInput = { tenantId };
     if (startDate || endDate) {
@@ -147,41 +134,34 @@ export class PaymentRepository {
       if (endDate) dateFilter.createdAt.lte = endDate;
     }
 
-    const [
-      totalRevenue,
-      totalPending,
-      totalRefunded,
-      transactionCount,
-      completedCount,
-      methodBreakdown,
-      dailyTrend,
-    ] = await Promise.all([
-      this.prisma.paymentTransaction.aggregate({
-        where: { ...dateFilter, status: 'COMPLETED', type: 'PAYMENT' },
-        _sum: { amount: true },
-      }),
-      this.prisma.paymentTransaction.aggregate({
-        where: { tenantId, status: 'PENDING' },
-        _sum: { amount: true },
-      }),
-      this.prisma.paymentTransaction.aggregate({
-        where: { tenantId, status: 'REFUNDED' },
-        _sum: { amount: true },
-      }),
-      this.prisma.paymentTransaction.count({ where: dateFilter }),
-      this.prisma.paymentTransaction.count({ where: { ...dateFilter, status: 'COMPLETED' } }),
-      this.prisma.paymentTransaction.groupBy({
-        by: ['paymentMethodId'],
-        where: { ...dateFilter, status: 'COMPLETED' },
-        _sum: { amount: true },
-        _count: { id: true },
-      }),
-      this.prisma.paymentTransaction.groupBy({
-        by: ['createdAt'],
-        where: { ...dateFilter, status: 'COMPLETED' },
-        _sum: { amount: true },
-      }),
-    ]);
+    const [totalRevenue, totalPending, totalRefunded, transactionCount, completedCount, methodBreakdown, dailyTrend] =
+      await Promise.all([
+        this.prisma.paymentTransaction.aggregate({
+          where: { ...dateFilter, status: 'COMPLETED', direction: 'IN' },
+          _sum: { amount: true },
+        }),
+        this.prisma.paymentTransaction.aggregate({
+          where: { tenantId, status: 'PENDING' },
+          _sum: { amount: true },
+        }),
+        this.prisma.paymentTransaction.aggregate({
+          where: { tenantId, status: 'REFUNDED' },
+          _sum: { amount: true },
+        }),
+        this.prisma.paymentTransaction.count({ where: dateFilter }),
+        this.prisma.paymentTransaction.count({ where: { ...dateFilter, status: 'COMPLETED' } }),
+        this.prisma.paymentTransaction.groupBy({
+          by: ['paymentMethodId'],
+          where: { ...dateFilter, status: 'COMPLETED' },
+          _sum: { amount: true },
+          _count: { id: true },
+        }),
+        this.prisma.paymentTransaction.groupBy({
+          by: ['createdAt'],
+          where: { ...dateFilter, status: 'COMPLETED' },
+          _sum: { amount: true },
+        }),
+      ]);
 
     return {
       totalRevenue: totalRevenue._sum.amount || new Decimal(0),
@@ -194,7 +174,6 @@ export class PaymentRepository {
     };
   }
 
-  // ==================== TRANSACTIONS ====================
   async executeInTransaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     return this.prisma.$transaction(fn);
   }
