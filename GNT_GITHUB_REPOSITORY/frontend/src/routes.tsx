@@ -55,6 +55,13 @@ export const routes: ReadonlyArray<AppRoute> = [
   { path: '/inventory/adjustment',  label: 'घटाना/बढ़ाना',         element: page(() => import('./modules/m06-inventory/pages/StockAdjustmentPage'), 'StockAdjustmentPage') },
   { path: '/inventory/low-stock',   label: 'कम माल की चेतावनी',   element: page(() => import('./modules/m06-inventory/pages/LowStockAlertPage'), 'LowStockAlertPage') },
 
+  // M07 — Purchase (ROUGH पेज — DeepSeek, टास्क #024 अनुवर्ती)
+  { path: '/purchase/entry',     label: 'नई खरीद',        element: page(() => import('./modules/m07-purchase/pages/PurchaseEntryPage'), 'PurchaseEntryPage') },
+  { path: '/purchase/orders',    label: 'खरीद आदेश',      element: page(() => import('./modules/m07-purchase/pages/PurchaseOrderPage'), 'PurchaseOrderPage') },
+  { path: '/purchase/returns',   label: 'खरीद वापसी',     element: page(() => import('./modules/m07-purchase/pages/PurchaseReturnPage'), 'PurchaseReturnPage') },
+  { path: '/purchase/payments',  label: 'सप्लायर भुगतान', element: page(() => import('./modules/m07-purchase/pages/SupplierPaymentPage'), 'SupplierPaymentPage') },
+  { path: '/purchase/history',   label: 'खरीद इतिहास',    element: page(() => import('./modules/m07-purchase/pages/PurchaseHistoryPage'), 'PurchaseHistoryPage') },
+
   // M16 — Notification (टास्क: M16–M21 पूरा — Claude, 2026-09-03)
   { path: '/notifications',          label: 'सूचनाएँ',        element: pageDefault(() => import('./modules/m16-notification/pages/NotificationCenterPage')) },
   { path: '/notifications/settings', label: 'सूचना सेटिंग',   element: pageDefault(() => import('./modules/m16-notification/pages/NotificationSettingsPage')) },

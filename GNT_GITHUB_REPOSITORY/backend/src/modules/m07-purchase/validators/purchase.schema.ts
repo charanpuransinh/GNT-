@@ -47,7 +47,7 @@ export const purchaseReturnItemSchema = z.object({
 // ─── Master Schemas ───
 
 export const createPurchaseInvoiceSchema = z.object({
-  company_id: z.string().uuid(),
+  // company_id यहाँ नहीं — controller requireTenant(req) से भरता है (टास्क #009: body.company_id पर भरोसा नहीं)
   branch_id: z.string().uuid(),
   supplier_id: z.string().uuid({ message: 'Valid supplier is required' }),
   invoice_number: z.string().min(1).max(100, { message: 'Invoice number is required' }),
@@ -72,7 +72,7 @@ export const updatePurchaseInvoiceSchema = z.object({
 });
 
 export const createPurchaseOrderSchema = z.object({
-  company_id: z.string().uuid(),
+  // company_id यहाँ नहीं — controller requireTenant(req) से भरता है (टास्क #009)
   branch_id: z.string().uuid(),
   supplier_id: z.string().uuid({ message: 'Valid supplier is required' }),
   po_number: z.string().min(1).max(100, { message: 'PO number is required' }),
@@ -95,7 +95,7 @@ export const updatePurchaseOrderSchema = z.object({
 });
 
 export const createPurchaseReturnSchema = z.object({
-  company_id: z.string().uuid(),
+  // company_id यहाँ नहीं — controller requireTenant(req) से भरता है (टास्क #009)
   purchase_invoice_id: z.string().uuid({ message: 'Original invoice is required' }),
   supplier_id: z.string().uuid({ message: 'Valid supplier is required' }),
   return_number: z.string().min(1).max(100, { message: 'Return number is required' }),

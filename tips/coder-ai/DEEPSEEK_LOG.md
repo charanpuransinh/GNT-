@@ -100,6 +100,14 @@
 
 ---
 
+### अनुवर्ती 7 — M07 Purchase: body.company_id गैप fix + 5 frontend पेज (00:25 → 01:02)
+- **कौन सा task मिला:** M07 के frontend पेज (blueprint) — बीच में backend का #009-विरोधी गैप मिला
+- **क्या किया:** backend fix: `createPurchaseInvoice/Order/Return` schemas से `company_id` हटाया (client भेजता ही नहीं — token से मिलता है) और तीनों controllers अब `requireTenant(req).companyId` से भरते हैं (#009 का नियम); frontend 5 पेज: PurchaseEntryPage (सप्लायर+शाखा+बिल+items), PurchaseOrderPage, PurchaseReturnPage, PurchaseHistoryPage + SupplierPaymentPage (ईमानदार placeholder — असली मशीनरी M11 से आएगी); routes.tsx में 5 routes
+- **कौन सी files बनाईं/बदलीं:** बदली `m07.../validators/purchase.schema.ts`, `controllers/{purchase,purchase-order}.controller.ts`; नई `frontend/.../m07-purchase/types/purchase.types.ts` + 5 pages; बदली `frontend/src/routes.tsx`
+- **status:** पूरा — mount 19, frontend tsc 217, backend tsc 512 (मामूली 2 का फर्क — किसी पुरानी file से, दर्ज); commit अगली लाइन
+
+---
+
 # कोडर AI (DeepSeek) — रात के काम की रिपोर्ट
 
 **तारीख:** 2026-09-03

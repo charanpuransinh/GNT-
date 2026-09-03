@@ -7,7 +7,7 @@ export class PurchaseOrderController {
   constructor(private readonly service: PurchaseOrderService) {}
 
   create = async (req: Request, res: Response) => {
-    try { const data = createPurchaseOrderSchema.parse(req.body); res.status(201).json({ success: true, data: await this.service.createPO(data) }); }
+    try { const data = createPurchaseOrderSchema.parse(req.body); const company_id = requireTenant(req).companyId; res.status(201).json({ success: true, data: await this.service.createPO({ ...data, company_id }) }); }
     catch (e: any) { res.status(400).json({ success: false, message: e.message }); }
   };
 

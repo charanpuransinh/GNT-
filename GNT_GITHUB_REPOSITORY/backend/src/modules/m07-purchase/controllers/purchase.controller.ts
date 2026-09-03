@@ -21,7 +21,8 @@ export class PurchaseController {
   createInvoice = async (req: Request, res: Response) => {
     try {
       const validated = createPurchaseInvoiceSchema.parse(req.body);
-      const invoice = await this.purchaseService.createPurchaseInvoice(validated);
+      const company_id = requireTenant(req).companyId;
+      const invoice = await this.purchaseService.createPurchaseInvoice({ ...validated, company_id });
       res.status(201).json({ success: true, data: invoice });
     } catch (error: any) {
       res.status(400).json({ success: false, message: error.message || 'Validation failed' });
@@ -143,7 +144,8 @@ export class PurchaseController {
   createReturn = async (req: Request, res: Response) => {
     try {
       const validated = createPurchaseReturnSchema.parse(req.body);
-      const result = await this.purchaseService.createPurchaseReturn(validated);
+      const company_id = requireTenant(req).companyId;
+      const result = await this.purchaseService.createPurchaseReturn({ ...validated, company_id });
       res.status(201).json({ success: true, data: result });
     } catch (error: any) {
       res.status(400).json({ success: false, message: error.message });
