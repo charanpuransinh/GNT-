@@ -1,6 +1,8 @@
 import { prisma } from '@/common/config/env-config';
 import { cacheConfig } from '@/common/config/cache-config';
 import Redis from 'ioredis';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { AppConfig } from '../types/app.types';
 import { logger } from '@/common/logging/logger';
 
@@ -49,13 +51,30 @@ export const appRepository = {
   },
 
   async checkStorageConnection(): Promise<boolean> {
+    // पहले यह हमेशा `true` लौटाता था — कुछ जाँचता ही नहीं था। यानी storage
+    // पूरी तरह मरा हो तब भी health check "ठीक है" बताता। नक़ली जाँच, असली
+    // ख़राबी से भी ज़्यादा ख़तरनाक है।
+    //
+    // अब असल में जाँचता है: storage फ़ोल्डर मौजूद है, और उसमें लिखा-पढ़ा-मिटाया
+    // जा सकता है (सिर्फ़ मौजूद होना काफ़ी नहीं — disk भर जाए या permission
+    // बदल जाए तो फ़ोल्डर रहेगा पर लिखना नाकाम होगा)।
+    const dir = process.env.STORAGE_PATH || path.join(process.cwd(), 'storage');
+    const probe = path.join(dir, `.health-${process.pid}-${Date.now()}`);
     try {
-      // Check file storage / S3 connectivity
-      // Simplified for M01 — would check actual storage in production
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(probe, 'ok');
+      const back = await fs.readFile(probe, 'utf8');
+      if (back !== 'ok') {
+        logger.error('Storage health check failed', { reason: 'लिखा हुआ वापस नहीं मिला', dir });
+        return false;
+      }
       return true;
     } catch (error) {
-      logger.error('Storage health check failed', { error });
+      logger.error('Storage health check failed', { error, dir });
       return false;
+    } finally {
+      // जाँच की फ़ाइल हर हाल में हटे — नाकाम होने पर भी कूड़ा न बचे
+      await fs.unlink(probe).catch(() => {});
     }
   },
 

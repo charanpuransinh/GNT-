@@ -69,14 +69,40 @@ describe('M01 - appService', () => {
       expect(result.checks.cache).toBe(false);
     });
 
-    it('should return degraded when all checks fail', async () => {
+    // पहले यह test 'degraded' की उम्मीद करता था — यानी test ख़ुद bug को सही
+    // मान रहा था। पुराने कोड में 'down' कभी पहुँच में आता ही नहीं था, इसलिए
+    // सब कुछ मर जाने पर भी सिस्टम "थोड़ा ख़राब" ही बताता।
+    it('सब कुछ मरा हो तो down बताए (degraded नहीं)', async () => {
       vi.mocked(appRepository.checkDatabaseConnection).mockResolvedValue(false);
       vi.mocked(appRepository.checkCacheConnection).mockResolvedValue(false);
       vi.mocked(appRepository.checkStorageConnection).mockResolvedValue(false);
 
       const result = await appService.getHealthStatus();
 
+      expect(result.status).toBe('down');
+      expect(result.checks).toEqual({ database: false, cache: false, storage: false });
+    });
+
+    it('database मरा हो तो down बताए — बाक़ी ठीक हों तब भी', async () => {
+      // database के बिना कुछ नहीं चलता, इसलिए यह अकेला ही 'down' के लिए काफ़ी है
+      vi.mocked(appRepository.checkDatabaseConnection).mockResolvedValue(false);
+      vi.mocked(appRepository.checkCacheConnection).mockResolvedValue(true);
+      vi.mocked(appRepository.checkStorageConnection).mockResolvedValue(true);
+
+      const result = await appService.getHealthStatus();
+
+      expect(result.status).toBe('down');
+    });
+
+    it('database ठीक पर storage मरा हो तो degraded बताए', async () => {
+      vi.mocked(appRepository.checkDatabaseConnection).mockResolvedValue(true);
+      vi.mocked(appRepository.checkCacheConnection).mockResolvedValue(true);
+      vi.mocked(appRepository.checkStorageConnection).mockResolvedValue(false);
+
+      const result = await appService.getHealthStatus();
+
       expect(result.status).toBe('degraded');
+      expect(result.checks.storage).toBe(false);
     });
   });
 

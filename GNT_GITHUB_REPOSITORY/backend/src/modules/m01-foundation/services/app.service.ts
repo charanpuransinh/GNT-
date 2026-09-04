@@ -16,11 +16,19 @@ export const appService = {
       appRepository.checkStorageConnection(),
     ]);
 
+    // M01 — health status तीन हालतों में:
+    //   healthy  = सब ठीक
+    //   degraded = कुछ ठीक, कुछ नहीं (सेवा चल तो रही है, पर पूरी नहीं)
+    //   down     = database ही नहीं मिल रहा — इसके बिना कुछ नहीं चलता
+    //
+    // पुराना कोड: `allHealthy ? 'healthy' : anyDown ? 'degraded' : 'down'`
+    // उसमें `anyDown` ठीक `allHealthy` का उल्टा था, इसलिए 'down' कभी पहुँच में
+    // आता ही नहीं था — तीनों मर जाने पर भी 'degraded' ही मिलता। यानी निगरानी
+    // सिस्टम पूरी ख़राबी कभी बता ही नहीं सकता था।
     const allHealthy = dbHealth && cacheHealth && storageHealth;
-    const anyDown = !dbHealth || !cacheHealth || !storageHealth;
 
     return {
-      status: allHealthy ? 'healthy' : anyDown ? 'degraded' : 'down',
+      status: allHealthy ? 'healthy' : dbHealth ? 'degraded' : 'down',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       version: process.env.APP_VERSION || '1.0.0',
