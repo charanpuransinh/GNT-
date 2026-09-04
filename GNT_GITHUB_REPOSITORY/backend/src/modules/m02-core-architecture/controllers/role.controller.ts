@@ -23,7 +23,8 @@ export const roleController = {
   async getRole(req: Request, res: Response, next: NextFunction) {
     try {
       const id = String(req.params.id);
-      const role = await roleService.getRoleById(id);
+      const companyId = requireTenant(req).companyId;
+      const role = await roleService.getRoleById(id, companyId);
       res.json({
         success: true,
         data: role,
@@ -40,7 +41,7 @@ export const roleController = {
   async createRole(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = requireTenant(req).companyId;
-      const role = await roleService.createRole({ ...req.body, companyId });
+      const role = await roleService.createRole(companyId, req.body);
       res.status(201).json({
         success: true,
         data: role,
@@ -57,7 +58,8 @@ export const roleController = {
   async updateRole(req: Request, res: Response, next: NextFunction) {
     try {
       const id = String(req.params.id);
-      const role = await roleService.updateRole(id, req.body);
+      const companyId = requireTenant(req).companyId;
+      const role = await roleService.updateRole(id, companyId, req.body);
       res.json({
         success: true,
         data: role,
@@ -74,7 +76,8 @@ export const roleController = {
   async deleteRole(req: Request, res: Response, next: NextFunction) {
     try {
       const id = String(req.params.id);
-      await roleService.deleteRole(id);
+      const companyId = requireTenant(req).companyId;
+      await roleService.deleteRole(id, companyId);
       res.json({
         success: true,
         data: { deleted: true },

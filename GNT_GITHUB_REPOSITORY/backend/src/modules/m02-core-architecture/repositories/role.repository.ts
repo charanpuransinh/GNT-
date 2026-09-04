@@ -1,9 +1,13 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/env-config';
 
 export const roleRepository = {
-  async findById(id: string) {
-    return prisma.role_master.findUnique({
-      where: { id },
+  // 2026-09-04: पहले सिर्फ़ id से खोजा जाता था — यानी दूसरी company की भूमिका
+  // भी पढ़ी/बदली/मिटाई जा सकती थी। role_master company से बँधी है, इसलिए अब
+  // हर जगह company_id साथ जाता है।
+  async findById(id: string, companyId: string) {
+    return prisma.role_master.findFirst({
+      where: { id, company_id: companyId },
       include: {
         role_permission: {
           include: {
@@ -63,23 +67,28 @@ export const roleRepository = {
     return Array.from(permissions);
   },
 
-  async create(data: any) {
+  // `data: any` की वजह से controller का camelCase `companyId` चुपचाप यहाँ तक
+  // पहुँच जाता था, जबकि column का नाम `company_id` है — इसलिए भूमिका बनाना
+  // कभी काम ही नहीं करता था। अब असली type है, नाम की ग़लती compile पर रुकेगी।
+  async create(data: Prisma.role_masterUncheckedCreateInput) {
     return prisma.role_master.create({
       data,
     });
   },
 
-  async update(id: string, data: any) {
-    return prisma.role_master.update({
-      where: { id },
+  async update(id: string, companyId: string, data: Prisma.role_masterUncheckedUpdateInput) {
+    const { count } = await prisma.role_master.updateMany({
+      where: { id, company_id: companyId },
       data,
     });
+    return count;
   },
 
-  async delete(id: string) {
-    return prisma.role_master.delete({
-      where: { id },
+  async delete(id: string, companyId: string) {
+    const { count } = await prisma.role_master.deleteMany({
+      where: { id, company_id: companyId },
     });
+    return count;
   },
 
   async getUserCountForRole(roleId: string) {
