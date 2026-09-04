@@ -1,3 +1,4 @@
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { Router } from 'express';
 import { LedgerController } from '../controllers/ledger.controller';
 import { VoucherController } from '../controllers/voucher.controller';
@@ -14,7 +15,9 @@ router.post('/accounts', async (req, res) => {
 router.get('/accounts', async (req, res) => {
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
-  const { company_id, type, search } = req.query;
+  // 2026-09-04 tenant fix: company token से, query string से नहीं
+  const company_id = requireTenant(req).companyId;
+  const { type, search } = req.query;
   const accounts = await prisma.account_master.findMany({
     where: {
       company_id: String(company_id),

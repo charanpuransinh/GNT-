@@ -1,3 +1,4 @@
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { Request, Response } from 'express';
 import { BRSService } from '../services/brs.service';
 import { PrismaClient } from '@prisma/client';
@@ -16,7 +17,10 @@ export const BRSController = {
   },
 
   async getBRSList(req: Request, res: Response) {
-    const { company_id, bank_account_id } = req.query;
+// 2026-09-04 tenant fix: company अब token से (requireTenant), query string से नहीं —
+    // पहले कोई भी अपनी request में दूसरी company की id डालकर उनका लेखा-जोखा पढ़ सकता था।
+    const company_id = requireTenant(req).companyId;
+    const { bank_account_id } = req.query;
     const list = await prisma.bank_reconciliation.findMany({
       where: {
         company_id: String(company_id),

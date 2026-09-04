@@ -17,6 +17,7 @@ import { requestTracer } from './common/middleware/request-tracer';
 import { auditContextMiddleware } from './common/middleware/audit-context';
 import { authMiddleware } from './common/middleware/auth-middleware';
 import { tenantMiddleware } from './common/middleware/tenant-middleware';
+import { AppError } from './common/errors/error-classes';
 import { MODULE_MOUNTS, type ModuleMount } from './module-registry';
 
 export const app = express();
@@ -107,8 +108,26 @@ export async function registerModules(): Promise<MountResult[]> {
   });
 
   // ── आख़िरी error handler (4 arguments ज़रूरी — वरना express इसे नहीं पहचानता) ──
+  //
+  // 2026-09-04: पहले यह **हर** error को 500 बना देता था — `AppError` का अपना
+  // statusCode देखता ही नहीं था। नतीजा: "voucher नहीं मिला" (404), "debit-credit
+  // बराबर नहीं" (400), "login चाहिए" (401) — सब ग्राहक को `500 INTERNAL_ERROR`
+  // दिखते थे। यानी हर API का वादा टूटा हुआ था, और असली गड़बड़ी नक़ली गड़बड़ी में छिप जाती थी।
+  //
+  // अब AppError अपना status और code लेकर जाता है; बाक़ी (अनजान) errors पर ही 500,
+  // और उनका विवरण बाहर नहीं भेजा जाता — वो सिर्फ़ server के log में रहता है।
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     const requestId = (req as Request & { requestId?: string }).requestId;
+
+    if (err instanceof AppError) {
+      return res.status(err.statusCode).json({
+        success: false,
+        error: err.code,
+        message: err.message,
+        request_id: requestId,
+      });
+    }
+
     // eslint-disable-next-line no-console
     console.error('[GNT] unhandled error', { requestId, path: req.originalUrl, message: err.message });
     res.status(500).json({ error: 'INTERNAL_ERROR', request_id: requestId });

@@ -1,3 +1,4 @@
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { LedgerService } from '../services/ledger.service';
@@ -28,7 +29,10 @@ export const LedgerController = {
   },
 
   async getTrialBalance(req: Request, res: Response) {
-    const { company_id, as_of_date } = req.query;
+    // 2026-09-04 tenant fix: company अब token से (requireTenant), query string से नहीं —
+    // पहले कोई भी अपनी request में दूसरी company की id डालकर उनका लेखा-जोखा पढ़ सकता था।
+    const company_id = requireTenant(req).companyId;
+    const { as_of_date } = req.query;
     const tb = await ledgerService.getTrialBalance(
       String(company_id),
       as_of_date ? new Date(String(as_of_date)) : undefined
@@ -37,7 +41,10 @@ export const LedgerController = {
   },
 
   async getProfitLoss(req: Request, res: Response) {
-    const { company_id, from_date, to_date } = req.query;
+    // 2026-09-04 tenant fix: company अब token से (requireTenant), query string से नहीं —
+    // पहले कोई भी अपनी request में दूसरी company की id डालकर उनका लेखा-जोखा पढ़ सकता था।
+    const company_id = requireTenant(req).companyId;
+    const { from_date, to_date } = req.query;
     const pl = await ledgerService.getProfitLoss(
       String(company_id),
       new Date(String(from_date)),
@@ -47,7 +54,10 @@ export const LedgerController = {
   },
 
   async getBalanceSheet(req: Request, res: Response) {
-    const { company_id, as_of_date } = req.query;
+    // 2026-09-04 tenant fix: company अब token से (requireTenant), query string से नहीं —
+    // पहले कोई भी अपनी request में दूसरी company की id डालकर उनका लेखा-जोखा पढ़ सकता था।
+    const company_id = requireTenant(req).companyId;
+    const { as_of_date } = req.query;
     const bs = await ledgerService.getBalanceSheet(
       String(company_id),
       new Date(String(as_of_date))

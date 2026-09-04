@@ -114,7 +114,13 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
       return createPurchaseRouter(new PurchaseController(purchaseService), new PurchaseOrderController(poService));
     } },
   { load: async () => (await import('./modules/m08-sales/routes/sales.routes')).default, code: 'M08', path: '/api/v1/sales',         mounted: true },
-  { code: 'M09', path: '/api/v1/gst',           mounted: false, blockedBy: 'tsc errors बाक़ी: 1 — tax_rate_master में cess_rate गायब (schema गैप; #016 में दर्ज, reviewer का फैसला चाहिए)' },
+  // 2026-09-04: M09 चालू किया गया। जिस वजह से यह बंद था — "tax_rate_master में
+  // cess_rate गायब" — वो commit 4fb2bb6 में ठीक हो चुकी थी (schema में
+  // `cess_rate Decimal? @default(0)` मौजूद है, जाँच लिया), पर mount वापस चालू
+  // करना रह गया। यानी GST का पूरा module app में चढ़ता ही नहीं था और उसका हर
+  // पता 404 देता था — tests भी यह नहीं पकड़ पाए क्योंकि वे router को सीधे बुलाते थे,
+  // असली app से होकर नहीं जाते थे।
+  { load: async () => (await import('./modules/m09-gst/routes/gst.routes')).default, code: 'M09', path: '/api/v1/gst',           mounted: true },
   { code: 'M10', path: '/api/v1/accounting', mounted: true,
     load: async () => (await import('./modules/m10-accounting')).accountingRoutes },
   { load: async () => (await import('./modules/m11-payment/routes')).default, code: 'M11', path: '/api/v1/payments',      mounted: true },
