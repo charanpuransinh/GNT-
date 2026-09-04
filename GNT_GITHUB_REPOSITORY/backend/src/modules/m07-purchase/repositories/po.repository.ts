@@ -64,6 +64,11 @@ export class PurchaseOrderRepository {
     const { items, ...poData } = data;
 
     return this.prisma.$transaction(async (tx) => {
+      // company_id पहले सिर्फ़ parameter था। मालिकाना जाँचे बिना items मिटा दिए
+      // जाते थे — यानी दूसरी company का PO भेजने पर उसकी lines पहले ही उड़ जातीं।
+      const apna = await tx.purchase_order.findFirst({ where: { id, company_id }, select: { id: true } });
+      if (!apna) throw new Error('Purchase order not found');
+
       if (items && items.length > 0) {
         await tx.purchase_order_item.deleteMany({ where: { purchase_order_id: id } });
       }

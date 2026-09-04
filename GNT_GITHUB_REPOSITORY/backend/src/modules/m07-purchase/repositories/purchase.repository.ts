@@ -78,6 +78,10 @@ export class PurchaseRepository {
     const { items, ...invoiceData } = data;
 
     return this.prisma.$transaction(async (tx) => {
+      // वही छेद जो PO में था: company_id लिया जाता था, कहीं लगाया नहीं जाता था
+      const apna = await tx.purchase_invoice.findFirst({ where: { id, company_id }, select: { id: true } });
+      if (!apna) throw new Error('Purchase invoice not found');
+
       // Delete existing items if new items provided
       if (items && items.length > 0) {
         await tx.purchase_invoice_item.deleteMany({ where: { purchase_invoice_id: id } });
