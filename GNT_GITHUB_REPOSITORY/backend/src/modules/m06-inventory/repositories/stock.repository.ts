@@ -38,18 +38,24 @@ export class StockRepository {
     return prisma.stock_master.create({ data: data as any });
   }
 
+  // company_id पहले सिर्फ़ parameter था, where में जाता ही नहीं था — यानी किसी और
+  // company का stock भी बदला जा सकता था। updateMany से scope असली में लगता है।
   async updateQuantity(id: string, quantity: number, company_id: string): Promise<stock_master> {
-    return prisma.stock_master.update({
-      where: { id },
+    const { count } = await prisma.stock_master.updateMany({
+      where: { id, company_id },
       data: { quantity },
     });
+    if (count === 0) throw new Error('Stock not found for this company');
+    return this.findById(id, company_id) as Promise<stock_master>;
   }
 
   async updateAvgPrice(id: string, avg_price: number, last_price: number, company_id: string): Promise<stock_master> {
-    return prisma.stock_master.update({
-      where: { id },
+    const { count } = await prisma.stock_master.updateMany({
+      where: { id, company_id },
       data: { avg_purchase_price: avg_price, last_purchase_price: last_price },
     });
+    if (count === 0) throw new Error('Stock not found for this company');
+    return this.findById(id, company_id) as Promise<stock_master>;
   }
 
   async findAll(filter: StockFilter, company_id: string): Promise<stock_master[]> {

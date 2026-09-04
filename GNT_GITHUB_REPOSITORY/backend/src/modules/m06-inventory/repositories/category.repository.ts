@@ -41,17 +41,23 @@ export class CategoryRepository {
     });
   }
 
+  // company_id यहाँ भी सिर्फ़ नाम का था — where में न होने से दूसरी company की
+  // category बदली/मिटाई जा सकती थी।
   async update(id: string, data: Partial<CategoryDTO>, company_id: string): Promise<category_master> {
-    return prisma.category_master.update({
-      where: { id },
+    const { count } = await prisma.category_master.updateMany({
+      where: { id, company_id },
       data: data as any,
     });
+    if (count === 0) throw new Error('Category not found for this company');
+    return this.findById(id, company_id) as Promise<category_master>;
   }
 
   async delete(id: string, company_id: string): Promise<category_master> {
-    return prisma.category_master.delete({
-      where: { id },
-    });
+    // मिटाने से पहले पढ़ लो — वरना लौटाने को कुछ बचता नहीं
+    const existing = await this.findById(id, company_id);
+    if (!existing) throw new Error('Category not found for this company');
+    await prisma.category_master.deleteMany({ where: { id, company_id } });
+    return existing;
   }
 
   async hasChildren(id: string, company_id: string): Promise<boolean> {

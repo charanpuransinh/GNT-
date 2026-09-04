@@ -35,7 +35,10 @@ export class SerialController {
       const validated = serialUpdateSchema.parse(req.body);
       const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
-      const serial = await prisma.serial_master.update({ where: { id }, data: validated as any });
+      // यहाँ भी company_id सिर्फ़ जाँचा जाता था, लगाया नहीं जाता था
+      const { count } = await prisma.serial_master.updateMany({ where: { id, company_id }, data: validated as any });
+      if (count === 0) return res.status(404).json({ success: false, error: 'Serial not found' });
+      const serial = await prisma.serial_master.findFirst({ where: { id, company_id } });
       return res.json({ success: true, data: serial });
     } catch (err: any) { return res.status(400).json({ success: false, error: err.message }); }
   }

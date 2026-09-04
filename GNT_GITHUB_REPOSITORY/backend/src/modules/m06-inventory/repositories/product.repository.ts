@@ -93,10 +93,13 @@ export class ProductRepository {
   }
 
   async softDelete(id: string, company_id: string): Promise<product_master> {
-    return prisma.product_master.update({
-      where: { id },
+    // update({ where: { id } }) दूसरी company का product भी बंद कर देता था
+    const { count } = await prisma.product_master.updateMany({
+      where: { id, company_id },
       data: { status: 'inactive', is_active: false },
     });
+    if (count === 0) throw new Error('Product not found for this company');
+    return this.findById(id, company_id) as Promise<product_master>;
   }
 
   async existsWithCode(code: string, company_id: string, excludeId?: string): Promise<boolean> {
