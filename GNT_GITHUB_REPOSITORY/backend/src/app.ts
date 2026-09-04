@@ -40,6 +40,12 @@ const PUBLIC_PREFIXES = [
   '/api/v1/auth/refresh',
   '/api/v1/auth/forgot-password',
   '/api/v1/auth/otp',
+  // 2026-09-04: असली route `/otp-verify` है, `/otp/...` नहीं। ऊपर वाला `/api/v1/auth/otp`
+  // उससे मेल नहीं खाता — isPublicPath सिर्फ़ पूरा बराबर, या prefix के बाद `/` या `?`
+  // मानता है, और यहाँ अगला अक्षर `-` है। इसलिए otp-verify 401 दे रहा था।
+  // नतीजा: OTP वाला login कभी पूरा हो ही नहीं सकता था — OTP जाँचने के लिए token
+  // चाहिए, और token OTP जाँचने के बाद ही मिलता है। चलाकर पकड़ा (401 बनाम login का 400)।
+  '/api/v1/auth/otp-verify',
   '/api/v1/integrations/webhook',
   // ── M01 (2026-09-04) ──
   // ये दोनों M01 की routes फ़ाइल में "Public — no auth required" लिखे हैं और

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/env-config';
 import { logger } from '@/common/logging/logger';
 
@@ -43,23 +44,36 @@ export const userRepository = {
     });
   },
 
-  async create(data: any) {
+  // 2026-09-04: `data: any` हटाया। वो `any` ही असली गड़बड़ी की जड़ था —
+  // user.service `{ isActive: false }` भेजता था जबकि schema में field `is_active` है।
+  // `any` की वजह से यह compile हो जाता था और चलते वक़्त फटता था:
+  //   PrismaClientValidationError — Invalid `prisma.user_master.update()` invocation
+  // यानी "user delete" सुविधा कभी चली ही नहीं। चलाकर पकड़ा।
+  // अब Prisma के असली types लगे हैं — ग़लत field नाम अब compile पर ही पकड़ा जाएगा।
+  async create(data: Prisma.user_masterUncheckedCreateInput) {
     return prisma.user_master.create({
       data,
     });
   },
 
-  async update(id: string, data: any) {
-    return prisma.user_master.update({
-      where: { id },
+  // ⚠️ tenant: `where` में company_id ज़रूरी है। पहले सिर्फ़ id से चलता था, इसलिए
+  // एक company का user दूसरी company के user को बदल/हटा सकता था — बस id जानकर।
+  // companyId न मिले तो query चलेगी ही नहीं (fail-closed), सबका data कभी नहीं।
+  async update(id: string, companyId: string, data: Prisma.user_masterUncheckedUpdateInput) {
+    if (!companyId) throw new Error('userRepository.update: companyId ज़रूरी है (tenant guard)');
+    const res = await prisma.user_master.updateMany({
+      where: { id, company_id: companyId },
       data,
     });
+    return res.count > 0 ? prisma.user_master.findUnique({ where: { id } }) : null;
   },
 
-  async delete(id: string) {
-    return prisma.user_master.delete({
-      where: { id },
+  async delete(id: string, companyId: string) {
+    if (!companyId) throw new Error('userRepository.delete: companyId ज़रूरी है (tenant guard)');
+    const res = await prisma.user_master.deleteMany({
+      where: { id, company_id: companyId },
     });
+    return res.count > 0;
   },
 
   async incrementFailedAttempts(id: string) {

@@ -24,7 +24,8 @@ export const userController = {
   async getUser(req: Request, res: Response, next: NextFunction) {
     try {
       const id = String(req.params.id);
-      const user = await userService.getUserById(id);
+      const companyId = requireTenant(req).companyId;
+      const user = await userService.getUserById(id, companyId);
       res.json({
         success: true,
         data: user,
@@ -41,7 +42,7 @@ export const userController = {
   async createUser(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = requireTenant(req).companyId;
-      const user = await userService.createUser({ ...req.body, companyId });
+      const user = await userService.createUser(req.body, companyId);
       res.status(201).json({
         success: true,
         data: user,
@@ -58,7 +59,8 @@ export const userController = {
   async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
       const id = String(req.params.id);
-      const user = await userService.updateUser(id, req.body);
+      const companyId = requireTenant(req).companyId;
+      const user = await userService.updateUser(id, companyId, req.body);
       res.json({
         success: true,
         data: user,
@@ -75,7 +77,8 @@ export const userController = {
   async deleteUser(req: Request, res: Response, next: NextFunction) {
     try {
       const id = String(req.params.id);
-      await userService.deleteUser(id);
+      const companyId = requireTenant(req).companyId;
+      await userService.deleteUser(id, companyId);
       res.json({
         success: true,
         data: { deleted: true },
