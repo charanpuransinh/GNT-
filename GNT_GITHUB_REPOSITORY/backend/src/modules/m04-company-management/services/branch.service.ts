@@ -11,7 +11,7 @@ export class BranchService {
 
   async getBranches(companyId: string) { return this.branchRepo.findByCompany(companyId); }
 
-  async createBranch(companyId: string, data: any) {
+  async createBranch(companyId: string, data: { name: string; address?: string | null }) {
     const code = await this.generateBranchCode(companyId);
     const branch = await this.branchRepo.create({ ...data, companyId, code, isActive: true });
     this.eventBus.publish("company.branch.created", { branchId: branch.id, companyId });

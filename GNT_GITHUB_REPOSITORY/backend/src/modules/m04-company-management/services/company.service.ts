@@ -35,7 +35,9 @@ export class CompanyService {
 
   async getFinancialYears(companyId: string) { return this.companyRepo.findFinancialYears(companyId); }
 
-  async createFinancialYear(companyId: string, data: any) {
+  // पहले `data: any` था — startDate/endDate/prefix में से कोई नाम ग़लत लिखा
+  // जाता तो tsc चुप रहता। अब वही आकार माँगा जाता है जो createFY समझता है।
+  async createFinancialYear(companyId: string, data: { startDate: string | Date; endDate: string | Date; prefix: string; isActive?: boolean }) {
     const fy = await this.companyRepo.createFY({ ...data, companyId });
     this.audit.log({ action: "FY_CREATED", target: fy.id });
     return fy;
