@@ -3,7 +3,17 @@ import { BranchRepository } from "../repositories/branch.repository";
 import { CompanyInternal } from "./company.internal";
 import { EventBus } from "../../../common/events/event-bus";
 import { AuditLogger } from "../../../common/logging/audit-logger";
+import { Prisma } from "@prisma/client";
 import { AppError } from "../../../common/errors/error-classes";
+
+/** company के अंदर नया user बनाने के लिए ज़रूरी जानकारी (पहले यह `any` थी) */
+export interface CreateCompanyUserInput {
+  name: string;
+  email: string;
+  username: string;
+  passwordHash: string;
+  branchId?: string | null;
+}
 
 export class CompanyService {
   constructor(
@@ -16,7 +26,7 @@ export class CompanyService {
 
   async getProfile(companyId: string) { return this.companyRepo.findById(companyId); }
 
-  async updateProfile(companyId: string, data: any) {
+  async updateProfile(companyId: string, data: Prisma.company_masterUncheckedUpdateInput) {
     const updated = await this.companyRepo.update(companyId, data);
     this.eventBus.publish("company.profile.updated", { companyId, timestamp: new Date() });
     this.audit.log({ action: "COMPANY_PROFILE_UPDATE", target: companyId });
@@ -32,8 +42,16 @@ export class CompanyService {
   }
 
   async switchFinancialYear(fyId: string, companyId: string) {
+    // ⚠️ पहले यहाँ कोई company-जाँच नहीं थी: अपनी company के सारे FY बंद करके,
+    // फिर बिना जाँचे किसी भी id वाला FY चालू कर देता था। यानी दूसरी company का FY
+    // चालू हो जाता और अपनी company बिना किसी चालू FY के रह जाती।
+    // अब पहले जाँचो, फिर बंद करो — वरना नाकाम होने पर भी नुक़सान हो चुका होता।
+    const fy = await this.companyRepo.findFinancialYears(companyId);
+    if (!fy.some((f) => f.id === fyId)) throw new AppError("GNT-ERR-0403", "Financial year not found", 404);
+
     await this.companyRepo.deactivateAllFY(companyId);
-    await this.companyRepo.activateFY(fyId);
+    const ok = await this.companyRepo.activateFY(fyId, companyId);
+    if (!ok) throw new AppError("GNT-ERR-0403", "Financial year not found", 404);
     this.eventBus.publish("company.fy.switched", { companyId, fyId, timestamp: new Date() });
     this.audit.log({ action: "FY_SWITCHED", target: fyId });
   }
@@ -49,7 +67,7 @@ export class CompanyService {
 
   async getUsers(companyId: string) { return this.companyRepo.findUsers(companyId); }
 
-  async createUser(companyId: string, data: any) {
+  async createUser(companyId: string, data: CreateCompanyUserInput) {
     const user = await this.companyRepo.createUser({ ...data, companyId });
     this.eventBus.publish("company.user.created", { userId: user.id, companyId });
     this.audit.log({ action: "USER_CREATED", target: user.id });
