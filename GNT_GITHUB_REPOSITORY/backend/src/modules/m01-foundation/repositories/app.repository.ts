@@ -79,11 +79,22 @@ export const appRepository = {
   },
 
   async getActiveConnectionCount(): Promise<number> {
+    // पहले यह हमेशा 0 लौटाता था ("Would query connection pool") — यानी निगरानी
+    // का पन्ना बनावटी संख्या दिखाता था। अब postgres से असल में गिनता है कि इसी
+    // database पर कितने connection खुले हैं।
+    //
+    // -1 का मतलब "गिन नहीं सका" — 0 नहीं, क्योंकि 0 का मतलब होता है "कोई
+    // connection नहीं", और वो झूठ होगा। ख़राबी को शून्य बताना ही असली ख़तरा है।
     try {
-      // Would query connection pool or websocket manager
-      return 0;
-    } catch {
-      return 0;
+      const rows = await prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT count(*)::bigint AS count
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+      `;
+      return Number(rows[0]?.count ?? -1);
+    } catch (error) {
+      logger.error('Active connection count failed', { error });
+      return -1;
     }
   },
 };

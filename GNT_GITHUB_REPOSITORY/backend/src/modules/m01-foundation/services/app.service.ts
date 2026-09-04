@@ -1,3 +1,4 @@
+import os from 'node:os';
 import { appRepository } from '../repositories/app.repository';
 import { appInternal } from './app.internal';
 import { AppConfig, HealthStatus, SystemInfo } from '../types/app.types';
@@ -42,7 +43,8 @@ export const appService = {
 
   async getSystemInfo(): Promise<SystemInfo> {
     const memUsage = process.memoryUsage();
-    const totalMem = require('os').totalmem();
+    const totalMem = os.totalmem();
+    const cpuCount = os.cpus().length || 1;
 
     return {
       platform: process.platform,
@@ -52,7 +54,11 @@ export const appService = {
         total: Math.round(totalMem / 1024 / 1024),
         percentage: Math.round((memUsage.heapUsed / totalMem) * 100),
       },
-      cpuLoad: 0, // Would use os.loadavg() in real implementation
+      // पहले यहाँ `cpuLoad: 0` लिखा था ("Would use os.loadavg() in real
+      // implementation") — यानी CPU चाहे 100% पर जल रहा हो, पन्ना 0 दिखाता।
+      // अब पिछले 1 मिनट का असली load, cores से भाग देकर प्रतिशत में
+      // (2 cores पर load 2.0 = 100%, 1.0 = 50%)।
+      cpuLoad: Math.round((os.loadavg()[0] / cpuCount) * 100),
       activeConnections: await appRepository.getActiveConnectionCount(),
     };
   },
