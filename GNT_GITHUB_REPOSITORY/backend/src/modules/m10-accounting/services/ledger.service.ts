@@ -1,11 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AccountingInternalEngine } from './accounting.internal';
 import { LedgerRepository } from '../repositories/ledger.repository';
 
 export class LedgerService {
   constructor(private repo: LedgerRepository, private prisma: PrismaClient) {}
 
-  async createEntry(data: any): Promise<any> {
+  // `data: any` सीधे Prisma में जा रहा था — field का नाम ग़लत होता तो tsc चुप
+  // रहता और लेखा-प्रविष्टि बनाते वक़्त फ़ेल होती। अब generated type लगा है।
+  async createEntry(data: Prisma.ledgerUncheckedCreateInput): Promise<any> {
     return this.prisma.ledger.create({ data });
   }
 
