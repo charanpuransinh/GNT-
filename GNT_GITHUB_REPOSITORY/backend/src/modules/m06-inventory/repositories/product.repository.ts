@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export class ProductRepository {
   async create(data: ProductDTO): Promise<product_master> {
-    return prisma.product_master.create({ data: data as any });
+    return prisma.product_master.create({ data: data });
   }
 
   async findById(id: string, company_id: string): Promise<product_master | null> {
@@ -88,7 +88,7 @@ export class ProductRepository {
   async update(id: string, data: Partial<ProductDTO>, company_id: string): Promise<product_master> {
     return prisma.product_master.updateMany({
       where: { id, company_id },
-      data: data as any,
+      data: data,
     }).then(() => this.findById(id, company_id) as Promise<product_master>);
   }
 

@@ -6,7 +6,20 @@ const prisma = new PrismaClient();
 
 export class CategoryRepository {
   async create(data: CategoryDTO): Promise<category_master> {
-    return prisma.category_master.create({ data: data as any });
+    // पहले यह `data as any` था। `as any` हटाते ही tsc ने पकड़ा कि CategoryDTO
+    // सीधे Prisma के create input में नहीं बैठता — parent_id एक scalar FK है,
+    // इसलिए Unchecked रूप चाहिए। अब हर field नाम लेकर लिखा है, यानी आगे कोई
+    // नाम ग़लत हुआ तो tsc वहीं रोकेगा, चलते वक़्त नहीं टूटेगा।
+    return prisma.category_master.create({
+      data: {
+        company_id: data.company_id,
+        name: data.name,
+        parent_id: data.parent_id ?? null,
+        code: data.code ?? null,
+        description: data.description ?? null,
+        ...(data.is_active !== undefined ? { is_active: data.is_active } : {}),
+      },
+    });
   }
 
   async findById(id: string, company_id: string): Promise<category_master | null> {
@@ -46,7 +59,7 @@ export class CategoryRepository {
   async update(id: string, data: Partial<CategoryDTO>, company_id: string): Promise<category_master> {
     const { count } = await prisma.category_master.updateMany({
       where: { id, company_id },
-      data: data as any,
+      data: data,
     });
     if (count === 0) throw new Error('Category not found for this company');
     return this.findById(id, company_id) as Promise<category_master>;

@@ -35,7 +35,7 @@ export class StockRepository {
 
     if (existing) return existing;
 
-    return prisma.stock_master.create({ data: data as any });
+    return prisma.stock_master.create({ data: data });
   }
 
   // company_id पहले सिर्फ़ parameter था, where में जाता ही नहीं था — यानी किसी और
@@ -71,7 +71,7 @@ export class StockRepository {
   }
 
   async createMovement(data: StockMovementDTO): Promise<stock_movement> {
-    return prisma.stock_movement.create({ data: data as any });
+    return prisma.stock_movement.create({ data: data });
   }
 
   async findMovements(filter: MovementFilter, company_id: string): Promise<PaginatedResult<stock_movement>> {
