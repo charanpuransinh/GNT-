@@ -4,7 +4,7 @@
  * RULE: INTERNAL ONLY — No direct access from other modules
  */
 
-import { PrismaClient, SalesInvoice, SalesInvoiceItem, Prisma } from '@prisma/client';
+import { PrismaClient, SalesInvoice, SalesInvoiceItem, PaymentStatus, Prisma } from '@prisma/client';
 import { InvoiceQueryParams } from '../types/sales.types';
 
 const prisma = new PrismaClient();
@@ -86,10 +86,12 @@ export class SalesRepository {
     return prisma.salesInvoice.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
   }
 
-  async updatePaymentStatus(id: string, companyId: string, paymentStatus: string, amountPaid: number): Promise<SalesInvoice> {
+  // paymentStatus पैसे से जुड़ा है — यहाँ ग़लत शब्द जाना सबसे महँगा पड़ता।
+  // अब enum ही स्वीकार होगा, `as any` हटा।
+  async updatePaymentStatus(id: string, companyId: string, paymentStatus: PaymentStatus, amountPaid: number): Promise<SalesInvoice> {
     await prisma.salesInvoice.updateMany({
       where: { id, companyId },
-      data: { paymentStatus: paymentStatus as any, amountPaid },
+      data: { paymentStatus, amountPaid },
     });
     return prisma.salesInvoice.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
   }

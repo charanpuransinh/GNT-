@@ -46,7 +46,9 @@ export class EInvoiceRepository {
     return rows[0] ?? null;
   }
 
-  async createEInvoice(data: any): Promise<any> {
+  // `data: any` था — कोई भी field नाम ग़लत लिखा जाता तो tsc चुप रहता और
+  // गड़बड़ी असली e-invoice बनाते वक़्त, IRP से जवाब आने के बाद दिखती।
+  async createEInvoice(data: Prisma.e_invoice_recordUncheckedCreateInput): Promise<any> {
     return this.prisma.e_invoice_record.create({ data });
   }
 
@@ -61,7 +63,7 @@ export class EInvoiceRepository {
     });
   }
 
-  async createEWayBill(data: any): Promise<any> {
+  async createEWayBill(data: Prisma.e_way_bill_recordUncheckedCreateInput): Promise<any> {
     return this.prisma.e_way_bill_record.create({ data });
   }
 

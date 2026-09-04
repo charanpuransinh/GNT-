@@ -3,7 +3,7 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { PrismaClient, SalesReturn, SalesReturnItem, Prisma } from '@prisma/client';
+import { PrismaClient, SalesReturn, SalesReturnItem, ReturnStatus, Prisma } from '@prisma/client';
 import { ReturnQueryParams } from '../types/sales.types';
 
 const prisma = new PrismaClient();
@@ -47,8 +47,9 @@ export class ReturnRepository {
   }
 
   // ─── UPDATE ───
-  async updateReturnStatus(id: string, companyId: string, status: string): Promise<SalesReturn> {
-    await prisma.salesReturn.updateMany({ where: { id, companyId }, data: { status: status as any } });
+  // वही सुधार जो quotation में — ग़लत status अब compile पर ही रुकेगा
+  async updateReturnStatus(id: string, companyId: string, status: ReturnStatus): Promise<SalesReturn> {
+    await prisma.salesReturn.updateMany({ where: { id, companyId }, data: { status } });
     return prisma.salesReturn.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
   }
 

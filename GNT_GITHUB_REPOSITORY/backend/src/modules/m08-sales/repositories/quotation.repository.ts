@@ -3,7 +3,7 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { PrismaClient, Quotation, QuotationItem, Prisma } from '@prisma/client';
+import { PrismaClient, Quotation, QuotationItem, QuotationStatus, Prisma } from '@prisma/client';
 import { QuotationQueryParams } from '../types/sales.types';
 
 const prisma = new PrismaClient();
@@ -52,8 +52,10 @@ export class QuotationRepository {
     return prisma.quotation.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
   }
 
-  async updateQuotationStatus(id: string, companyId: string, status: string): Promise<Quotation> {
-    await prisma.quotation.updateMany({ where: { id, companyId }, data: { status: status as any } });
+  // पहले status `string` था और `as any` से enum column में डाल दिया जाता था —
+  // कोई भी ग़लत शब्द compile पर निकल जाता, चलते वक़्त फ़ेल होता। अब enum ही लेगा।
+  async updateQuotationStatus(id: string, companyId: string, status: QuotationStatus): Promise<Quotation> {
+    await prisma.quotation.updateMany({ where: { id, companyId }, data: { status } });
     return prisma.quotation.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
   }
 
