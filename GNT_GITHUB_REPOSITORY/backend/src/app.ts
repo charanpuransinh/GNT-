@@ -41,6 +41,14 @@ const PUBLIC_PREFIXES = [
   '/api/v1/auth/forgot-password',
   '/api/v1/auth/otp',
   '/api/v1/integrations/webhook',
+  // ── M01 (2026-09-04) ──
+  // ये दोनों M01 की routes फ़ाइल में "Public — no auth required" लिखे हैं और
+  // contract में भी इन पर `security:` नहीं है (जबकि /config और /system-info पर है)।
+  // पर यहाँ सूची में न होने से ये 401 दे रहे थे — यानी मॉड्यूल की घोषणा और असल
+  // बर्ताव उलटे थे। health की पूरी उपयोगिता ही यह है कि उसे monitoring/load
+  // balancer बिना token बुला सके; 401 देने वाला health check बेकार है।
+  '/api/v1/foundation/health',
+  '/api/v1/foundation/maintenance',
 ];
 const isPublicPath = (p: string): boolean =>
   PUBLIC_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`) || p.startsWith(`${pre}?`));

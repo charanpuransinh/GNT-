@@ -26,7 +26,13 @@ export interface ModuleMount {
 }
 
 export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
-  { load: async () => (await import('./modules/m01-foundation/routes/app.routes')).default, code: 'M01', path: '/api/v1/app',           mounted: true },
+  // 2026-09-04: पता `/api/v1/app` से `/api/v1/foundation` किया।
+  // backend यहाँ `/api/v1/app` पर सुनता था, जबकि frontend `/api/v1/foundation` बुलाता है —
+  // यानी M01 की हर frontend call 404 हो रही थी। न tsc यह पकड़ता है (दोनों सिर्फ़ string हैं),
+  // न backend tests (वे router को सीधे बुलाते हैं, mount पते से नहीं जाते)।
+  // फ़ैसला contract से: api-contracts/v1/M01-foundation.contract.yaml —
+  // servers: /api/v1 + paths: /foundation/... — यानी frontend सही था, mount ग़लत।
+  { load: async () => (await import('./modules/m01-foundation/routes/app.routes')).default, code: 'M01', path: '/api/v1/foundation',    mounted: true },
   { load: async () => (await import('./modules/m02-core-architecture/routes/auth.routes')).default, code: 'M02', path: '/api/v1/auth',          mounted: true },
   {
     load: async () => {
