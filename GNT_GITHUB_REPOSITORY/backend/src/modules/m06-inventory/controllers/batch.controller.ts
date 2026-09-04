@@ -12,7 +12,7 @@ export class BatchController {
       const validated = batchSchema.parse(req.body);
       const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
-      const batch = await prisma.batch_master.create({ data: { ...validated, company_id } as any });
+      const batch = await prisma.batch_master.create({ data: { ...validated, company_id } });
       return res.status(201).json({ success: true, data: batch });
     } catch (err: any) { return res.status(400).json({ success: false, error: err.message }); }
   }
@@ -36,7 +36,7 @@ export class BatchController {
       const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
       // company_id निकाला जाता था पर where में कभी नहीं जाता था
-      const { count } = await prisma.batch_master.updateMany({ where: { id, company_id }, data: validated as any });
+      const { count } = await prisma.batch_master.updateMany({ where: { id, company_id }, data: validated });
       if (count === 0) return res.status(404).json({ success: false, error: 'Batch not found' });
       const batch = await prisma.batch_master.findFirst({ where: { id, company_id } });
       return res.json({ success: true, data: batch });
