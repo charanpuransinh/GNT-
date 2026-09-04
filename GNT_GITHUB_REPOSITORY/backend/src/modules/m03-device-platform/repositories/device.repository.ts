@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/env-config';
 import { logger } from '@/common/logging/logger';
 
@@ -18,7 +19,13 @@ export const deviceRepository = {
     });
   },
 
-  async createSession(data: any) {
+  // 2026-09-04: नीचे के पाँचों `data: any` हटाए गए।
+  // वही ढीली typing M02 में एक असली गड़बड़ी छिपा चुकी है — वहाँ service `isActive`
+  // भेजती थी जबकि schema में `is_active` है, `any` ने compile होने दिया, और
+  // "user हटाना" चलते वक़्त फटता था। कोई test नहीं पकड़ पाया।
+  // अब Prisma के असली types लगे हैं — ग़लत field नाम compile पर ही पकड़ा जाएगा।
+
+  async createSession(data: Prisma.active_sessionUncheckedCreateInput) {
     return prisma.active_session.create({ data });
   },
 
@@ -57,11 +64,11 @@ export const deviceRepository = {
     });
   },
 
-  async createDevice(data: any) {
+  async createDevice(data: Prisma.device_registryUncheckedCreateInput) {
     return prisma.device_registry.create({ data });
   },
 
-  async updateDevice(deviceId: string, data: any) {
+  async updateDevice(deviceId: string, data: Prisma.device_registryUncheckedUpdateInput) {
     return prisma.device_registry.update({
       where: { id: deviceId },
       data,
@@ -74,11 +81,11 @@ export const deviceRepository = {
     });
   },
 
-  async createDeploymentSettings(data: any) {
+  async createDeploymentSettings(data: Prisma.deployment_settingsUncheckedCreateInput) {
     return prisma.deployment_settings.create({ data });
   },
 
-  async updateDeploymentSettings(companyId: string, data: any) {
+  async updateDeploymentSettings(companyId: string, data: Prisma.deployment_settingsUncheckedUpdateInput) {
     return prisma.deployment_settings.update({
       where: { company_id: companyId },
       data,
