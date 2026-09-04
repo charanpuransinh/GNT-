@@ -296,9 +296,7 @@ export interface Refund extends TenantScoped, Auditable {
   approvedAt: Date | null;
 }
 
-export type RefundStatus = 
-  'REQUESTED' | 'APPROVED' | 'REJECTED' 
-  | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type RefundStatus = 'PENDING' | 'APPROVED' | 'PROCESSED' | 'REJECTED';
 
 export interface CreateRefundDto {
   transactionId: string;

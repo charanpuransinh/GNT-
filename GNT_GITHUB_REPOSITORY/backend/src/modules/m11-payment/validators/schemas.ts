@@ -73,7 +73,7 @@ export const createRefundSchema = z.object({
 });
 
 export const updateRefundSchema = z.object({
-  status: z.enum(['REQUESTED','APPROVED','REJECTED','PROCESSING','COMPLETED','FAILED']).optional(),
+  status: z.enum(['PENDING','APPROVED','PROCESSED','REJECTED']).optional(),
   gatewayRef: z.string().optional(),
   gatewayResponse: z.record(z.string(), z.any()).optional(),
 });

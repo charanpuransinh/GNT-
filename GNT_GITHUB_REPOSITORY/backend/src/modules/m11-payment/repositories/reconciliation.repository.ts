@@ -1,11 +1,14 @@
 // M11 Payment Module - Reconciliation Repository
+// (tenant-scope: हर write पर tenantId की बंदिश)
 
 import { PrismaClient, Prisma, PaymentReconciliation, PaymentReconciliationItem } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CreateReconciliationDto, UpdateReconciliationItemDto } from '../types';
 
+type Db = PrismaClient | Prisma.TransactionClient;
+
 export class ReconciliationRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: Db) {}
 
   async findById(id: string, tenantId: string) {
     return this.prisma.paymentReconciliation.findFirst({
@@ -57,25 +60,33 @@ export class ReconciliationRepository {
   }
 
   async updateItem(id: string, dto: UpdateReconciliationItemDto, tenantId: string, userId: string) {
-    return this.prisma.paymentReconciliationItem.update({
-      where: { id },
+    const result = await this.prisma.paymentReconciliationItem.updateMany({
+      where: { id, tenantId },
       data: {
-        transactionId: dto.transactionId || undefined,
-        isMatched: dto.isMatched ?? undefined,
-        matchConfidence: dto.matchConfidence ? new Decimal(dto.matchConfidence) : undefined,
-        varianceAmount: dto.varianceAmount ? new Decimal(dto.varianceAmount) : undefined,
-        resolutionNotes: dto.resolutionNotes || undefined,
+        ...(dto.transactionId !== undefined ? { transactionId: dto.transactionId } : {}),
+        ...(dto.isMatched !== undefined ? { isMatched: dto.isMatched } : {}),
+        ...(dto.matchConfidence ? { matchConfidence: new Decimal(dto.matchConfidence) } : {}),
+        ...(dto.varianceAmount ? { varianceAmount: new Decimal(dto.varianceAmount) } : {}),
+        ...(dto.resolutionNotes ? { resolutionNotes: dto.resolutionNotes } : {}),
         resolvedBy: userId,
         resolvedAt: new Date(),
         updatedBy: userId,
       },
     });
+    if (result.count === 0) throw new Error('Reconciliation item not found');
+    const item = await this.prisma.paymentReconciliationItem.findFirst({ where: { id, tenantId } });
+    if (!item) throw new Error('Reconciliation item not found');
+    return item;
   }
 
   async updateStatus(id: string, status: string, tenantId: string, userId: string) {
-    return this.prisma.paymentReconciliation.update({
-      where: { id },
+    const result = await this.prisma.paymentReconciliation.updateMany({
+      where: { id, tenantId },
       data: { status },
     });
+    if (result.count === 0) throw new Error('Reconciliation not found');
+    const recon = await this.prisma.paymentReconciliation.findFirst({ where: { id, tenantId } });
+    if (!recon) throw new Error('Reconciliation not found');
+    return recon;
   }
 }

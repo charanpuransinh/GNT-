@@ -1,24 +1,23 @@
 // M11 Payment Module - Payment Transaction Service
 // Business Logic Layer - Cross-module calls via PUBLIC API ONLY
+// (invoice M07/M08 की चीज़ है — M11 उसे mutate नहीं करता; referenceId/referenceType सिर्फ़ link)
 
 import { PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentRepository } from '../repositories/payment.repository';
-import { InvoiceRepository } from '../repositories/invoice.repository';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { PaymentMethodRepository } from '../repositories/paymentMethod.repository';
 import { EventBus } from '../events/event.bus';
 import {
   PaymentFilter, CreatePaymentDto, UpdatePaymentDto,
-  PaymentDashboardStats, PaymentCompletedEvent,
+  PaymentCompletedEvent,
   ApiError,
 } from '../types';
 import { toDecimal, zeroDecimal } from '../utils/decimal.helper';
 
 export class PaymentService {
   private paymentRepo: PaymentRepository;
-  private invoiceRepo: InvoiceRepository;
   private bankRepo: BankAccountRepository;
   private ledgerRepo: LedgerRepository;
   private pmRepo: PaymentMethodRepository;
@@ -26,7 +25,6 @@ export class PaymentService {
 
   constructor(private prisma: PrismaClient, eventBus: EventBus) {
     this.paymentRepo = new PaymentRepository(prisma);
-    this.invoiceRepo = new InvoiceRepository(prisma);
     this.bankRepo = new BankAccountRepository(prisma);
     this.ledgerRepo = new LedgerRepository(prisma);
     this.pmRepo = new PaymentMethodRepository(prisma);
@@ -47,18 +45,12 @@ export class PaymentService {
 
   // ==================== PUBLIC API: Create Payment ====================
   async createPayment(dto: CreatePaymentDto, tenantId: string, userId: string) {
+    if (!tenantId) throw this.badRequest('Tenant is required');
+
     // Validate payment method
     const pm = await this.pmRepo.findById(dto.paymentMethodId, tenantId);
     if (!pm) throw this.badRequest('Invalid payment method');
     if (!pm.isActive) throw this.badRequest('Payment method is inactive');
-
-    // Validate invoice if provided
-    if (dto.invoiceId) {
-      const invoice = await this.invoiceRepo.findById(dto.invoiceId, tenantId);
-      if (!invoice) throw this.badRequest('Invoice not found');
-      if (invoice.status === 'PAID') throw this.badRequest('Invoice already paid');
-      if (invoice.status === 'CANCELLED') throw this.badRequest('Invoice is cancelled');
-    }
 
     // Validate bank account if provided
     if (dto.bankAccountId) {
@@ -68,7 +60,7 @@ export class PaymentService {
 
     // Create payment within transaction
     const payment = await this.prisma.$transaction(async (tx) => {
-      const repo = new PaymentRepository(tx as any);
+      const repo = new PaymentRepository(tx);
       return repo.create(dto, tenantId, userId);
     });
 
@@ -94,21 +86,15 @@ export class PaymentService {
     if (!payment) throw this.notFound('Payment not found');
     if (payment.status !== 'PENDING') throw this.badRequest('Payment is not pending');
 
-    const amount = payment.amount as Decimal;
+    const amount = payment.amount;
 
     await this.prisma.$transaction(async (tx) => {
-      const pRepo = new PaymentRepository(tx as any);
-      const iRepo = new InvoiceRepository(tx as any);
-      const bRepo = new BankAccountRepository(tx as any);
-      const lRepo = new LedgerRepository(tx as any);
+      const pRepo = new PaymentRepository(tx);
+      const bRepo = new BankAccountRepository(tx);
+      const lRepo = new LedgerRepository(tx);
 
       // Update payment status
       await pRepo.updateStatus(id, 'COMPLETED', tenantId, userId, gatewayRef, gatewayResponse);
-
-      // Update invoice if linked
-      if (payment.referenceId) {
-        await iRepo.updatePaidAmount(payment.referenceId, amount, tenantId, userId);
-      }
 
       // Update bank account if linked
       if (payment.bankAccountId) {
@@ -150,7 +136,7 @@ export class PaymentService {
     };
 
     this.eventBus.publish('payment.completed', event);
-    this.eventBus.publish('invoice.payment_received', { // M06 notification
+    this.eventBus.publish('invoice.payment_received', { // M08 notification (event-based, no direct DB)
       invoiceId: payment.referenceId,
       tenantId,
       amount: amount.toString(),
@@ -202,8 +188,8 @@ export class PaymentService {
   }
 
   // ==================== PUBLIC API: Dashboard Stats ====================
-  async getDashboardStats(tenantId: string, startDate?: Date, endDate?: Date): Promise<PaymentDashboardStats> {
-    return this.paymentRepo.getDashboardStats(tenantId, startDate, endDate) as unknown as Promise<PaymentDashboardStats>;
+  async getDashboardStats(tenantId: string, startDate?: Date, endDate?: Date) {
+    return this.paymentRepo.getDashboardStats(tenantId, startDate, endDate);
   }
 
   // ==================== PUBLIC API: Get Payment by Invoice ====================

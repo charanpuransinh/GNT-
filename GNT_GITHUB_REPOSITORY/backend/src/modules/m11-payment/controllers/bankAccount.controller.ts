@@ -11,7 +11,7 @@ export class BankAccountController {
   getAccount = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = String(req.params.id);
-      const tenantId = String(req.tenantId ?? '');
+      const tenantId = req.tenant?.companyId ?? '';
       const account = await this.service.getAccount(id, tenantId);
       successResponse(res, account);
     } catch (err) { next(err); }
@@ -19,7 +19,7 @@ export class BankAccountController {
 
   listAccounts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = String(req.tenantId ?? '');
+      const tenantId = req.tenant?.companyId ?? '';
       const isActive = req.query.isActive ? req.query.isActive === 'true' : undefined;
       const accounts = await this.service.listAccounts(tenantId, isActive);
       successResponse(res, accounts);
@@ -28,8 +28,8 @@ export class BankAccountController {
 
   createAccount = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = String(req.tenantId ?? '');
-      const userId = String(req.userId ?? '');
+      const tenantId = req.tenant?.companyId ?? '';
+      const userId = req.user?.id ?? '';
       const dto: CreateBankAccountDto = req.body;
       const account = await this.service.createAccount(dto, tenantId, userId);
       createdResponse(res, account);
@@ -39,8 +39,8 @@ export class BankAccountController {
   updateAccount = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = String(req.params.id);
-      const tenantId = String(req.tenantId ?? '');
-      const userId = String(req.userId ?? '');
+      const tenantId = req.tenant?.companyId ?? '';
+      const userId = req.user?.id ?? '';
       const dto: UpdateBankAccountDto = req.body;
       const account = await this.service.updateAccount(id, dto, tenantId, userId);
       successResponse(res, account);
@@ -50,7 +50,7 @@ export class BankAccountController {
   deleteAccount = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = String(req.params.id);
-      const tenantId = String(req.tenantId ?? '');
+      const tenantId = req.tenant?.companyId ?? '';
       await this.service.deleteAccount(id, tenantId);
       successResponse(res, { deleted: true });
     } catch (err) { next(err); }

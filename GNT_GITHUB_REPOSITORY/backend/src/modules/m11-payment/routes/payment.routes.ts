@@ -1,22 +1,19 @@
 // M11 Payment Module - Payment Routes
+// (auth/tenant मुख्य app की global middleware से — module-level header-auth हटाया)
 
 import { Router } from 'express';
 import { PaymentController } from '../controllers/payment.controller';
 import { PaymentService } from '../services/payment.service';
 import { EventBus } from '../events/event.bus';
-import { authMiddleware } from '../middleware/auth.middleware';
 import { validateMiddleware } from '../middleware/validate.middleware';
 import { createPaymentSchema, updatePaymentSchema, processPaymentSchema } from '../validators/schemas';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../common/config/prisma';
 
-const prisma = new PrismaClient();
 const eventBus = new EventBus();
 const service = new PaymentService(prisma, eventBus);
 const controller = new PaymentController(service);
 
 const router = Router();
-
-router.use(authMiddleware);
 
 router.get('/dashboard', controller.getDashboardStats);
 router.get('/', controller.listPayments);

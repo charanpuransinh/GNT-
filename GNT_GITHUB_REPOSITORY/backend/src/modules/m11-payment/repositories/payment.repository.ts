@@ -1,5 +1,5 @@
 // M11 Payment Module - Payment Transaction Repository
-// Data Access Layer - Prisma queries with tenant isolation
+// Data Access Layer - Prisma queries with tenant isolation (fail-closed)
 // (टास्क #025 B4: PaymentTransaction model के असली fields से मिलाया गया)
 
 import { PrismaClient, Prisma, PaymentTransaction } from '@prisma/client';
@@ -7,8 +7,10 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentFilter, CreatePaymentDto, UpdatePaymentDto, PaymentStatus, TransactionType } from '../types';
 import { toDecimal } from '../utils/decimal.helper';
 
+type Db = PrismaClient | Prisma.TransactionClient;
+
 export class PaymentRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: Db) {}
 
   async findById(id: string, tenantId: string): Promise<PaymentTransaction | null> {
     return this.prisma.paymentTransaction.findFirst({
@@ -104,30 +106,43 @@ export class PaymentRepository {
   }
 
   async update(id: string, dto: UpdatePaymentDto, tenantId: string, userId: string): Promise<PaymentTransaction> {
-    return this.prisma.paymentTransaction.update({
-      where: { id },
+    const result = await this.prisma.paymentTransaction.updateMany({
+      where: { id, tenantId },
       data: {
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.description !== undefined ? { narration: dto.description } : {}),
         ...(dto.gatewayRef !== undefined ? { providerRef: dto.gatewayRef } : {}),
-        ...(dto.gatewayResponse !== undefined ? { providerResponse: dto.gatewayResponse as never } : {}),
+        ...(dto.gatewayResponse !== undefined ? { providerResponse: dto.gatewayResponse as Prisma.InputJsonValue } : {}),
+        updatedBy: userId,
       },
     });
+    if (result.count === 0) throw new Error('Payment not found');
+    const payment = await this.prisma.paymentTransaction.findFirst({ where: { id, tenantId } });
+    if (!payment) throw new Error('Payment not found');
+    return payment;
   }
 
-  async updateStatus(id: string, status: PaymentStatus, _tenantId: string, _userId: string, providerRef?: string, providerResponse?: Record<string, unknown>): Promise<PaymentTransaction> {
-    return this.prisma.paymentTransaction.update({
-      where: { id },
+  async updateStatus(id: string, status: string, tenantId: string, userId: string, providerRef?: string, providerResponse?: Record<string, unknown>): Promise<PaymentTransaction> {
+    const result = await this.prisma.paymentTransaction.updateMany({
+      where: { id, tenantId },
       data: {
         status,
-        providerRef: providerRef || undefined,
-        providerResponse: (providerResponse as never) || undefined,
+        ...(providerRef ? { providerRef } : {}),
+        ...(providerResponse ? { providerResponse: providerResponse as Prisma.InputJsonValue } : {}),
+        updatedBy: userId,
       },
     });
+    if (result.count === 0) throw new Error('Payment not found');
+    const payment = await this.prisma.paymentTransaction.findFirst({ where: { id, tenantId } });
+    if (!payment) throw new Error('Payment not found');
+    return payment;
   }
 
-  async delete(id: string, _tenantId: string): Promise<PaymentTransaction> {
-    return this.prisma.paymentTransaction.delete({ where: { id } });
+  async delete(id: string, tenantId: string): Promise<PaymentTransaction> {
+    const existing = await this.findById(id, tenantId);
+    if (!existing) throw new Error('Payment not found');
+    await this.prisma.paymentTransaction.deleteMany({ where: { id, tenantId } });
+    return existing;
   }
 
   async getDashboardStats(tenantId: string, startDate?: Date, endDate?: Date) {
@@ -138,7 +153,7 @@ export class PaymentRepository {
       if (endDate) dateFilter.createdAt.lte = endDate;
     }
 
-    const [totalRevenue, totalPending, totalRefunded, transactionCount, completedCount, methodBreakdown, dailyTrend] =
+    const [totalRevenue, totalPending, totalRefunded, transactionCount, completedCount, methodBreakdown] =
       await Promise.all([
         this.prisma.paymentTransaction.aggregate({
           where: { ...dateFilter, status: 'COMPLETED', direction: 'IN' },
@@ -160,12 +175,13 @@ export class PaymentRepository {
           _sum: { amount: true },
           _count: { id: true },
         }),
-        this.prisma.paymentTransaction.groupBy({
-          by: ['createdAt'],
-          where: { ...dateFilter, status: 'COMPLETED' },
-          _sum: { amount: true },
-        }),
       ]);
+
+    const dailyTrend = await this.prisma.paymentTransaction.groupBy({
+      by: ['transactionDate'],
+      where: { ...dateFilter, status: 'COMPLETED' },
+      _sum: { amount: true },
+    });
 
     return {
       totalRevenue: totalRevenue._sum.amount || new Decimal(0),
@@ -173,12 +189,20 @@ export class PaymentRepository {
       totalRefunded: totalRefunded._sum.amount || new Decimal(0),
       transactionCount,
       successRate: transactionCount > 0 ? (completedCount / transactionCount) * 100 : 0,
-      methodBreakdown,
-      dailyTrend,
+      methodBreakdown: methodBreakdown.map((m) => ({
+        method: m.paymentMethodId,
+        amount: m._sum.amount || new Decimal(0),
+        count: m._count.id,
+      })),
+      dailyTrend: dailyTrend.map((d) => ({
+        date: d.transactionDate.toISOString().slice(0, 10),
+        amount: d._sum.amount || new Decimal(0),
+      })),
     };
   }
 
   async executeInTransaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-    return this.prisma.$transaction(fn);
+    if (!('$transaction' in this.prisma)) throw new Error('Transactions only available on PrismaClient');
+    return (this.prisma as PrismaClient).$transaction(fn);
   }
 }

@@ -5,8 +5,10 @@
 import { PrismaClient, Prisma, PaymentLedgerEntry } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
+type Db = PrismaClient | Prisma.TransactionClient;
+
 export class LedgerRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: Db) {}
 
   async findByTransaction(transactionId: string, tenantId: string): Promise<PaymentLedgerEntry[]> {
     return this.prisma.paymentLedgerEntry.findMany({
@@ -46,12 +48,7 @@ export class LedgerRepository {
     });
   }
 
-  async getAccountBalance(accountCode: string, tenantId: string, fiscalYearId?: string): Promise<Decimal> {
-    const result = await this.prisma.paymentLedgerEntry.aggregate({
-      where: { accountCode, tenantId, fiscalYear: fiscalYearId || undefined },
-      _sum: { amount: true },
-    });
-    // ledger entryType DEBIT/CREDIT से balance निकालने के लिए दो aggregate चाहिए
+  async getAccountBalance(accountCode: string, tenantId: string): Promise<Decimal> {
     const debits = await this.prisma.paymentLedgerEntry.aggregate({
       where: { accountCode, tenantId, entryType: 'DEBIT' },
       _sum: { amount: true },

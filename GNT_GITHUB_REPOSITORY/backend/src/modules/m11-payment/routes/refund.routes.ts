@@ -4,19 +4,15 @@ import { Router } from 'express';
 import { RefundController } from '../controllers/refund.controller';
 import { RefundService } from '../services/refund.service';
 import { EventBus } from '../events/event.bus';
-import { authMiddleware } from '../middleware/auth.middleware';
 import { validateMiddleware } from '../middleware/validate.middleware';
 import { createRefundSchema, updateRefundSchema } from '../validators/schemas';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../common/config/prisma';
 
-const prisma = new PrismaClient();
 const eventBus = new EventBus();
 const service = new RefundService(prisma, eventBus);
 const controller = new RefundController(service);
 
 const router = Router();
-
-router.use(authMiddleware);
 
 router.get('/', controller.listRefunds);
 router.get('/:id', controller.getRefund);

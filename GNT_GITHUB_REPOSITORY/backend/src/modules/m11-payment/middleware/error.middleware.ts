@@ -2,14 +2,15 @@
 // Centralized error handling
 
 import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import { errorResponse } from '../utils/response.helper';
 import { ApiError } from '../types';
 
 export const errorMiddleware = (
   err: Error | ApiError,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   console.error('M11 Error:', err);
 
@@ -21,13 +22,12 @@ export const errorMiddleware = (
   }
 
   // Prisma errors
-  if (err.name === 'PrismaClientKnownRequestError') {
-    const code = (err as any).code;
-    if (code === 'P2002') {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === 'P2002') {
       errorResponse(res, 'DUPLICATE', 'Record already exists', 409);
       return;
     }
-    if (code === 'P2025') {
+    if (err.code === 'P2025') {
       errorResponse(res, 'NOT_FOUND', 'Record not found', 404);
       return;
     }

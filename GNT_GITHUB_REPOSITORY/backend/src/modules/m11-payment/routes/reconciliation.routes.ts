@@ -4,19 +4,15 @@ import { Router } from 'express';
 import { ReconciliationController } from '../controllers/reconciliation.controller';
 import { ReconciliationService } from '../services/reconciliation.service';
 import { EventBus } from '../events/event.bus';
-import { authMiddleware } from '../middleware/auth.middleware';
 import { validateMiddleware } from '../middleware/validate.middleware';
 import { createReconciliationSchema } from '../validators/schemas';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../common/config/prisma';
 
-const prisma = new PrismaClient();
 const eventBus = new EventBus();
 const service = new ReconciliationService(prisma, eventBus);
 const controller = new ReconciliationController(service);
 
 const router = Router();
-
-router.use(authMiddleware);
 
 router.get('/', controller.listReconciliations);
 router.get('/:id', controller.getReconciliation);

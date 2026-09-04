@@ -8,6 +8,13 @@ import { BankAccountRepository } from '../repositories/bankAccount.repository';
 import { EventBus } from '../events/event.bus';
 import { CreateReconciliationDto, UpdateReconciliationItemDto, ApiError } from '../types';
 
+interface StatementRow {
+  date: string;
+  description: string;
+  amount: number;
+  type: string;
+}
+
 export class ReconciliationService {
   private repo: ReconciliationRepository;
   private paymentRepo: PaymentRepository;
@@ -36,7 +43,7 @@ export class ReconciliationService {
     if (!account) throw this.badRequest('Bank account not found');
 
     const recon = await this.prisma.$transaction(async (tx) => {
-      const rRepo = new ReconciliationRepository(tx as any);
+      const rRepo = new ReconciliationRepository(tx);
       return rRepo.create(dto, tenantId, userId);
     });
 
@@ -50,7 +57,7 @@ export class ReconciliationService {
     return this.getReconciliation(recon.id, tenantId);
   }
 
-  async uploadStatement(id: string, statementData: any[], tenantId: string, userId: string) {
+  async uploadStatement(id: string, statementData: StatementRow[], tenantId: string, userId: string) {
     const recon = await this.repo.findById(id, tenantId);
     if (!recon) throw this.notFound('Reconciliation not found');
 
@@ -71,12 +78,11 @@ export class ReconciliationService {
       .filter(i => i.statementType === 'DEBIT')
       .reduce((sum, i) => sum.add(i.statementAmount), new Decimal(0));
 
-    await this.prisma.paymentReconciliation.update({
-      where: { id },
-      data: {
-        closingBalance: statementCredits.sub(statementDebits),
-      },
+    const result = await this.prisma.paymentReconciliation.updateMany({
+      where: { id, tenantId },
+      data: { closingBalance: statementCredits.sub(statementDebits) },
     });
+    if (result.count === 0) throw this.notFound('Reconciliation not found');
 
     return this.getReconciliation(id, tenantId);
   }
@@ -97,8 +103,8 @@ export class ReconciliationService {
       if (item.isMatched) continue;
 
       const match = transactions.find(t => {
-        const txAmount = t.amount as Decimal;
-        const stmtAmount = item.statementAmount as Decimal;
+        const txAmount = t.amount;
+        const stmtAmount = item.statementAmount;
         const sameAmount = txAmount.equals(stmtAmount);
         const sameDate = Math.abs(new Date(t.createdAt).getTime() - new Date(item.statementDate).getTime()) < 86400000; // 1 day
         return sameAmount && sameDate && t.status === 'COMPLETED';
@@ -118,7 +124,7 @@ export class ReconciliationService {
     // Update reconciliation status
     const totalItems = recon.items.length;
     const matchedItems = recon.items.filter(i => i.isMatched).length + matchedCount;
-    const status = matchedItems === totalItems ? 'MATCHED' : matchedItems > 0 ? 'PARTIAL_MATCH' : 'UNMATCHED';
+    const status = matchedItems === totalItems ? 'RECONCILED' : matchedItems > 0 ? 'IN_PROGRESS' : 'VARIANCE';
 
     await this.repo.updateStatus(id, status, tenantId, userId);
 

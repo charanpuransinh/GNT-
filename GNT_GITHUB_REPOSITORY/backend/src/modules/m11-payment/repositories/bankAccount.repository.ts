@@ -1,12 +1,15 @@
 // M11 Payment Module - Bank Account Repository
+// (tenant-scope: हर write पर tenantId की बंदिश — fail-closed)
 
 import { PrismaClient, Prisma, BankAccount } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CreateBankAccountDto, UpdateBankAccountDto } from '../types';
 import { toDecimal } from '../utils/decimal.helper';
 
+type Db = PrismaClient | Prisma.TransactionClient;
+
 export class BankAccountRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: Db) {}
 
   async findById(id: string, tenantId: string): Promise<BankAccount | null> {
     return this.prisma.bankAccount.findFirst({
@@ -44,8 +47,8 @@ export class BankAccountRepository {
   }
 
   async update(id: string, dto: UpdateBankAccountDto, tenantId: string, userId: string): Promise<BankAccount> {
-    return this.prisma.bankAccount.update({
-      where: { id },
+    const result = await this.prisma.bankAccount.updateMany({
+      where: { id, tenantId },
       data: {
         ...(dto.accountName && { accountName: dto.accountName }),
         ...(dto.ifscCode !== undefined && { ifscCode: dto.ifscCode }),
@@ -56,22 +59,33 @@ export class BankAccountRepository {
         ...(dto.isDefault !== undefined && { isDefault: dto.isDefault }),
       },
     });
+    if (result.count === 0) throw new Error('Bank account not found');
+    const account = await this.prisma.bankAccount.findFirst({ where: { id, tenantId } });
+    if (!account) throw new Error('Bank account not found');
+    return account;
   }
 
   async updateBalance(id: string, amount: Decimal, tenantId: string, userId: string, isCredit: boolean): Promise<BankAccount> {
     const account = await this.findById(id, tenantId);
     if (!account) throw new Error('Bank account not found');
 
-    const current = account.currentBalance as Decimal;
+    const current = account.currentBalance;
     const newBalance = isCredit ? current.add(amount) : current.sub(amount);
 
-    return this.prisma.bankAccount.update({
-      where: { id },
+    const result = await this.prisma.bankAccount.updateMany({
+      where: { id, tenantId },
       data: { currentBalance: newBalance },
     });
+    if (result.count === 0) throw new Error('Bank account not found');
+    const updated = await this.prisma.bankAccount.findFirst({ where: { id, tenantId } });
+    if (!updated) throw new Error('Bank account not found');
+    return updated;
   }
 
   async delete(id: string, tenantId: string): Promise<BankAccount> {
-    return this.prisma.bankAccount.delete({ where: { id } });
+    const existing = await this.findById(id, tenantId);
+    if (!existing) throw new Error('Bank account not found');
+    await this.prisma.bankAccount.deleteMany({ where: { id, tenantId } });
+    return existing;
   }
 }

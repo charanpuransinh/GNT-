@@ -1,10 +1,10 @@
 // M11 Payment Module - Refund Service
+// Lifecycle: PENDING → APPROVED → PROCESSED (या PENDING → REJECTED)
 
 import { PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { RefundRepository } from '../repositories/refund.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
-import { InvoiceRepository } from '../repositories/invoice.repository';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
 import { EventBus } from '../events/event.bus';
 import { RefundFilter, CreateRefundDto, UpdateRefundDto, ApiError } from '../types';
@@ -12,14 +12,12 @@ import { RefundFilter, CreateRefundDto, UpdateRefundDto, ApiError } from '../typ
 export class RefundService {
   private refundRepo: RefundRepository;
   private paymentRepo: PaymentRepository;
-  private invoiceRepo: InvoiceRepository;
   private bankRepo: BankAccountRepository;
   private eventBus: EventBus;
 
   constructor(private prisma: PrismaClient, eventBus: EventBus) {
     this.refundRepo = new RefundRepository(prisma);
     this.paymentRepo = new PaymentRepository(prisma);
-    this.invoiceRepo = new InvoiceRepository(prisma);
     this.bankRepo = new BankAccountRepository(prisma);
     this.eventBus = eventBus;
   }
@@ -40,14 +38,14 @@ export class RefundService {
     if (payment.status !== 'COMPLETED') throw this.badRequest('Only completed payments can be refunded');
 
     const refundAmount = new Decimal(dto.amount);
-    const paymentAmount = payment.amount as Decimal;
+    const paymentAmount = payment.amount;
 
     // Check if refund amount exceeds payment
     const existingRefunds = await this.refundRepo.findAll(
-      { transactionId: dto.transactionId, status: 'COMPLETED', page: 1, limit: 100 },
+      { transactionId: dto.transactionId, status: 'PROCESSED', page: 1, limit: 100 },
       tenantId
     );
-    const totalRefunded = existingRefunds.data.reduce((sum, r) => sum.add(r.amount as Decimal), new Decimal(0));
+    const totalRefunded = existingRefunds.data.reduce((sum, r) => sum.add(r.amount), new Decimal(0));
 
     if (totalRefunded.add(refundAmount).gt(paymentAmount)) {
       throw this.badRequest('Refund amount exceeds payment amount');
@@ -70,32 +68,30 @@ export class RefundService {
   async approveRefund(id: string, tenantId: string, approverId: string) {
     const refund = await this.refundRepo.findById(id, tenantId);
     if (!refund) throw this.notFound('Refund not found');
-    if (refund.status !== 'REQUESTED') throw this.badRequest('Refund must be in requested status');
+    if (refund.status !== 'PENDING') throw this.badRequest('Refund must be in pending status');
 
     await this.prisma.$transaction(async (tx) => {
-      const rRepo = new RefundRepository(tx as any);
-      const pRepo = new PaymentRepository(tx as any);
-      const bRepo = new BankAccountRepository(tx as any);
+      const rRepo = new RefundRepository(tx);
+      const pRepo = new PaymentRepository(tx);
+      const bRepo = new BankAccountRepository(tx);
 
       await rRepo.approve(id, tenantId, approverId);
-      await rRepo.update(id, { status: 'PROCESSING' }, tenantId, approverId);
+      await rRepo.update(id, { status: 'PROCESSED' }, tenantId, approverId);
 
       // Update payment status
       const payment = await pRepo.findById(refund.originalTxnId, tenantId);
       if (payment) {
-        const totalRefunded = new Decimal(refund.amount);
-        const paymentAmount = payment.amount as Decimal;
+        const totalRefunded = refund.amount;
+        const paymentAmount = payment.amount;
         const newStatus = totalRefunded.equals(paymentAmount) ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
         await pRepo.updateStatus(payment.id, newStatus, tenantId, approverId);
       }
 
       // Deduct from bank account if linked
       if (payment?.bankAccountId) {
-        await bRepo.updateBalance(payment.bankAccountId, refund.amount as Decimal, tenantId, approverId, false);
+        await bRepo.updateBalance(payment.bankAccountId, refund.amount, tenantId, approverId, false);
       }
     });
-
-    const updated = await this.refundRepo.update(id, { status: 'COMPLETED' }, tenantId, approverId);
 
     this.eventBus.publish('refund.completed', {
       refundId: id,
@@ -105,13 +101,13 @@ export class RefundService {
       timestamp: new Date(),
     });
 
-    return updated;
+    return this.getRefund(id, tenantId);
   }
 
   async rejectRefund(id: string, tenantId: string, userId: string, reason?: string) {
     const refund = await this.refundRepo.findById(id, tenantId);
     if (!refund) throw this.notFound('Refund not found');
-    if (refund.status !== 'REQUESTED') throw this.badRequest('Refund must be in requested status');
+    if (refund.status !== 'PENDING') throw this.badRequest('Refund must be in pending status');
 
     const updated = await this.refundRepo.reject(id, tenantId, userId, reason);
 
@@ -135,7 +131,7 @@ export class RefundService {
   async deleteRefund(id: string, tenantId: string) {
     const refund = await this.refundRepo.findById(id, tenantId);
     if (!refund) throw this.notFound('Refund not found');
-    if (refund.status === 'COMPLETED') throw this.badRequest('Cannot delete completed refund');
+    if (refund.status === 'PROCESSED') throw this.badRequest('Cannot delete processed refund');
     return this.refundRepo.delete(id, tenantId);
   }
 
