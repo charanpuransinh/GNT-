@@ -463,3 +463,43 @@ fallback (`@db.VarChar(45)`) की ज़रूरत ही नहीं प�
 
 ### पूरा tsc output (verify के लिए)
 `tips/coder-ai/task-003-tsc-final.txt` — 1386 error lines की पूरी लिस्ट (Team A की 0)
+
+---
+
+# 🔴🔴 2026-09-04 — इस फ़ाइल में लिखा हर "tsc 0 errors" शक के घेरे में है
+
+`npx tsc -p tsconfig.json --noEmit` — यही command इस प्रोजेक्ट में हर जगह "कोड साफ़ है" के
+सबूत के तौर पर इस्तेमाल हुई है। **वो command एक भी फ़ाइल नहीं जाँचती।**
+
+root `tsconfig.json` का पूरा पेट यह है:
+```json
+{ "files": [], "references": [ ... ] }
+```
+`"files": []` का मतलब — कोई फ़ाइल नहीं। `references` तभी चलते हैं जब `tsc --build` लगाया जाए।
+`--noEmit` के साथ वो सिर्फ़ 0 फ़ाइलें देखकर "0 errors" कह देता है।
+
+**चलाकर पक्का किया:**
+```
+npx tsc -p tsconfig.json --listFiles --noEmit | wc -l   →  0
+```
+
+## असली जाँच के command (अब से सिर्फ़ ये)
+```bash
+NODE_OPTIONS="--max-old-space-size=3072" npx tsc -p tsconfig.backend.json --noEmit
+NODE_OPTIONS="--max-old-space-size=3072" npx tsc -p tsconfig.frontend.json --noEmit
+```
+
+## असली नतीजा (2026-09-04)
+| क्या | झूठा आँकड़ा | **असली** |
+|---|---|---|
+| backend | 0 | **75 errors** — सारे `m13-automation` में |
+| frontend | 0 | 0 ✅ |
+
+**यह गड़बड़ी कैसे पकड़ी:** M13 की `WorkflowEngine.ts` एक ऐसी फ़ाइल import करती है जो मौजूद
+ही नहीं (`m01-foundation/src/Logger`) — फिर भी tsc "0 errors" कह रहा था। यही खटका, और
+खोदने पर जड़ मिली।
+
+**इससे नीचे लिखी बातें ग़लत नहीं हैं — पर उनका "tsc 0" वाला सबूत कमज़ोर है।**
+tests वाले आँकड़े (296/296 आदि) इससे प्रभावित नहीं — वे vitest से आए हैं, असली हैं।
+
+---

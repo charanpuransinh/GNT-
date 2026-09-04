@@ -72,6 +72,25 @@ note लिखोगे — तारीख़, वक़्त, क्या �
 
 **Telegram:** routine restart चुपचाप log में। अलर्ट सिर्फ़ P0 पर, या restart 3 बार फ़ेल होने पर।
 
+## 🔴 tsc कैसे चलाना है — ग़लत command से बचो (2026-09-04)
+
+**`npx tsc -p tsconfig.json --noEmit` कभी मत चलाना।** root config में `"files": []` है —
+वो **एक भी फ़ाइल नहीं जाँचता** और हमेशा "0 errors" कहता है। यह प्रोजेक्ट महीनों उसी झूठे
+0 को सबूत मानता रहा।
+
+**असली command — सिर्फ़ ये दो:**
+```bash
+NODE_OPTIONS="--max-old-space-size=3072" npx tsc -p tsconfig.backend.json --noEmit
+NODE_OPTIONS="--max-old-space-size=3072" npx tsc -p tsconfig.frontend.json --noEmit
+```
+(`NODE_OPTIONS` ज़रूरी है — बिना उसके पूरा check memory ख़त्म होने पर मारा जाता है।)
+
+**पहचान का तरीक़ा:** शक हो तो `--listFiles` लगाकर गिनो कि सच में कितनी फ़ाइलें जाँची गईं:
+```bash
+npx tsc -p <config> --listFiles --noEmit | wc -l
+```
+0 आया = कुछ नहीं जाँचा गया।
+
 ## सबसे पहला काम / फर्स्ट रोल
 ब्लूप्रिंट, Play Store, और सिस्टम के सारे ब्लूप्रिंट्स के rules 101% फॉलो करने हैं — कोई भी rule ब्रेक नहीं होना चाहिए, चाहे Play Store का हो या ब्लूप्रिंट का।
 

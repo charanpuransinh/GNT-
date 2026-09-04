@@ -17,7 +17,13 @@ pg_isready >/dev/null 2>&1 && echo "   ✅ हाँ — चालू है" ||
 
 echo
 echo "2️⃣  कोड compile होता है? (0 आना चाहिए)"
-E=$(cd $R && npx tsc -p tsconfig.json --noEmit 2>&1 | grep -cE "error TS[0-9]+")
+# ⚠️ 2026-09-04: पहले यहाँ `tsc -p tsconfig.json` था — वो root config है जिसमें
+# "files": [] लिखा है, यानी वो एक भी फ़ाइल नहीं जाँचता और हमेशा 0 errors देता है।
+# पूरा प्रोजेक्ट महीनों उसी झूठे 0 को सबूत मानता रहा। अब असली दोनों config चलते हैं।
+EB=$(cd $R && NODE_OPTIONS="--max-old-space-size=3072" npx tsc -p tsconfig.backend.json --noEmit 2>&1 | grep -cE "error TS[0-9]+")
+EF=$(cd $R && NODE_OPTIONS="--max-old-space-size=3072" npx tsc -p tsconfig.frontend.json --noEmit 2>&1 | grep -cE "error TS[0-9]+")
+E=$((EB + EF))
+echo "   (backend: $EB · frontend: $EF)"
 [ "$E" = "0" ] && echo "   ✅ 0 errors" || echo "   ❌ $E errors — कुछ भी CERTIFIED नहीं हो सकता"
 
 echo

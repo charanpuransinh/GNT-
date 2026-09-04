@@ -1,3 +1,7 @@
+> ⚠️ **2026-09-04:** इस task में लिखी `tsc -p tsconfig.json` command **एक भी फ़ाइल नहीं जाँचती**
+> (root config में `"files": []` है)। असली command: `tsc -p tsconfig.backend.json` और
+> `tsc -p tsconfig.frontend.json`. इस task के "0 errors" वाले नतीजे इसी वजह से भरोसेमंद नहीं।
+
 # टास्क #002 — Foundation Build Baseline (Team A को अनलॉक करना)
 
 **प्राथमिकता:** सबसे पहले यही करना है (P1)।
