@@ -123,6 +123,12 @@ export interface SendSmsDto {
   message: string;
   sender_id?: string;
 }
+export interface SendEmailDto {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
 
 export interface ProcessPaymentDto {
   gateway: string;

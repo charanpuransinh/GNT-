@@ -9,13 +9,24 @@ export class LeaveService {
 
   async apply(tenantId: string, data: any) {
     await this.assertEmployeeOwned(tenantId, data.employeeId);
+    const leaveType = await prisma.leaveType.findFirst({ where: { id: data.leaveTypeId, tenantId } });
+    if (!leaveType) throw new Error('Leave type not found');
+    if (!data.reason) throw new Error('Reason required');
     const days = this.calculateDays(data.startDate, data.endDate);
-    const balance = await this.getBalance(tenantId, data.employeeId);
-    const field = data.type.toLowerCase();
-    if (balance && (balance as any)[field] < days) {
-      throw new Error(`Insufficient ${data.type} leave balance`);
-    }
-    return prisma.leave.create({ data: { ...data, tenantId, days, status: 'PENDING' } });
+    const leaveNumber = await this.generateLeaveNumber();
+    return prisma.leave.create({
+      data: {
+        employeeId: data.employeeId,
+        leaveTypeId: leaveType.id,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        daysRequested: days,
+        reason: data.reason,
+        status: 'PENDING',
+        tenantId,
+        leaveNumber,
+      },
+    });
   }
 
   async approve(tenantId: string, id: string, approvedById: string) {
@@ -69,5 +80,11 @@ export class LeaveService {
     const startDate = new Date(start);
     const endDate = new Date(end);
     return Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  }
+
+  private async generateLeaveNumber(): Promise<string> {
+    const count = await prisma.leave.count();
+    const year = new Date().getFullYear();
+    return `LEV-${year}-${String(count + 1).padStart(4, '0')}`;
   }
 }
