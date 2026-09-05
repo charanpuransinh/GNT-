@@ -1638,3 +1638,17 @@ M13 की 17 जाँचें पास (कोई skip नहीं); पू
 **अभी किस पर लगा हूँ:** M21 (Data Sense) बनाने पर।
 **कोई अड़चन?** कोई नहीं।
 **कितना % हुआ:** मेरे हिस्से (M11–M22) में सुरक्षा-सफ़ाई पूरी; नए बड़े modules (M20-hub, M21, M22) बाक़ी।
+
+
+## 📣 2026-09-05 — दो स्थायी Telegram नियम (मालिक का आदेश)
+
+मालिक (पूरन सिंह) ने ये दो नियम **स्थायी** कर दिए — दोनों AI के लिए, हर session में:
+
+1. **हर progress report Telegram पर भेजो** — चाहे छोटी हो या बड़ी — बिना पूछे, अपने-आप, तुरंत।
+   (सिर्फ़ routine restart चुपचाप log में।)
+2. जब कोई **file/module पूरी तरह ख़त्म होकर हरी (certified/green) हालत** में आए, तो एक
+   **ख़ास 🔒 CERTIFIED report** Telegram पर भेजो — जिसमें लिखा हो: file/module का नाम,
+   "lock ho gaya", कितने tests pass (skip 0), और date-time।
+
+पूरा ब्यौरा: `tips/owner-puran-singh/AUTONOMY-RULES.md` §4 (वहाँ format और तालिका भी है)।
+Telegram live ✅ (जाँच हो चुकी: `✅ Sent`) — `tools/notify.sh --tag "DeepSeek" "..."` से भेजना है।

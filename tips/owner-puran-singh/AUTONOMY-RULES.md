@@ -94,16 +94,29 @@ tail -20 /root/gnt-project/tools/auto_resume.log # क्या-क्या res
 
 ---
 
-## 4️⃣ Telegram अलर्ट — स्थायी नियम (2026-09-05 अपडेट, मालिक का सीधा आदेश)
+## 4️⃣ Telegram अलर्ट — स्थायी नियम (2026-09-05, मालिक का सीधा आदेश — दो बार पक्का किया)
 
-**मालिक ने पक्का कर दिया कि Telegram रिपोर्ट उन्हें मिल रही है — और यह अब स्थायी नियम है:**
+**मालिक ने पक्का कर दिया कि Telegram रिपोर्ट उन्हें मिल रही है — और यह अब स्थायी नियम है।**
 
-> **हर बार, बिना बोले** Telegram पर रिपोर्ट भेजो — जब भी:
-> 1. कोई **module/task पूरा** हो
-> 2. कोई **बड़ा milestone** हुआ हो
-> 3. कोई **blocker या permission-wait** आए (जैसे tool-call "Ask" approval पर रुका हो)
->
+> **हर progress report Telegram पर भेजो — चाहे छोटी हो या बड़ी — बिना पूछे, अपने-आप।**
 > **session के ख़त्म होने का इंतज़ार मत करो — तुरंत भेजो।**
+
+**1. हर progress report → Telegram (स्वतः):**
+- कोई भी file/module का कोई भी step पूरा हो → Telegram पर भेजो (छोटी हो तो छोटी रिपोर्ट)।
+- बड़ा milestone → Telegram पर भेजो।
+- कोई blocker / P0 फ़ैसला / permission-wait (जैसे tool-call "Ask" approval पर रुका हो) → तुरंत alert।
+- सिर्फ़ **routine restart** (मरा → चालू किया) चुपचाप log में — वही एक अपवाद।
+
+**2. "green lock / certified lock" की ख़ास confirmation → Telegram (स्वतः):**
+जब कोई file/module **पूरी तरह ख़त्म होकर हरी (certified/green) हालत** में आए, तो एक **अलग special report** भेजो जिसमें लिखा हो:
+```
+🔒 CERTIFIED (green) — <file/module का नाम>
+Lock ho gaya ✅
+Tests: <कितने pass, skip 0>
+Date-time: <तारीख़ और वक़्त>
+```
+> ⚠️ नाम का ध्यान: यह "certified/green" **AI की अपनी पूर्णता-मुहर** है। असली production
+> "LOCKED" अभी भी सिर्फ़ मालिक का फ़ैसला है (P0-2) — AI वह शब्द नहीं लिखेगा।
 
 **रिपोर्ट का format (हर बार यही):**
 ```
@@ -114,21 +127,19 @@ Tests: <कितने pass, skip कितने>
 Agla step: <क्या>
 ```
 
-**कब नहीं भेजना:** हर छोटा step नहीं — सिर्फ़ module-complete, बड़ा milestone, और blocker।
-
 **भेजने का तरीक़ा:** `bash tools/notify.sh --tag "DeepSeek" "..."` (या लंबी रिपोर्ट `cat file | bash tools/notify.sh --tag "DeepSeek" -`)।
 **Telegram live है** ✅ — token/chat-id `/opt/raw-repo/.env` में, `tools/notify.sh` चलता है (जाँच हो चुकी: `✅ Sent`)।
 
 | हालत | क्या करना है |
 |---|---|
-| routine restart (मरा, चालू कर दिया) | **चुपचाप log में लिखो** — अलर्ट मत भेजो |
-| **module/task पूरा हुआ** | 🔔 **तुरंत Telegram रिपोर्ट** (ऊपर वाला format) |
-| **बड़ा milestone** | 🔔 **तुरंत Telegram रिपोर्ट** |
+| routine restart (मरा, चालू कर दिया) | **चुपचाप log में लिखो** — यही एक अपवाद |
+| कोई भी progress (छोटी/बड़ी) | 🔔 **तुरंत Telegram रिपोर्ट** |
+| file/module **green/certified** हुआ | 🔔 **ख़ास 🔒 CERTIFIED report** (नाम, lock, tests, date-time) |
 | **P0 फ़ैसला चाहिए** (बिंदु 2) | 🔔 **तुरंत अलर्ट** |
 | tool-call "Ask" approval पर अटका | 🔔 **छोटा अलर्ट** — ताकि मालिक तुरंत approve कर सके |
 | restart **लगातार 3 बार फ़ेल** | 🔔 **तुरंत अलर्ट** |
 
-**कारण:** मालिक ख़ुद चाहते हैं कि हर पूरे हुए काम की ख़बर तुरंत आए — पर हर छोटी बात की नहीं, वरना अलर्ट देखना ही छूट जाएगा।
+**कारण:** मालिक ख़ुद चाहते हैं कि हर काम की ख़बर तुरंत आए — कोई भी progress छुपी न रहे।
 
 ---
 
