@@ -4,10 +4,10 @@
  * RULE: INTERNAL ONLY — No direct access from other modules
  */
 
-import { PrismaClient, SalesInvoice, SalesInvoiceItem, PaymentStatus, Prisma } from '@prisma/client';
+import { SalesInvoice, SalesInvoiceItem, PaymentStatus, Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { InvoiceQueryParams } from '../types/sales.types';
 
-const prisma = new PrismaClient();
 
 export class SalesRepository {
   // ─── CREATE ───

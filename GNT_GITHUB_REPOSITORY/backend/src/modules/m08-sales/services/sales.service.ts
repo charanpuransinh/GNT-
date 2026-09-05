@@ -5,7 +5,8 @@
  * RULE: All side effects go through Central Transaction Engine
  */
 
-import { PrismaClient, SalesInvoice, SalesInvoiceItem, Prisma } from '@prisma/client';
+import { SalesInvoice, SalesInvoiceItem, Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { salesRepository } from '../repositories/sales.repository';
 import {
   SalesInvoiceDTO,
@@ -23,7 +24,6 @@ import {
 import { printService } from './print.service';
 import { eventBus } from '../../../core/event-bus';
 
-const prisma = new PrismaClient();
 
 // ─── M05/M06/M09/M10/M11 PUBLIC CONTRACT INTERFACES (Design-Expansion stubs) ───
 interface PartyService {

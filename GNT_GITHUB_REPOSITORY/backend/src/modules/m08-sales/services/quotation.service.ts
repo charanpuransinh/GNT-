@@ -4,7 +4,8 @@
  * Handles: Quotation CRUD + Convert to Order
  */
 
-import { PrismaClient, Quotation, SalesOrder } from '@prisma/client';
+import { Quotation, SalesOrder } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { quotationRepository } from '../repositories/quotation.repository';
 import { salesRepository } from '../repositories/sales.repository';
 import {
@@ -21,7 +22,6 @@ import {
 } from './sales.internal';
 import { eventBus } from '../../../core/event-bus';
 
-const prisma = new PrismaClient();
 
 export class QuotationService {
   // ─── CREATE QUOTATION ───

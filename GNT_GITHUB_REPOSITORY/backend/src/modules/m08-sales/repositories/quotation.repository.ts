@@ -3,10 +3,10 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { PrismaClient, Quotation, QuotationItem, QuotationStatus, Prisma } from '@prisma/client';
+import { Quotation, QuotationItem, QuotationStatus, Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { QuotationQueryParams } from '../types/sales.types';
 
-const prisma = new PrismaClient();
 
 export class QuotationRepository {
   // ─── CREATE ───

@@ -5,6 +5,8 @@
  */
 
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { salesController } from '../controllers/sales.controller';
 import { quotationController } from '../controllers/quotation.controller';
@@ -49,15 +51,22 @@ router.post('/returns/:id/post', returnController.postReturn.bind(returnControll
 // Challan endpoints (lightweight controller inline)
 router.post('/challans', async (req, res) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    const { companyId, salesOrderId, customerId, challanDate, notes, items } = req.body;
+    // पहले companyId सीधे req.body से लिया जाता था — कोई भी login किया हुआ user
+    // किसी भी दूसरी company के नाम पर challan बना सकता था (सिर्फ़ body में उसकी id
+    // भेजकर)। असली company हमेशा tenant middleware/token से आती है, body से कभी नहीं।
+    const companyId = requireTenant(req).companyId as string;
+    const { salesOrderId, customerId, challanDate, notes, items } = req.body;
+    const salesOrder = await prisma.salesOrder.findFirst({ where: { id: salesOrderId, companyId } });
+    if (!salesOrder) {
+      res.status(404).json({ success: false, error: 'Sales order not found for this company' });
+      return;
+    }
     const count = await prisma.deliveryChallan.count({ where: { companyId } });
     const date = new Date();
     const yy = date.getFullYear().toString().slice(-2);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const challanNumber = `CHL-${yy}${mm}-${String(count + 1).padStart(5, '0')}`;
-    const totalQuantity = items.reduce((sum: number, i: any) => sum + Number(i.quantity), 0);
+    const totalQuantity = items.reduce((sum: number, i: { quantity: number }) => sum + Number(i.quantity), 0);
     const challan = await prisma.deliveryChallan.create({
       data: {
         companyId,
@@ -68,7 +77,7 @@ router.post('/challans', async (req, res) => {
         status: 'draft',
         totalQuantity,
         notes: notes || null,
-        items: { createMany: { data: items.map((i: any) => ({ productId: i.productId, quantity: Number(i.quantity) })) } },
+        items: { createMany: { data: items.map((i: { productId: string; quantity: number }) => ({ productId: i.productId, quantity: Number(i.quantity) })) } },
       },
       include: { items: true },
     });
@@ -80,13 +89,11 @@ router.post('/challans', async (req, res) => {
 
 router.get('/challans', async (req, res) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
     const companyId = requireTenant(req).companyId as string;
     const { salesOrderId, status, page = '1', limit = '20' } = req.query;
-    const where: any = { companyId };
+    const where: Prisma.DeliveryChallanWhereInput = { companyId };
     if (salesOrderId) where.salesOrderId = salesOrderId as string;
-    if (status) where.status = status as string;
+    if (status) where.status = status as Prisma.DeliveryChallanWhereInput['status'];
     const [data, total] = await Promise.all([
       prisma.deliveryChallan.findMany({
         where,
@@ -105,8 +112,6 @@ router.get('/challans', async (req, res) => {
 
 router.get('/challans/:id', async (req, res) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
     const { id } = req.params;
     const companyId = requireTenant(req).companyId as string;
     const challan = await prisma.deliveryChallan.findFirst({

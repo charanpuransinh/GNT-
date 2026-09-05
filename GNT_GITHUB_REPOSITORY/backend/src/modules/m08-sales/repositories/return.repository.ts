@@ -3,10 +3,10 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { PrismaClient, SalesReturn, SalesReturnItem, ReturnStatus, Prisma } from '@prisma/client';
+import { SalesReturn, SalesReturnItem, ReturnStatus, Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { ReturnQueryParams } from '../types/sales.types';
 
-const prisma = new PrismaClient();
 
 export class ReturnRepository {
   // ─── CREATE ───

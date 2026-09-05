@@ -3,7 +3,8 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { PrismaClient, SalesReturn } from '@prisma/client';
+import { SalesReturn } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { returnRepository } from '../repositories/return.repository';
 import { salesRepository } from '../repositories/sales.repository';
 import {
@@ -14,7 +15,6 @@ import {
 import { calculateReturnTotals, generateReturnNumber } from './sales.internal';
 import { eventBus } from '../../../core/event-bus';
 
-const prisma = new PrismaClient();
 
 interface StockService {
   addBackStock(items: Array<{ productId: string; quantity: number }>, branchId: string): Promise<void>;

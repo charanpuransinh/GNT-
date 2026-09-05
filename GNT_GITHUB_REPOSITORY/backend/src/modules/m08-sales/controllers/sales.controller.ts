@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { requireTenant } from '@/common/middleware/require-tenant';
+import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { salesService } from '../services/sales.service';
 import {
   salesInvoiceSchema,
@@ -83,7 +83,10 @@ export class SalesController {
     try {
       const id = String(req.params.id);
       const companyId = requireTenant(req).companyId as string;
-      const approvedBy = req.headers['x-user-id'] as string;
+      // पहले x-user-id header से लिया जाता था — कोई भी client यह header मनचाहा भेजकर
+      // किसी और के नाम पर invoice approve करवा सकता था (audit trail झूठा)। असली
+      // पहचान सिर्फ़ token से।
+      const approvedBy = requireUser(req).id;
       const invoice = await salesService.approveInvoice(id, companyId, approvedBy);
       res.status(200).json({ success: true, data: invoice });
     } catch (error: any) {
@@ -96,7 +99,8 @@ export class SalesController {
     try {
       const id = String(req.params.id);
       const companyId = requireTenant(req).companyId as string;
-      const postedBy = req.headers['x-user-id'] as string;
+      // वही कारण — token से, header से कभी नहीं
+      const postedBy = requireUser(req).id;
       const invoice = await salesService.postInvoice(id, companyId, postedBy);
       res.status(200).json({ success: true, data: invoice });
     } catch (error: any) {
