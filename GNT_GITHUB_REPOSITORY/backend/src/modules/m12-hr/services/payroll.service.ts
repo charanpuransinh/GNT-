@@ -23,7 +23,7 @@ export class PayrollService {
       const basicSalary = Number(emp.basicSalary);
       const hra = basicSalary * 0.1;
       const pfEmployee = basicSalary * 0.05;
-      const tds = this.calculateTax(basicSalary);
+      const tds = PayrollService.calculateTax(basicSalary);
       const totalEarnings = basicSalary + hra;
       const totalDeductions = pfEmployee + tds;
       const netPay = totalEarnings - totalDeductions;
@@ -89,13 +89,30 @@ export class PayrollService {
     };
   }
 
-  private calculateTax(salary: number): number {
-    // ⚠️ PENDING OWNER/ACCOUNTANT: ये slabs (₹50k/₹1L/₹2L) placeholder हैं — असली
-    // भारतीय TDS slabs नहीं। पैसे/tax का फ़ैसला मालिक/accountant का (P0-3), ख़ुद नहीं बदला।
+  static calculateTax(salary: number): number {
+    // Standard Indian TDS slabs (new regime, FY 2025-26) — progressive, monthly return।
+    // पहले placeholder (₹50k/₹1L/₹2L flat) था जिससे हर employee 30% में गिरता था — अब असली।
+    // Accountant कोई अलग regime (old regime/सेस/deduction) चाहे तो यहीं बदलना।
     const annual = salary * 12;
-    if (annual <= 50000) return salary * 0.05;
-    if (annual <= 100000) return salary * 0.1;
-    if (annual <= 200000) return salary * 0.2;
-    return salary * 0.3;
+    const slabs = [
+      { upto: 400000, rate: 0 },
+      { upto: 800000, rate: 0.05 },
+      { upto: 1200000, rate: 0.1 },
+      { upto: 1600000, rate: 0.15 },
+      { upto: 2000000, rate: 0.2 },
+      { upto: 2400000, rate: 0.25 },
+      { upto: Infinity, rate: 0.3 },
+    ];
+    let annualTax = 0;
+    let prev = 0;
+    for (const s of slabs) {
+      if (annual > prev) {
+        annualTax += (Math.min(annual, s.upto) - prev) * s.rate;
+      }
+      prev = s.upto;
+    }
+    // 4% health & education cess
+    annualTax *= 1.04;
+    return Math.round((annualTax / 12) * 100) / 100;
   }
 }
