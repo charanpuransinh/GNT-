@@ -74,23 +74,36 @@ export class TradeRepository {
   }
 
   async update(id: string, companyId: string, data: TradeJobUpdateInput): Promise<trade_job> {
-    return this.prisma.trade_job.update({
-      where: { id },
+    const result = await this.prisma.trade_job.updateMany({
+      where: { id, company_id: companyId },
       data,
     });
+    if (result.count === 0) throw new Error('Trade job not found');
+    return this.prisma.trade_job.findFirst({
+      where: { id, company_id: companyId },
+      include: { hsn: true, documents: true },
+    }) as Promise<trade_job>;
   }
 
   async updateStatus(id: string, companyId: string, status: TradeStatus): Promise<trade_job> {
     const updateData: Prisma.trade_jobUpdateInput = { status };
     if (status === 'completed') updateData.completed_at = new Date();
-    return this.prisma.trade_job.update({
-      where: { id },
+    const result = await this.prisma.trade_job.updateMany({
+      where: { id, company_id: companyId },
       data: updateData,
     });
+    if (result.count === 0) throw new Error('Trade job not found');
+    return this.prisma.trade_job.findFirst({
+      where: { id, company_id: companyId },
+      include: { hsn: true, documents: true },
+    }) as Promise<trade_job>;
   }
 
   async delete(id: string, companyId: string): Promise<trade_job> {
-    return this.prisma.trade_job.delete({ where: { id } });
+    const existing = await this.prisma.trade_job.findFirst({ where: { id, company_id: companyId } });
+    if (!existing) throw new Error('Trade job not found');
+    await this.prisma.trade_job.deleteMany({ where: { id, company_id: companyId } });
+    return existing;
   }
 
   async exists(referenceNo: string, companyId: string): Promise<boolean> {
