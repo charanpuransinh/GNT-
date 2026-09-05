@@ -1706,3 +1706,18 @@ M16 (सूचना + WhatsApp campaign) · M20 (विदेशी व्य�
 
 **DeepSeek अब करेगा:** M20 निर्यात-केन्द्र · M22 सदस्यता · M21 के बाक़ी समूह।
 पूरा ब्यौरा `tips/coder-ai/DEEPSEEK_LOG.md` में (हर module का commit नंबर साथ)।
+
+
+## ⚠️ 2026-09-05 — सुधार: अभी कोई module CERTIFIED नहीं, Claude को कुछ नहीं सौंपा
+
+मालिक का सुधार: सिर्फ़ **पूरी तरह GREEN + CERTIFIED/LOCKED** modules ही Claude को दो। चेक किया —
+**अभी कोई module CERTIFIED नहीं है।** M11, M12, M21 (ट्रांसफर), M16 (WhatsApp campaign) सब
+"DeepSeek ने बनाया और tests पास किए" हैं, पर अभी पूरी verified/certified मुहर नहीं लगी।
+
+**इसलिए:** certified सूची **ख़ाली** है — ये सब DeepSeek के पास ही रहेंगे जब तक पूरी तरह
+verified न हो जाएँ (मोटी feature tests + end-to-end + कोई खुली शर्त नहीं)। कमी एक-एक करके
+`tips/coder-ai/DEEPSEEK_LOG.md` में दर्ज है।
+
+**नियम:** "काम हो गया" और "certified" अलग हैं। certified तभी, जब live DB पर end-to-end चले,
+कोई खुली शर्त न हो, TEST_DB=1 से सब tests pass (skip 0) हों और कवरेज मोटा हो। LOCKED सिर्फ़
+मालिक का फ़ैसला है।

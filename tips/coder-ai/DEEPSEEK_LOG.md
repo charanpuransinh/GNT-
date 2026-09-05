@@ -612,3 +612,29 @@ test करेगा + wiring (cross-module integration) करेगा**। De
 3. **M21 के बाक़ी adapters** — export→M20 (मेरा); sales/purchase/accounting/scheme → Claude के M07/M08/M10 (HOLD BY CLAUDE - PENDING)
 
 **नियम:** पूरे हुए modules में वापस नहीं जाना — सिर्फ़ तब जब Claude bug report दे।
+
+
+## ⚠️ Certification सुधार (2026-09-05) — certified सूची अभी ख़ाली है
+
+मालिक का सुधार: **सिर्फ़ वो modules Claude को दो जो सच में GREEN + CERTIFIED/LOCKED हों**
+(जैसे पहले M01–M10 थे) — "मैंने काम कर दिया" कहने से नहीं चलेगा।
+
+**ईमानदार नतीजा:** अभी **कोई भी module CERTIFIED/LOCKED नहीं है** — न M11, न M12, न M21
+transfer, न M16 WhatsApp campaign। सब "DeepSeek ने बनाया + tests पास (TEST_DB=1)" हैं, पर
+पूरी तरह verified/certified का दर्जा अभी नहीं मिला। **इसलिए ये सब DeepSeek के पास ही रहेंगे**
+जब तक fully verified न हो जाएँ।
+
+### कौन क्यों अभी certified नहीं (ईमानदार आँकलन):
+| Module | कमी |
+|---|---|
+| M11 Payment | 10 tests हैं पर refund/reconciliation/bankAccount/schedule की feature tests नहीं — कवरेज पतला |
+| M12 HR | सिर्फ़ 3 tenant-isolation tests; create/findAll/update/attendance/leave/payroll की feature tests नहीं |
+| M21 transfer | transfer सिर्फ़ party→M05, item→M06 तक; बाक़ी groups (sales/purchase/accounting/export/scheme) pending — खुली शर्त बाक़ी |
+| M16 WhatsApp | campaign+link बने, पर असली WhatsApp send end-to-end test नहीं हुआ (gateway network); buyer-order→M08 HOLD BY CLAUDE |
+
+### Claude को अभी test/wiring के लिए कुछ नहीं मिला (certified list = ख़ाली)
+जब कोई module पूरी तरह verified हो जाएगा (सारे feature tests + end-to-end + कोई खुली शर्त नहीं),
+तभी उसे "certified" घोषित करके Claude को दूँगा। तब तक मेरे पास ही।
+
+**नियम:** "done" ≠ "certified"। certified का मतलब: live DB end-to-end · कोई खुली शर्त नहीं ·
+TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCKED सिर्फ़ मालिक का फ़ैसला — AI नहीं लिखेगा)।
