@@ -1,8 +1,7 @@
 // GNT M06 — Product Repository (INTERNAL ONLY)
-import { PrismaClient, product_master, Prisma } from '@prisma/client';
+import { product_master, Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { ProductDTO, ProductFilter, PaginatedResult } from '../types/inventory.types';
-
-const prisma = new PrismaClient();
 
 export class ProductRepository {
   async create(data: ProductDTO): Promise<product_master> {
@@ -68,7 +67,7 @@ export class ProductRepository {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findLowStock(company_id: string, branch_id?: string): Promise<product_master[]> {
+  async findLowStock(company_id: string, branch_id?: string) {
     const products = await prisma.product_master.findMany({
       where: {
         company_id,
@@ -79,8 +78,8 @@ export class ProductRepository {
       include: { stock: true },
     });
 
-    return products.filter((p: any) => {
-      const totalStock = p.stock.reduce((sum: number, s: any) => sum + Number(s.quantity), 0);
+    return products.filter((p) => {
+      const totalStock = p.stock.reduce((sum, s) => sum + Number(s.quantity), 0);
       return totalStock <= Number(p.reorder_level);
     });
   }

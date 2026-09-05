@@ -1,4 +1,5 @@
 // GNT M06 — Stock Internal Service (Calculations & Helpers)
+import { prisma } from '@/common/config/prisma';
 import { StockRepository } from '../repositories/stock.repository';
 import { ProductRepository } from '../repositories/product.repository';
 import { StockMovementDTO } from '../types/inventory.types';
@@ -37,9 +38,6 @@ export class StockInternalService {
    * Get FIFO batch for deduction
    */
   async getFIFOBatch(product_id: string, company_id: string): Promise<any | null> {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
     const batches = await prisma.batch_master.findMany({
       where: { product_id, company_id, remaining_qty: { gt: 0 } },
       orderBy: { created_at: 'asc' },
@@ -53,9 +51,6 @@ export class StockInternalService {
    * Get LIFO batch for deduction
    */
   async getLIFOBatch(product_id: string, company_id: string): Promise<any | null> {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
     const batches = await prisma.batch_master.findMany({
       where: { product_id, company_id, remaining_qty: { gt: 0 } },
       orderBy: { created_at: 'desc' },
@@ -69,8 +64,6 @@ export class StockInternalService {
    * Check batch expiry within days
    */
   async getExpiringBatches(company_id: string, days: number = 30): Promise<any[]> {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() + days);
 

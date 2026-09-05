@@ -1,8 +1,7 @@
 // GNT M06 — Category Repository (INTERNAL ONLY)
-import { PrismaClient, category_master } from '@prisma/client';
+import { category_master } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { CategoryDTO } from '../types/inventory.types';
-
-const prisma = new PrismaClient();
 
 export class CategoryRepository {
   async create(data: CategoryDTO): Promise<category_master> {

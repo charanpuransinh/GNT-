@@ -1,8 +1,7 @@
 // GNT M06 — Stock Repository (INTERNAL ONLY)
-import { PrismaClient, stock_master, stock_movement, Prisma } from '@prisma/client';
+import { stock_master, stock_movement, Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { StockDTO, StockMovementDTO, StockFilter, MovementFilter, PaginatedResult } from '../types/inventory.types';
-
-const prisma = new PrismaClient();
 
 export class StockRepository {
   async findById(id: string, company_id: string): Promise<stock_master | null> {
@@ -49,7 +48,7 @@ export class StockRepository {
     return this.findById(id, company_id) as Promise<stock_master>;
   }
 
-  async updateAvgPrice(id: string, avg_price: number, last_price: number, company_id: string): Promise<stock_master> {
+  async updateAvgPrice(id: string, avg_price: Prisma.Decimal | number | null, last_price: Prisma.Decimal | number | null, company_id: string): Promise<stock_master> {
     const { count } = await prisma.stock_master.updateMany({
       where: { id, company_id },
       data: { avg_purchase_price: avg_price, last_purchase_price: last_price },
@@ -85,9 +84,10 @@ export class StockRepository {
     if (filter.branch_id) where.branch_id = filter.branch_id;
     if (filter.reference_type) where.reference_type = filter.reference_type;
     if (filter.from_date || filter.to_date) {
-      where.created_at = {};
-      if (filter.from_date) (where.created_at as any).gte = filter.from_date;
-      if (filter.to_date) (where.created_at as any).lte = filter.to_date;
+      where.created_at = {
+        ...(filter.from_date ? { gte: filter.from_date } : {}),
+        ...(filter.to_date ? { lte: filter.to_date } : {}),
+      };
     }
 
     const [data, total] = await Promise.all([

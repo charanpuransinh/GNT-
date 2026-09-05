@@ -153,7 +153,7 @@ export class StockService {
       lastPrice = rate;
     }
 
-    const updatedStock = await stockRepo.updateAvgPrice(stockRecord.id, avgPrice as any, lastPrice as any, company_id);
+    const updatedStock = await stockRepo.updateAvgPrice(stockRecord.id, avgPrice, lastPrice, company_id);
     await stockRepo.updateQuantity(stockRecord.id, afterQty, company_id);
 
     // Log movement

@@ -2,9 +2,8 @@
 import { Request, Response } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { serialSchema, serialUpdateSchema } from '../validators/inventory.schema';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 
 export class SerialController {
   async createSerial(req: Request, res: Response) {
@@ -21,7 +20,7 @@ export class SerialController {
     try {
       const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
-      const where: any = { company_id };
+      const where: Prisma.serial_masterWhereInput = { company_id };
       if (req.query.product_id) where.product_id = req.query.product_id as string;
       if (req.query.status) where.status = req.query.status as string;
       const serials = await prisma.serial_master.findMany({ where, include: { product: true }, orderBy: { created_at: 'desc' } });

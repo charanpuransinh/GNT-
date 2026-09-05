@@ -2,9 +2,8 @@
 import { Request, Response } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { batchSchema, batchUpdateSchema } from '../validators/inventory.schema';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 
 export class BatchController {
   async createBatch(req: Request, res: Response) {
@@ -21,7 +20,7 @@ export class BatchController {
     try {
       const company_id = requireTenant(req).companyId;
       if (!company_id) return res.status(400).json({ error: 'Company context required' });
-      const where: any = { company_id };
+      const where: Prisma.batch_masterWhereInput = { company_id };
       if (req.query.product_id) where.product_id = req.query.product_id as string;
       if (req.query.expiry_before) where.expiry_date = { lte: new Date(req.query.expiry_before as string) };
       const batches = await prisma.batch_master.findMany({ where, include: { product: true }, orderBy: { created_at: 'desc' } });
