@@ -725,3 +725,16 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 **commit:** `ddb00a5` (push हो चुका) · पूरी suite अब **91 files / 449 tests, 0 fail 0 skip**।
 
 **Certified सूची अब:** M11 ✅ · M12 ✅ · (M21, M16 — अभी नहीं)
+
+
+## 🔒 M16 CERTIFIED (तीसरा module)
+
+**2026-09-05:** M16 (Notification) अब CERTIFIED:
+1. ✅ कोई TODO/"not implemented" नहीं — email gateway अब असली (M18 में `sendEmail` SendGrid REST जोड़ा, पहले fail-closed throw करता था)
+2. ✅ 100% tests — **13/13, 0 fail 0 skip** (campaign + order-link + notification send/list/unread/mark-read + fail-closed)
+3. ✅ Production ready — 21/21 mount + HTTP end-to-end
+
+**commits:** `ae260bf` (email gateway) · `991b4ff` (notification tests)
+**पूरी suite अब: 92 files / 451 tests, 0 fail 0 skip** · tsc 0
+
+**Certified सूची अब:** M11 ✅ · M12 ✅ · M16 ✅ · (M21 — अभी नहीं)
