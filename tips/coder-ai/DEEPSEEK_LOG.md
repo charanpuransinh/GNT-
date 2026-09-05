@@ -582,3 +582,33 @@ service/repository method `tenantId`/`companyId` लेकर भी query स�
 यानी Claude को **75 errors नहीं मिलेंगे** — एक हरा (green) module मिलेगा, जिसे वह अपनी
 तरफ़ से verify करके CERTIFIED कर ले। फ़ैसला फिर भी मालिक का है — M13 अब Claude का दायरा है।
 M13 की पूरी तकनीकी कहानी ऊपर "टास्क #030 M11+M13" वाली entry में दर्ज है।
+
+
+## 🔀 मालिक का नया फ़ैसला (2026-09-05) — पूरे हुए modules अब Claude के हवाले
+
+**निर्देश:** जो modules DeepSeek ने अपनी तरफ़ से "complete/OK/done" कहे हैं, वे अब **Claude
+test करेगा + wiring (cross-module integration) करेगा**। DeepSeek पूरे हुए काम में **वापस नहीं
+जाएगा** जब तक Claude कोई bug report न दे।
+
+### Claude को सौंपे गए (DeepSeek का पूरा हुआ काम — commit के साथ, Claude आसानी से पाएगा):
+
+| Module | क्या पूरा | commit |
+|---|---|---|
+| M11 Payment | tenant-isolation fix (AppError 404/400), 10/10 tests | `68a2a04` |
+| M12 HR | पूरी module tenant-scoped + shared prisma + hr.service real, 3/3 tests | `6166783` |
+| M13 Automation | blueprint 3 tables पर rebuild, 17/17 tests (पहले ही Claude को दिया) | `2ffc7e9` |
+| M14 Import/Export | tenant-scope + shared prisma, 13/13 tests | `228e34a` |
+| M15 Sync | sync/integration tenant-scope | `f0d6bea` |
+| M16 Notification | WhatsApp campaign + HMAC secure order-link, 11/11 tests | `b0fecec` |
+| M20 Trade | trade_job tenant-scope | `c1373c9` |
+| M21 Data Sense | TRANSFER executor (party→M05, item→M06) + POST /transfer, 26/26 tests | `d250c91` |
+
+**सभी main branch पर push हैं।** पूरी backend suite (DeepSeek की आख़िरी नाप): 89 files / 439 tests,
+0 fail 0 skip; tsc 0।
+
+### DeepSeek अब सिर्फ़ नए/बाक़ी काम पर:
+1. **M20 export-hub** (SPEC-A — buyer/quotation/shipping/customs/documents)
+2. **M22 subscription**
+3. **M21 के बाक़ी adapters** — export→M20 (मेरा); sales/purchase/accounting/scheme → Claude के M07/M08/M10 (HOLD BY CLAUDE - PENDING)
+
+**नियम:** पूरे हुए modules में वापस नहीं जाना — सिर्फ़ तब जब Claude bug report दे।
