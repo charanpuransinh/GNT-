@@ -765,3 +765,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## 📌 2026-09-05 — M22 done (plan+subscribe+cancel+HTTP+tenant-isolation, 4 tests). Baaki sirf Claude/owner/external-boundary items (M13 9-model, M17, M21 sales/purchase/accounting/scheme, M12 tax-slab). In-scope backend sab complete.
+
+
+## ⛔ 2026-09-05 — M21 sales/purchase/accounting/scheme adapters: M08 me scheme service hi nahi, SalesInvoiceDTO line-items chahiye (M21 sheet me summary), M10 ledger needs account resolve — sab Claude internals. Ab M22 ko feature-gating se aur solid karta hoon.

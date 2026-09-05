@@ -10,7 +10,7 @@ const COMPANY_ID = '00000000-0000-4000-8000-000000000096';
 
 async function cleanup() {
   await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
-  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST'] } } });
+  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST', 'GATE-TEST', 'ALL-TEST'] } } });
 }
 
 describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () => {
@@ -52,5 +52,30 @@ describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () =
 
     const count = await prisma.companySubscription.count({ where: { companyId: COMPANY_ID } });
     expect(count).toBe(1);
+  });
+
+  it('feature gate: plan ke features ke hisaab se access milta/rukta hai', async () => {
+    const p = await subscriptionService.createPlan({
+      code: 'GATE-TEST', name: 'Gated', priceMonthly: 199, priceYearly: 1999,
+      features: ['gst', 'inventory'],
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: p.id });
+
+    expect(await subscriptionService.canAccess(COMPANY_ID, 'gst')).toBe(true);
+    expect(await subscriptionService.canAccess(COMPANY_ID, 'inventory')).toBe(true);
+    expect(await subscriptionService.canAccess(COMPANY_ID, 'hr')).toBe(false);
+
+    await subscriptionService.cancelSubscription(COMPANY_ID);
+    expect(await subscriptionService.canAccess(COMPANY_ID, 'gst')).toBe(false);
+  });
+
+  it('feature gate: wildcard (*) sab khol deta hai', async () => {
+    const p = await subscriptionService.createPlan({
+      code: 'ALL-TEST', name: 'All', priceMonthly: 999, priceYearly: 9999,
+      features: ['*'],
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: p.id });
+
+    expect(await subscriptionService.canAccess(COMPANY_ID, 'anything')).toBe(true);
   });
 });

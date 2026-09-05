@@ -90,6 +90,22 @@ export class SubscriptionService {
     if (result.count === 0) throw new Error('Subscription not found');
     return prisma.companySubscription.findUnique({ where: { companyId } });
   }
+
+  /**
+   * Feature gate: कंपनी के ACTIVE plan में यह feature है या नहीं।
+   * `features: ['*']` = सब कुछ खुला। EXPIRED/CANCELLED पर false।
+   */
+  async canAccess(companyId: string, feature: string): Promise<boolean> {
+    const sub = await prisma.companySubscription.findUnique({
+      where: { companyId },
+      include: { plan: true },
+    });
+    if (!sub || (sub.status !== 'ACTIVE' && sub.status !== 'TRIAL')) return false;
+    if (sub.endDate && sub.endDate < new Date()) return false;
+    const features = (sub.plan.features ?? []) as unknown as string[];
+    if (features.includes('*')) return true;
+    return features.includes(feature);
+  }
 }
 
 export const subscriptionService = new SubscriptionService();
