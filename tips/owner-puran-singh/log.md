@@ -2086,3 +2086,75 @@ M16 पूरा: कोई TODO नहीं (email gateway अब असली
 **अब M20 = 9 files/44 tests · M19 = 3 files/9 tests · पूरी suite = 101 files/494 tests · 0 fail · 0 skip · tsc 0**
 
 **M20 अब अच्छी coverage में है** (customs, fx, hsn, shipping, cbm, currency-exchange, country-tax, trade-document)। अगला: M19 के बाक़ी services (audit/security) के tests, फिर M21 export adapter का party/product resolve design (owner/Claude फ़ैसला चाहिए)।
+
+---
+
+# 🔍 CERTIFIED modules की जाँच — M12, M16 — 2026-09-05, शाम (Claude)
+
+**मालिक का आदेश:** DeepSeek जो भी module CERTIFIED/LOCKED mark करे, उसे Claude जाँचे —
+गड़बड़ी मिले तो report करे ताकि मालिक DeepSeek को बता सकें। **कोई code यहाँ नहीं बदला** —
+सिर्फ़ जाँच, जैसा कहा गया था।
+
+अभी तक DeepSeek के तीन module CERTIFIED हैं: **M11** (पहले ही इसी सत्र में पूरी जाँच +
+M10/M05 wiring हो चुकी — ऊपर देखें), **M12**, **M16**। इन दोनों की जाँच:
+
+## 🛑 M16 — गंभीर: order-link का HMAC secret hardcoded fallback पर गिरता है
+
+`backend/src/modules/m16-notification/utils/order-link.ts` line 12:
+```
+return process.env.M16_ORDER_LINK_SECRET ?? 'gnt-dev-order-link-secret';
+```
+
+यह secret पूरे "buyer बिना login order-link खोलता है" feature की **इकलौती सुरक्षा** है
+(`campaign.service.ts` का `resolveOrderLink` जान-बूझकर unscoped लुकअप करता है — कमेंट
+ख़ुद कहता है "token ही प्रमाण है")। अगर production में `M16_ORDER_LINK_SECRET`
+environment variable सेट करना भूल गए (बहुत आसानी से हो सकता है), तो secret वही
+hardcoded string बन जाता है जो **इस GitHub repo में सबको दिख रही है**। कोई भी उस जानी
+हुई secret से किसी भी campaign/party के लिए अपना order-link बना सकता है — पूरा
+authentication bypass। M02 में JWT keys के लिए यही ग़लती पहले मिल चुकी है और वहाँ सही
+तरीक़ा अपनाया गया था (missing हो तो production में throw करो, चुपचाप fake key मत बनाओ)
+— यहाँ वह सिद्धांत लागू नहीं हुआ।
+
+## M12 — पाँच असली गड़बड़ियाँ
+
+1. **`leave.controller.ts` का `approve`/`reject`** — `approvedById` सीधे `req.body` से
+   लिया जाता है, token से नहीं। कोई भी login किया हुआ user किसी और के नाम पर leave
+   approve/reject करवा सकता है — ठीक वही bug class जो M07/M08 में मिला और ठीक हुआ था
+   (audit trail body/header से spoof होना)।
+
+2. **`payroll.service.ts` का `calculateTax`** — TDS की slabs हैं: ₹50,000/₹1,00,000/
+   ₹2,00,000 **सालाना** पर 5%/10%/20%/30%। असली भारतीय income-tax slabs इससे कहीं ज़्यादा
+   (₹2.5-3 लाख छूट सीमा से शुरू) हैं — इन नंबरों पर हर मामूली तनख़्वाह वाला कर्मचारी भी
+   सीधे 30% bracket में गिर जाएगा। यह placeholder संख्याएँ लगती हैं जो कभी असली slabs से
+   बदली नहीं गईं — पैसे का मामला है, मालिक/accountant का फ़ैसला चाहिए, मैंने ख़ुद ठीक
+   नहीं किया।
+
+3. **`payroll.service.ts` का `generate`** — `daysWorked`, `daysLeave`, `daysAbsent`,
+   `daysHoliday` — चारों हमेशा `0` लिखे जाते हैं, कभी असली attendance/leave data से
+   नहीं भरे जाते — जबकि उसी module में `attendance.service.ts` का `getMonthlyReport()`
+   पहले से मौजूद है और बिल्कुल यही डेटा दे सकता है। यानी payroll असली हाज़िरी को
+   पूरी तरह अनदेखा करता है।
+
+4. **`leave.service.ts` का `approve`** — leave मंज़ूर होते ही
+   `leaveBalance.updateMany({ where: { employeeId: leave.employeeId }, ... })` चलता
+   है — **साल (year) से बिना बंधे**। Schema में `leaveBalance` हर साल की अलग पंक्ति
+   रखता है (`employeeId_year` unique) — यानी एक leave मंज़ूर करने पर कर्मचारी के
+   **सारे सालों** का balance बदल सकता है, सिर्फ़ सही साल का नहीं।
+
+5. **`leave.service.ts` का `generateLeaveNumber`** — `prisma.leave.count()` बिना
+   `tenantId` जाँचे पूरे system के सारे leaves गिनता है, सिर्फ़ अपनी company के नहीं।
+   ठीक वही ग़लती जो M11 के PaymentMethod.code में मिली थी और DeepSeek ने ख़ुद
+   per-tenant कर के ठीक की — यहाँ leave number की गिनती अब भी cross-tenant है।
+
+**छोटी बातें (कम गंभीर, पर दर्ज):**
+- `leave.controller.ts` का `getPendingApprovals` — route `GET /leaves/pending` है, पर
+  controller `req.body?.approverId` पढ़ने की कोशिश करता है (GET पर body अक्सर पहुँचती
+  ही नहीं); वैसे भी service में `approverId` कभी इस्तेमाल ही नहीं होता — यह filter
+  सिरे से काम ही नहीं करता।
+- `payroll.controller.ts` का `processPayment` — `paymentTransactionId` को बिना जाँचे
+  मान लेता है कि M11 में असली payment मौजूद है; कोई cross-check नहीं।
+- M12/M16 दोनों में एक-एक जगह अपना अलग `new PrismaClient()` (हर एक बार, request पर
+  नहीं) — M06/M08 जितनी गंभीर नहीं, फिर भी साझा singleton होना चाहिए।
+
+**कोई code नहीं बदला** — जैसा कहा गया, सिर्फ़ जाँचा और यहाँ लिखा। DeepSeek नए module
+CERTIFIED करता रहेगा तो आगे भी यही जाँच चलती रहेगी।
