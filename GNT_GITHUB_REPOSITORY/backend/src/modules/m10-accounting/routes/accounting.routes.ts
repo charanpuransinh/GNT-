@@ -5,10 +5,31 @@ import { VoucherController } from '../controllers/voucher.controller';
 
 const router = Router();
 
+// 2026-09-05 tenant fix: `data: req.body` सीधे Prisma में जा रहा था — यानी कोई भी
+// अपनी request में दूसरी कंपनी का `company_id` डालकर उनके खातों में नया खाता बना
+// सकता था। अब company token से आती है और body से आया company_id माना ही नहीं जाता।
 router.post('/accounts', async (req, res) => {
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
-  const acc = await prisma.account_master.create({ data: req.body });
+  const company_id = requireTenant(req).companyId;
+  const { name, code, type, subtype, parent_id, opening_balance, is_bank_account, bank_name, bank_account_no } = req.body ?? {};
+  if (!name || !code || !type) {
+    return res.status(400).json({ success: false, error: 'ACCOUNT_FIELDS_REQUIRED', message: 'name, code और type ज़रूरी हैं' });
+  }
+  const acc = await prisma.account_master.create({
+    data: {
+      company_id,
+      name: String(name),
+      code: String(code),
+      type: String(type),
+      ...(subtype ? { subtype: String(subtype) } : {}),
+      ...(parent_id ? { parent_id: String(parent_id) } : {}),
+      ...(opening_balance !== undefined ? { opening_balance } : {}),
+      ...(is_bank_account !== undefined ? { is_bank_account: Boolean(is_bank_account) } : {}),
+      ...(bank_name ? { bank_name: String(bank_name) } : {}),
+      ...(bank_account_no ? { bank_account_no: String(bank_account_no) } : {}),
+    },
+  });
   res.status(201).json(acc);
 });
 
@@ -30,6 +51,10 @@ router.get('/accounts', async (req, res) => {
 
 router.get('/ledger', LedgerController.getLedger);
 router.get('/ledger/balance', LedgerController.getAccountBalance);
+
+// मालिक का हार्ड रूल — party-वार खाता-बही (दो parties का डेटा कभी एक साथ नहीं)
+router.get('/party-ledger', LedgerController.getPartyLedger);
+router.get('/party-ledger/balance', LedgerController.getPartyBalance);
 
 router.post('/vouchers', VoucherController.createVoucher);
 router.get('/vouchers', VoucherController.getVouchers);

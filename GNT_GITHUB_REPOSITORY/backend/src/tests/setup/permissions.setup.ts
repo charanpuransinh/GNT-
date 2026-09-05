@@ -1,5 +1,5 @@
 // ============================================================================
-// tests के लिए: test user को असली भूमिका देना
+// tests के लिए: test user को असली भूमिका देना — पूरे रन में **एक बार**
 //
 // 2026-09-05 से हर `/api/v1` request पर अनुमति की जाँच लगती है। मौजूदा API tests
 // `mintBearer()` से token बनाते हैं जिसका user (TEST_USER_ID) database में किसी
@@ -10,17 +10,22 @@
 // यहाँ test user को असली "Owner" भूमिका दी जाती है, यानी जाँच पूरी चालू रहते हुए
 // tests अपने module का काम जाँचते हैं।
 //
-// अनुमति खुद की जाँच अलग फ़ाइल में है: m02 tests/api/permission.enforcement.db.test.ts
+// ⚠️ यह `globalSetup` है, `setupFiles` नहीं। पहले इसे setupFiles में रखा था — तब यह
+// हर test file में **समानांतर** चलता था और एक ही पंक्तियाँ डालने की होड़ में
+// unique-constraint टकराव से कभी-कभी कोई भी file पूरी फ़ेल हो जाती थी (हर बार अलग
+// file — यानी असली "flaky" गड़बड़ी, जिसे बाद में "test का मूड" कहकर टाला जा सकता था)।
+// globalSetup पूरे रन में एक बार चलता है, इसलिए वह होड़ रहती ही नहीं।
+//
+// अनुमति की अपनी जाँच अलग फ़ाइल में है: m02 tests/api/permission.enforcement.db.test.ts
 // ============================================================================
 
-import { beforeAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { ALL_PERMISSIONS, ROLE_OWNER, ROLE_TEMPLATES } from '@/common/auth/permission-catalog';
+import { ALL_PERMISSIONS, ROLE_OWNER, ROLE_TEMPLATES } from '../../common/auth/permission-catalog';
 
 const TEST_COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 const TEST_USER_ID = '00000000-0000-4000-8000-000000000002';
 
-beforeAll(async () => {
+export default async function setup() {
   if (process.env.TEST_DB !== '1') return;
 
   const prisma = new PrismaClient();
@@ -44,14 +49,16 @@ beforeAll(async () => {
       },
     });
 
-    // अनुमतियाँ (permission_master) — seed script जैसी ही, पर tests अपने आप में पूरी हों
-    for (const p of ALL_PERMISSIONS) {
-      await prisma.permission_master.upsert({
-        where: { module_action_resource: { module: p.module, action: p.action, resource: p.resource } },
-        update: {},
-        create: { module: p.module, action: p.action, resource: p.resource, description: p.description },
-      });
-    }
+    // createMany + skipDuplicates — पहले से मौजूद पंक्तियों पर चुपचाप आगे बढ़ता है
+    await prisma.permission_master.createMany({
+      data: ALL_PERMISSIONS.map((p) => ({
+        module: p.module, action: p.action, resource: p.resource, description: p.description,
+      })),
+      skipDuplicates: true,
+    });
+
+    const allPerms = await prisma.permission_master.findMany();
+    const permId = new Map(allPerms.map((p) => [`${p.module}:${p.action}`, p.id]));
 
     for (const tpl of ROLE_TEMPLATES) {
       let role = await prisma.role_master.findFirst({ where: { company_id: TEST_COMPANY_ID, name: tpl.name } });
@@ -60,21 +67,23 @@ beforeAll(async () => {
           data: { company_id: TEST_COMPANY_ID, name: tpl.name, description: tpl.description, is_system_role: true },
         });
       }
-      for (const key of tpl.permissions) {
-        const [module, action] = key.split(':');
-        const perm = await prisma.permission_master.findFirst({ where: { module, action } });
-        if (!perm) continue;
-        const exists = await prisma.role_permission.findFirst({ where: { role_id: role.id, permission_id: perm.id } });
-        if (!exists) await prisma.role_permission.create({ data: { role_id: role.id, permission_id: perm.id } });
-      }
+      await prisma.role_permission.createMany({
+        data: tpl.permissions
+          .map((key) => permId.get(key))
+          .filter((id): id is string => Boolean(id))
+          .map((permission_id) => ({ role_id: role.id, permission_id })),
+        skipDuplicates: true,
+      });
     }
 
     const ownerRole = await prisma.role_master.findFirst({ where: { company_id: TEST_COMPANY_ID, name: ROLE_OWNER } });
     if (ownerRole) {
-      const has = await prisma.user_role.findFirst({ where: { user_id: TEST_USER_ID, role_id: ownerRole.id } });
-      if (!has) await prisma.user_role.create({ data: { user_id: TEST_USER_ID, role_id: ownerRole.id } });
+      await prisma.user_role.createMany({
+        data: [{ user_id: TEST_USER_ID, role_id: ownerRole.id }],
+        skipDuplicates: true,
+      });
     }
   } finally {
     await prisma.$disconnect();
   }
-}, 60_000);
+}

@@ -18,8 +18,11 @@ describe('LedgerService', () => {
 
   it('Ledger posting updates account balance', async () => {
     mockRepo.getBalanceAsOfDate.mockResolvedValue(5000);
-    const balance = await service.getAccountBalance('acc1');
+    const balance = await service.getAccountBalance('comp1', 'acc1');
     expect(balance).toBe(5000);
+    // 2026-09-05: company नीचे तक सच में पहुँचनी चाहिए — पहले यह छन्नी थी ही नहीं,
+    // इसलिए सिर्फ़ account_id जानकर दूसरी कंपनी का बैलेंस पढ़ा जा सकता था
+    expect(mockRepo.getBalanceAsOfDate).toHaveBeenCalledWith('comp1', 'acc1', undefined);
   });
 
   it('Running balance calculation', async () => {

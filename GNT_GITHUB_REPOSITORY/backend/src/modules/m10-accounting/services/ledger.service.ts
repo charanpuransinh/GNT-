@@ -11,12 +11,21 @@ export class LedgerService {
     return this.prisma.ledger.create({ data });
   }
 
-  async getLedgerByAccount(accountId: string, fromDate?: Date, toDate?: Date, partyId?: string): Promise<any[]> {
-    return this.repo.getLedgerEntries(accountId, fromDate, toDate, partyId);
+  async getLedgerByAccount(companyId: string, accountId: string, fromDate?: Date, toDate?: Date, partyId?: string): Promise<any[]> {
+    return this.repo.getLedgerEntries(companyId, accountId, fromDate, toDate, partyId);
   }
 
-  async getAccountBalance(accountId: string, asOfDate?: Date): Promise<number> {
-    return this.repo.getBalanceAsOfDate(accountId, asOfDate);
+  async getAccountBalance(companyId: string, accountId: string, asOfDate?: Date): Promise<number> {
+    return this.repo.getBalanceAsOfDate(companyId, accountId, asOfDate);
+  }
+
+  // ── मालिक का हार्ड रूल (2026-09-05): हर party का ledger/बैलेंस self-contained ──
+  async getPartyLedger(companyId: string, partyId: string, fromDate?: Date, toDate?: Date): Promise<any[]> {
+    return this.repo.getPartyLedger(companyId, partyId, fromDate, toDate);
+  }
+
+  async getPartyBalance(companyId: string, partyId: string, asOfDate?: Date): Promise<number> {
+    return this.repo.getPartyBalance(companyId, partyId, asOfDate);
   }
 
   async getTrialBalance(companyId: string, asOfDate?: Date): Promise<any[]> {
