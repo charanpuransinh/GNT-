@@ -6,6 +6,7 @@
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { SyncEventPublisher } from './sync.events';
+import { SyncService } from '../services/sync.service';
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null
@@ -74,9 +75,28 @@ export class SyncEventSubscriber {
 
   private static async handlePaymentChange(event: any): Promise<void> {
     // If there's a real-time sync config for payments, trigger it
-    console.log(`[M15] Payment change detected: ${event.payload.paymentId}`);
-    // TODO: Check if any active sync config includes PAYMENT entity
-    // If yes, queue a targeted sync job
+    console.log(`[M15] Payment change detected: ${event.payload?.paymentId}`);
+    const tenantId = event.tenantId;
+    if (!tenantId) return;
+
+    const configs = await SyncService.listConfigs(tenantId, { status: 'ACTIVE' });
+    const paymentConfigs = configs.filter(c =>
+      (c.entityConfigs ?? []).some(ec => ec.isActive && ec.internalEntity === 'PAYMENT')
+    );
+
+    for (const config of paymentConfigs) {
+      try {
+        await SyncService.triggerSync(
+          { syncConfigId: config.id, triggeredBy: 'EVENT', entityType: 'PAYMENT' },
+          tenantId
+        );
+      } catch (err: any) {
+        console.error(
+          `[M15] Failed to queue PAYMENT sync for config ${config.configCode}:`,
+          err.message
+        );
+      }
+    }
   }
 
   private static async handleInvoiceChange(event: any): Promise<void> {
