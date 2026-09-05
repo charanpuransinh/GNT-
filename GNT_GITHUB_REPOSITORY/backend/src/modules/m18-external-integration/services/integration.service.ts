@@ -72,11 +72,8 @@ export class IntegrationService {
   }
 
   async findIntegrationByProvider(provider: string): Promise<IntegrationConfig | null> {
-    // Find first active integration matching provider name
-    const { items } = await this.repository.findIntegrations({
-      is_active: true,
-    });
-    return items.find(i => i.provider.toLowerCase() === provider.toLowerCase()) ?? null;
+    // webhook (public, no-tenant) — provider से सीधा, company scope के बिना (secret signature सही prove करेगा)
+    return this.repository.findByProvider(provider);
   }
 
   async updateIntegration(id: string, companyId: string, dto: UpdateIntegrationConfigDto): Promise<IntegrationConfig> {

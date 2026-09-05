@@ -42,6 +42,14 @@ export class IntegrationRepository {
     }) as Promise<IntegrationConfig | null>;
   }
 
+  /** webhook (public, no-tenant) के लिए — provider + secret से पहचान, company scope नहीं */
+  async findByProvider(provider: string): Promise<IntegrationConfig | null> {
+    return this.prisma.integration_config.findFirst({
+      where: { provider, is_active: true },
+      orderBy: { created_at: 'asc' },
+    }) as Promise<IntegrationConfig | null>;
+  }
+
   async findIntegrations(filters: {
     company_id?: string;
     type?: GatewayType;

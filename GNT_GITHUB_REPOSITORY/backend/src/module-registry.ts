@@ -132,7 +132,7 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     load: async () => (await import('./modules/m16-notification')).notificationRoutes },
   { code: 'M17', path: '/api/v1/reports',       mounted: true,
     load: async () => (await import('./modules/m17-reporting')).reportRoutes },
-  { code: 'M18', path: '/api/v1/integrations',  mounted: true,
+  { code: 'M18', path: '/api/v1',  mounted: true,
     load: async () => {
       const [{ createIntegrationRoutes }, { IntegrationController }, { WebhookController },
              { IntegrationService }, { WebhookService }, { IntegrationRepository },
