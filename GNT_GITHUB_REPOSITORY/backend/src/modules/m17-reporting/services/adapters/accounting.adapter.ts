@@ -1,4 +1,5 @@
 import { accountingService } from '@/modules/m10-accounting';
+import { prisma } from '@/common/config/prisma';
 import { IAccountingService } from '../report.internal';
 import {
   AccountingReportData,
@@ -43,9 +44,22 @@ export class AccountingAdapter implements IAccountingService {
     return [];
   }
 
-  async getCashflow(_filters: AccountingReportFilters): Promise<CashflowSummary> {
-    // TODO(#016): facade का getCashflow अभी खाली है (समीक्षक AI का rough)
-    return this.emptyCashflow();
+  async getCashflow(filters: AccountingReportFilters): Promise<CashflowSummary> {
+    if (!filters.companyId) return this.emptyCashflow();
+    const from = filters.dateFrom ? new Date(filters.dateFrom) : new Date(0);
+    const to = filters.dateTo ? new Date(filters.dateTo) : new Date();
+    const entries = await prisma.ledger.findMany({
+      where: { company_id: filters.companyId, transaction_date: { gte: from, lte: to } },
+    });
+    const totalInflow = entries.reduce((s, e) => s + Number(e.credit_amount), 0);
+    const totalOutflow = entries.reduce((s, e) => s + Number(e.debit_amount), 0);
+    return {
+      openingBalance: 0,
+      totalInflow,
+      totalOutflow,
+      netFlow: totalInflow - totalOutflow,
+      closingBalance: totalInflow - totalOutflow,
+    };
   }
 
   async getAgingReport(): Promise<AgingRow[]> {
