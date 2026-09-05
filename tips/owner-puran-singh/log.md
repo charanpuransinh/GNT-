@@ -2275,3 +2275,74 @@ Push theek hua (naya token). Aage aur thos kaam:
 
 Suite ab: 113 files / 533 tests, 0 fail 0 skip, tsc 0.
 Baaki: M21 sales/purchase/accounting/scheme adapters (complex line-item mapping), M17 (PENDING FOR CLAUDE), M15 sync-queue external, M22 subscription (not created), M12 tax-slab (P0-3 owner decision).
+
+---
+
+# 🔍 M14 और M15 की जाँच — 2026-09-05, रात (Claude)
+
+**मालिक का आदेश:** M14/M15 भी check करो। **कोई code नहीं बदला** — सिर्फ़ जाँच, जैसा M12/M16
+वाली बार कहा गया था।
+
+## 🛑 M14 (Import/Export) — गंभीर: पूरा feature end-to-end काम ही नहीं करता
+
+यह इस सत्र की सबसे गंभीर खोज है — code **देखने में** पूरा लगता है (असली CSV/Excel
+parser, validation engine, tenant scoping सब मौजूद), पर **कहीं भी असल में चलता नहीं**:
+
+1. **Import:** `ImportController.upload()` file को multer memory-storage में लेता है,
+   फिर `createImportJob({ fileBuffer: file.buffer, ... })` बुलाता है — पर service की
+   `createImportJob` कभी `fileBuffer` पढ़ती ही नहीं, सिर्फ़ `filePath` (जो हमेशा एक
+   hardcoded default `'uploads/imports/upload'` बन जाता है, हर job के लिए वही)। यानी
+   अपलोड की गई फ़ाइल की असली सामग्री **कहीं save ही नहीं होती**, ग़ायब हो जाती है।
+
+2. `ImportService.processJob()` — वही method जो असल में file पढ़ती, parse करती, हर row
+   validate करती और job को COMPLETED करती है — **किसी भी controller/route से कभी बुलाई
+   ही नहीं जाती**। पूरी तरह dead code, कहीं से पहुँचा ही नहीं जा सकता। `validate` route
+   भी सिर्फ़ मौजूदा status लौटाता है, validation दोबारा नहीं चलाता।
+
+3. **यहाँ तक कि अगर यह method कभी चल भी जाए, तब भी असली import नहीं करती** — कोड में
+   खुद लिखा कमेंट: *"असली entity table में save अगले चरण का काम — अभी validation ही
+   असली काम है"*। यानी `successRows` गिना जाता है, status `'COMPLETED'` लिखा जाता है,
+   पर product/party/कोई भी असली table में एक भी पंक्ति कभी नहीं लिखी जाती। User को
+   दिखेगा "500 rows successfully imported" — असल में कुछ भी import नहीं हुआ।
+
+4. **Export भी वैसे ही टूटा है:** `ExportController.create()` सिर्फ़ एक job-पंक्ति
+   बनाता है (`createExportJob`)। `ExportService.processJob()` — जो असल में file
+   बनाकर `fileUrl` भरती है — **कहीं बुलाई ही नहीं जाती**। नतीजा: `download` हमेशा
+   "File not found" (404) देगा, क्योंकि `fileUrl` कभी भरता ही नहीं।
+
+**यह M12/M16 में मिली गड़बड़ियों से अलग है** — वहाँ असली bugs थे (tenant leak, spoofing)
+पर feature *कुछ तो* करता था। यहाँ पूरा feature सिरे से गैर-कार्यशील है, सिर्फ़ ऐसा दिखता
+है कि काम करता है (झूठी "COMPLETED" स्थिति) — ठीक वही समस्या जो इस पूरे प्रोजेक्ट में
+बार-बार "हरा रंग जो सच नहीं बोलता" कहकर पकड़ी गई है।
+
+**छोटी बातें:** दो PrismaClient module-level singleton (template.service.ts,
+job.service.ts) — कम गंभीर; कुछ मरी हुई duplicate फ़ाइलें (`uploadMiddleware.ts`,
+`middleware/upload.middleware.ts`, `routes/importExport.routes.ts`) जो पिछले
+dead-file-cleanup में छूट गईं, कहीं इस्तेमाल नहीं होतीं।
+
+## M15 (Sync) — ज़्यादातर ईमानदारी से अधूरा, कुछ dead code
+
+M15 का असली sync engine (`sync.service.ts`) M14 जैसा **धोखा नहीं देता** — जहाँ अभी तक
+काम नहीं हुआ, वहाँ साफ़ लिखा है और **खाली/सही डेटा लौटाता है, नक़ली नहीं**:
+- `fetchExternalEntities()` हमेशा `[]` लौटाती है, कमेंट में साफ़: *"external system
+  (Tally/Zoho/etc.) से असली fetch — repo में कोई real external system नहीं। fake data
+  नहीं भेजेंगे, connectionConfig होने पर असली call जोड़ेंगे"।*
+- `fetchInternalEntities()` सिर्फ़ PAYMENT (M11) के लिए असली data देती है; बाक़ी entity
+  types (M05/M06/M07/M08 से) के लिए साफ़ कमेंट है *"Claude की public fetch अभी नहीं"* —
+  यह पहले से "PENDING FOR CLAUDE" जैसी honest note है, छुपाया नहीं गया।
+
+यानी अभी कोई भी असली sync job "0 changes, 0 conflicts" दिखाएगा (सही, क्योंकि कुछ है ही
+नहीं) — M14 जैसे "500 successfully imported" वाला झूठ नहीं।
+
+**दो असली, कम गंभीर बातें:**
+1. **दस से ज़्यादा फ़ाइलें (hr.routes.ts, payment.routes.ts, attendance/employee/
+   salary/receipt controllers+services+repositories) पूरी तरह dead हैं** — M15 का
+   `index.ts` सिर्फ़ `sync.routes.ts` mount करता है, यह सारा M11/M12 का duplicate जैसा
+   कोड कहीं wire ही नहीं है। बड़ी मात्रा में मरा हुआ कोड, confusion का ख़तरा।
+2. तीन जगह module-level `new PrismaClient()` (routes/sync.routes.ts, sync.service.ts,
+   integration.service.ts) — M06/M08 जितना गंभीर नहीं (per-request नहीं), फिर भी साझा
+   singleton होना चाहिए।
+
+tenant-spoofing वाला P0 (जो DeepSeek ने अभी हाल में ठीक किया — commit `500eac5`)
+जाँचा और सही मिला — सभी controllers अब असल में `requireTenant(req).companyId`
+इस्तेमाल करते हैं, कोई header-spoofable रास्ता बचा नहीं मिला।
