@@ -120,6 +120,52 @@ export class SubscriptionService {
     if (features.includes('*')) return true;
     return features.includes(feature);
   }
+
+  // ── Billing ──────────────────────────────────────────────
+
+  /** मौजूदा period का invoice बनाओ — plan की कीमत से (owner-फ़ैसला नहीं, plan में price पहले से है) */
+  async generateInvoice(companyId: string) {
+    const sub = await prisma.companySubscription.findUnique({
+      where: { companyId },
+      include: { plan: true },
+    });
+    if (!sub) throw new Error('No active subscription');
+    if (sub.status !== 'ACTIVE' && sub.status !== 'TRIAL') throw new Error('Subscription not active');
+
+    const now = new Date();
+    const yearly = sub.plan.billingCycle === 'YEARLY';
+    const amount = yearly ? Number(sub.plan.priceYearly) : Number(sub.plan.priceMonthly);
+    const periodStart = sub.endDate && sub.endDate > now ? sub.endDate : now;
+    const periodEnd = new Date(periodStart.getTime() + (yearly ? 365 : 30) * 24 * 60 * 60 * 1000);
+
+    return prisma.subscriptionInvoice.create({
+      data: {
+        companyId,
+        subscriptionId: sub.id,
+        planId: sub.planId,
+        amount,
+        billingCycle: sub.plan.billingCycle,
+        periodStart,
+        periodEnd,
+      },
+    });
+  }
+
+  async listInvoices(companyId: string) {
+    return prisma.subscriptionInvoice.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async markInvoicePaid(invoiceId: string, companyId: string) {
+    const result = await prisma.subscriptionInvoice.updateMany({
+      where: { id: invoiceId, companyId },
+      data: { status: 'PAID' },
+    });
+    if (result.count === 0) throw new Error('Invoice not found');
+    return prisma.subscriptionInvoice.findFirst({ where: { id: invoiceId, companyId } });
+  }
 }
 
 export const subscriptionService = new SubscriptionService();

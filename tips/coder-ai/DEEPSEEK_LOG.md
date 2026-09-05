@@ -780,3 +780,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ✅ 2026-09-06 — M15 getAuthToken (OAuth2 fail-closed) ab tested. Ab tak M11-M22 ki sab own-logic covered (M14 utils/template/job, M15 services, M16 send, M17 report, M18 validateApiKey, M20 error-paths). Suite 126/580. Baaki sirf Claude/owner/external items.
+
+
+## ⛔ 2026-09-06 — M12 tax-slab P0-3 (money/tax, owner confirm chahiye) abhi rukka; M13/M17/M21 Claude ke. Ab M22 billing/invoice bana raha hoon (owner-faisla nahi chahiye).

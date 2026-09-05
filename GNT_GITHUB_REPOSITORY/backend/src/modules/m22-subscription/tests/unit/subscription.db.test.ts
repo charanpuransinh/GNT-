@@ -10,7 +10,7 @@ const COMPANY_ID = '00000000-0000-4000-8000-000000000096';
 
 async function cleanup() {
   await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
-  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST', 'GATE-TEST', 'ALL-TEST', 'TRIAL-TEST'] } } });
+  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST', 'GATE-TEST', 'ALL-TEST', 'TRIAL-TEST', 'INV-TEST'] } } });
 }
 
 describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () => {
@@ -90,5 +90,23 @@ describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () =
     expect(sub.endDate).toBeTruthy();
     // trial active hai to feature bhi milta hai
     expect(await subscriptionService.canAccess(COMPANY_ID, 'gst')).toBe(true);
+  });
+
+  it('billing: invoice generate → list → paid', async () => {
+    const p = await subscriptionService.createPlan({
+      code: 'INV-TEST', name: 'Invoice Plan', priceMonthly: 499, priceYearly: 4999,
+      billingCycle: 'MONTHLY',
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: p.id });
+
+    const inv = await subscriptionService.generateInvoice(COMPANY_ID);
+    expect(inv.amount.toString()).toBe('499');
+    expect(inv.status).toBe('PENDING');
+
+    const list = await subscriptionService.listInvoices(COMPANY_ID);
+    expect(list.some((i) => i.id === inv.id)).toBe(true);
+
+    const paid = await subscriptionService.markInvoicePaid(inv.id, COMPANY_ID);
+    expect(paid!.status).toBe('PAID');
   });
 });
