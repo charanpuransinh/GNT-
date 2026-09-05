@@ -351,26 +351,33 @@ export class SyncService {
   }
 
   private static async fetchInternalEntities(entityType: string, tenantId: string): Promise<any[]> {
-    // PUBLIC API CALL: Query the entity module via its public API
-    // In production, this calls M05 (Inventory), M06 (Customer), M07 (Invoice), etc.
-    // TEMP MOCK: Return mock data
-    return Array.from({ length: 50 }, (_, i) => ({
-      id: `INT-${entityType}-${i + 1}`,
-      name: `${entityType} ${i + 1}`,
-      code: `CODE-${i + 1}`,
-      updatedAt: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString()
-    }));
+    // अपने module (M11 payment) से असली data; बाक़ी (ITEM/CUSTOMER/INVOICE = M05/M06/M07/M08)
+    // Claude की public fetch अभी नहीं — fake data लौटाने की बजाय खाली (ईमानदार)।
+    if (entityType.toUpperCase() === 'PAYMENT') {
+      const txs = await prisma.paymentTransaction.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      });
+      return txs.map((t) => ({
+        id: t.id,
+        name: t.partyName,
+        code: t.transactionNumber,
+        partyId: t.partyId,
+        partyType: t.partyType,
+        amount: Number(t.amount),
+        direction: t.direction,
+        status: t.status,
+        updatedAt: (t.updatedAt ?? t.createdAt).toISOString(),
+      }));
+    }
+    return [];
   }
 
   private static async fetchExternalEntities(config: SyncConfig, entityConfig: any): Promise<any[]> {
-    // Call external system API based on connectionConfig
-    // TEMP MOCK: Return mock data
-    return Array.from({ length: 45 }, (_, i) => ({
-      id: `EXT-${entityConfig.externalEntity}-${i + 1}`,
-      name: `${entityConfig.externalEntity} ${i + 1}`,
-      code: `CODE-${i + 1}`,
-      updatedAt: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString()
-    }));
+    // External system (Tally/Zoho/etc.) से असली fetch — external boundary है, repo में कोई
+    // real external system नहीं। fake data नहीं — connectionConfig होने पर यहाँ real call जोड़ेंगे।
+    return [];
   }
 
   private static async updateSyncState(syncConfigId: string, entityType: string, jobId: string, tenantId: string): Promise<void> {

@@ -69,10 +69,8 @@ export class SyncQueueService {
           data: { status: 'processing' }
         });
 
-        // Simulate processing
-        // Real implementation would call the appropriate sync service
-        await new Promise(resolve => setTimeout(resolve, 100));
-
+        // असली external push तब होगा जब external connection config होगा;
+        // अभी local state transition सही है (fake delay/चालाकी नहीं)।
         await this.prisma.syncQueueItem.update({
           where: { id: item.id },
           data: { status: 'completed', processedAt: new Date() }
