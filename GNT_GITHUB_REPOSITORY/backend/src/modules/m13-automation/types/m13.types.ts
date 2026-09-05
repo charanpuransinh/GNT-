@@ -1,65 +1,111 @@
 // ============================================================================
-// GNT MASTER BLUEPRINT V2 — M13 AUTOMATION MODULE — CORE TYPES
-// Module: M13 | Layer: Types
+// GNT MASTER BLUEPRINT V2 — M13 AUTOMATION — CORE TYPES
+// blueprint §7.13: automation_rule, scheduled_job, job_execution_log
 // ============================================================================
 
-export enum M13TriggerType {
-  EVENT = "EVENT",
-  SCHEDULE = "SCHEDULE",
-  MANUAL = "MANUAL",
+export type AutomationTriggerType = 'EVENT' | 'SCHEDULE' | 'MANUAL';
+
+export type AutomationActionType = 'NOTIFY' | 'WEBHOOK' | 'LOG';
+
+export interface AutomationAction {
+  type: AutomationActionType;
+  config: Record<string, unknown>;
 }
 
-export enum M13ActionType {
-  SEND_EMAIL = "SEND_EMAIL",
-  UPDATE_RECORD = "UPDATE_RECORD",
-  CALL_API = "CALL_API",
-  NOT_SPECIFIED = "NOT_SPECIFIED", // Additional types defined in roadmap v2.1
+export interface AutomationRuleView {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string | null;
+  triggerType: AutomationTriggerType;
+  triggerEvent: string | null;
+  triggerConfig: Record<string, unknown> | null;
+  actions: AutomationAction[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  updatedBy: string;
 }
 
-export enum M13JobStatus {
-  PENDING = "PENDING",
-  RUNNING = "RUNNING",
-  COMPLETED = "COMPLETED",
-  FAILED = "FAILED",
-  RETRYING = "RETRYING",
-  CANCELLED = "CANCELLED",
+export interface CreateAutomationRuleDto {
+  name: string;
+  description?: string;
+  triggerType: AutomationTriggerType;
+  triggerEvent?: string;
+  triggerConfig?: Record<string, unknown>;
+  actions: AutomationAction[];
+  isActive?: boolean;
 }
 
-export enum M13LogLevel {
-  INFO = "INFO",
-  WARN = "WARN",
-  ERROR = "ERROR",
+export interface UpdateAutomationRuleDto {
+  name?: string;
+  description?: string;
+  triggerEvent?: string;
+  triggerConfig?: Record<string, unknown>;
+  actions?: AutomationAction[];
+  isActive?: boolean;
 }
 
-export interface M13TriggerConfig {
-  eventName?: string;
-  cronExpression?: string;
-  // NOT SPECIFIED: Additional trigger config fields per roadmap v2.1
+export interface ScheduledJobView {
+  id: string;
+  tenantId: string;
+  ruleId: string;
+  name: string;
+  cronExpr: string;
+  timezone: string;
+  payload: Record<string, unknown> | null;
+  status: 'ACTIVE' | 'PAUSED';
+  lastRunAt: Date | null;
+  nextRunAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  updatedBy: string;
 }
 
-export interface M13ActionConfig {
-  endpoint?: string;
-  method?: string;
+export interface CreateScheduledJobDto {
+  ruleId: string;
+  name: string;
+  cronExpr: string;
+  timezone?: string;
   payload?: Record<string, unknown>;
-  // NOT SPECIFIED: Additional action config fields per roadmap v2.1
 }
 
-export interface M13WorkflowContext {
-  workflowId: string;
-  jobId: string;
-  payload: Record<string, unknown>;
-  metadata: Record<string, unknown>;
+export interface UpdateScheduledJobDto {
+  name?: string;
+  cronExpr?: string;
+  timezone?: string;
+  payload?: Record<string, unknown> | null;
+  status?: 'ACTIVE' | 'PAUSED';
+  lastRunAt?: Date | null;
+  nextRunAt?: Date | null;
 }
 
-export interface M13JobResult {
-  success: boolean;
-  data?: Record<string, unknown>;
-  error?: string;
+export type ExecutionStatus = 'RUNNING' | 'SUCCESS' | 'FAILED';
+
+export interface JobExecutionLogView {
+  id: string;
+  tenantId: string;
+  ruleId: string | null;
+  jobId: string | null;
+  status: ExecutionStatus;
+  message: string | null;
+  metadata: Record<string, unknown> | null;
+  startedAt: Date;
+  finishedAt: Date | null;
 }
 
-export interface M13EventPayload {
-  eventName: string;
-  sourceModule: string;
-  data: Record<string, unknown>;
-  timestamp: Date;
+export interface ExecutionFilter {
+  page?: number;
+  limit?: number;
+  ruleId?: string;
+  jobId?: string;
+  status?: ExecutionStatus;
+}
+
+export interface TriggerRunResult {
+  executionId: string;
+  ok: boolean;
+  message: string;
 }

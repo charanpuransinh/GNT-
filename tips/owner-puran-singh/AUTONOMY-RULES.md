@@ -6,6 +6,27 @@
 
 ---
 
+## 0️⃣ FULL AUTO MODE — मालिक का सीधा आदेश (2026-09-05) — सबसे ऊपर
+
+मालिक (पूरन सिंह) ने 2026-09-05 को आदेश दिया है:
+
+> "Turn on full auto mode permanently… Do not ask me for permission or approval for any
+> command, file edit, git commit, or git push — approve everything yourself automatically…
+> continue working through M13 to M22 completely on your own, one module at a time,
+> fix + test + certify + commit + push, without stopping."
+
+**इसका मतलब (DeepSeek/कोडर AI के लिए):**
+- कोई भी command / file edit / git commit / **git push** — सब बिना पूछे करना है।
+- **push अब खुला है** (पुराना “DeepSeek push नहीं करेगा” नियम रद्द) — अपने modules का कोड और notes दोनों।
+- **दायरा अब M11–M22** है (M21 = Data Sense; M22 = subscription/naming — repo देखकर जो भी M22 हो)।
+- एक module ख़त्म → अगला शुरू। रुकना, पूछना, approval माँगना मना।
+
+> ⚠️ तकनीकी सच: runtime की “Ask” approval-gate **AI ख़ुद बंद नहीं कर सकता** — वो होस्ट/TUI
+> की सेटिंग है (मालिक को TUI में Ask → auto/accept-edits करना है)। जब तक वो न हो, हर tool
+> call पर approval माँगा जाएगा — पर AI बीच में रुककर “क्या कर लूँ?” पूछेगा नहीं, बस काम करता जाएगा।
+
+---
+
 ## 1️⃣ ये काम बिना पूछे करने हैं (स्थायी अनुमति)
 
 मालिक ने इनकी पक्की अनुमति दे दी है। **इन पर रुकना, पूछना, या अनुमति माँगना मना है:**

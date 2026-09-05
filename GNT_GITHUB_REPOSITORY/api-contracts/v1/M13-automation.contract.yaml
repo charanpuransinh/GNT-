@@ -1,1 +1,393 @@
+openapi: 3.0.3
+info:
+  title: GNT M13 Smart Automation API
+  description: |
+    GARUDA NEXTECH (GNT) — M13 Automation Module API
+    blueprint §7.13: Scheduler, Alerts, Reminders, Notification Center
+    Base path माउंट: /api/v1/automation
+  version: 1.0.0
 
+servers:
+  - url: /api/v1/automation
+    description: M13 Automation Module Base Path
+
+tags:
+  - name: Automation Rule
+    description: Trigger conditions + actions (automation_rule)
+  - name: Schedule
+    description: Job definitions + schedules (scheduled_job)
+  - name: Execution
+    description: Job run history (job_execution_log)
+
+paths:
+  # ─── RULES ───
+  /rules:
+    get:
+      tags: [Automation Rule]
+      summary: List rules (tenant-scoped)
+      operationId: listRules
+      parameters:
+        - name: isActive
+          in: query
+          schema: { type: boolean }
+        - name: triggerType
+          in: query
+          schema: { type: string, enum: [EVENT, SCHEDULE, MANUAL] }
+      responses:
+        '200':
+          description: Rules list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AutomationRule' }
+    post:
+      tags: [Automation Rule]
+      summary: Create rule
+      operationId: createRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAutomationRule' }
+      responses:
+        '201':
+          description: Rule created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/AutomationRule' }
+        '400':
+          description: Validation error
+
+  /rules/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Automation Rule]
+      summary: Get rule
+      operationId: getRule
+      responses:
+        '200':
+          description: Rule
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/AutomationRule' }
+        '404':
+          description: Not found (या दूसरी company का rule — tenant isolation)
+    patch:
+      tags: [Automation Rule]
+      summary: Update rule
+      operationId: updateRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAutomationRule' }
+      responses:
+        '200':
+          description: Updated rule
+        '404':
+          description: Not found
+    delete:
+      tags: [Automation Rule]
+      summary: Delete rule (cascade: schedules + logs)
+      operationId: deleteRule
+      responses:
+        '200':
+          description: Deleted
+        '404':
+          description: Not found
+
+  /rules/{id}/trigger:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Automation Rule]
+      summary: Manually run rule actions
+      operationId: triggerRule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Execution result (success field true/false)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/TriggerResult' }
+
+  # ─── SCHEDULES ───
+  /schedules:
+    get:
+      tags: [Schedule]
+      summary: List schedules (tenant-scoped)
+      operationId: listSchedules
+      parameters:
+        - name: ruleId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, PAUSED] }
+      responses:
+        '200':
+          description: Schedules list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ScheduledJob' }
+    post:
+      tags: [Schedule]
+      summary: Create schedule
+      operationId: createSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSchedule' }
+      responses:
+        '201':
+          description: Schedule created (nextRunAt computed)
+        '400':
+          description: Bad cron/timezone/rule
+
+  /schedules/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [Schedule]
+      summary: Update schedule
+      operationId: updateSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSchedule' }
+      responses:
+        '200':
+          description: Updated
+        '404':
+          description: Not found
+    delete:
+      tags: [Schedule]
+      summary: Delete schedule
+      operationId: deleteSchedule
+      responses:
+        '200':
+          description: Deleted
+        '404':
+          description: Not found
+
+  /schedules/{id}/run:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Schedule]
+      summary: Run this schedule now (deterministic)
+      operationId: runScheduleNow
+      responses:
+        '200':
+          description: Job ran; result in executions
+        '404':
+          description: Not found
+
+  /schedules/{id}/executions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Execution]
+      summary: List executions of a schedule
+      operationId: listJobExecutions
+      responses:
+        '200':
+          description: Execution logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/JobExecutionLog' }
+
+  # ─── EXECUTIONS ───
+  /executions:
+    get:
+      tags: [Execution]
+      summary: List execution logs (tenant-scoped)
+      operationId: listExecutions
+      parameters:
+        - name: ruleId
+          in: query
+          schema: { type: string }
+        - name: jobId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [RUNNING, SUCCESS, FAILED] }
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Execution logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/JobExecutionLog' }
+
+components:
+  schemas:
+    AutomationAction:
+      type: object
+      required: [type, config]
+      properties:
+        type: { type: string, enum: [NOTIFY, WEBHOOK, LOG] }
+        config: { type: object, additionalProperties: true }
+
+    CreateAutomationRule:
+      type: object
+      required: [name, triggerType, actions]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        triggerType: { type: string, enum: [EVENT, SCHEDULE, MANUAL] }
+        triggerEvent: { type: string }
+        triggerConfig: { type: object, additionalProperties: true }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/AutomationAction' }
+        isActive: { type: boolean }
+
+    UpdateAutomationRule:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        triggerEvent: { type: string, nullable: true }
+        triggerConfig: { type: object, nullable: true, additionalProperties: true }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/AutomationAction' }
+        isActive: { type: boolean }
+
+    AutomationRule:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        triggerType: { type: string }
+        triggerEvent: { type: string, nullable: true }
+        triggerConfig: { type: object, nullable: true }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/AutomationAction' }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateSchedule:
+      type: object
+      required: [ruleId, name, cronExpr]
+      properties:
+        ruleId: { type: string }
+        name: { type: string }
+        cronExpr: { type: string }
+        timezone: { type: string }
+        payload: { type: object, additionalProperties: true }
+
+    UpdateSchedule:
+      type: object
+      properties:
+        name: { type: string }
+        cronExpr: { type: string }
+        timezone: { type: string }
+        payload: { type: object, nullable: true, additionalProperties: true }
+        status: { type: string, enum: [ACTIVE, PAUSED] }
+
+    ScheduledJob:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        ruleId: { type: string }
+        name: { type: string }
+        cronExpr: { type: string }
+        timezone: { type: string }
+        payload: { type: object, nullable: true }
+        status: { type: string }
+        lastRunAt: { type: string, format: date-time, nullable: true }
+        nextRunAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    JobExecutionLog:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        ruleId: { type: string, nullable: true }
+        jobId: { type: string, nullable: true }
+        status: { type: string, enum: [RUNNING, SUCCESS, FAILED] }
+        message: { type: string, nullable: true }
+        metadata: { type: object, nullable: true }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+
+    TriggerResult:
+      type: object
+      properties:
+        executionId: { type: string }
+        ok: { type: boolean }
+        message: { type: string }

@@ -1,140 +1,122 @@
 // ============================================================================
-// GNT MASTER BLUEPRINT V2 — M13 AUTOMATION MODULE — SCHEDULER SERVICE
-// Module: M13 | Layer: Service
-// Pattern: Cron-based scheduled job execution
+// M13 — Scheduler Service (job runner)
+//
+// blueprint §7.13: scheduled_job = "Job definitions + schedules"।
+// बाहरी queue-library नहीं — हर 30 सेकंड में due jobs चलते हैं (unref'd timer)।
+// हर run का पूरा हिसाब job_execution_log में जाता है (audit trail)।
 // ============================================================================
 
-import { PrismaClient } from "@prisma/client";
-import { M13_QUEUE_NAMES, M13_JOB_NAMES } from "../queue/queue.names";
-import { getM13Queue } from "../queue/queue.setup";
-import { M13_CONFIG } from "../config/m13.config";
+import { prisma } from '@/common/config/prisma';
+import { AutomationRepository } from '../repositories/automation.repository';
+import { executeRuleActions } from './automation.internal';
+import { nextRunAfter } from '../utils/cron';
+import { AppError } from '@/common/errors/error-classes';
 
-const prisma = new PrismaClient();
+const POLL_INTERVAL_MS = 30_000;
 
-export class SchedulerService {
-  private intervalId: NodeJS.Timeout | null = null;
+class SchedulerService {
+  private timer: NodeJS.Timeout | null = null;
+  private running = false;
 
-  /**
-   * PUBLIC API: Create a schedule for a workflow.
-   */
-  async createSchedule(
-    workflowId: string,
-    cronExpr: string,
-    timezone: string = "UTC"
-  ): Promise<string> {
-    // NOT SPECIFIED: Cron expression validation library v2.1
-    const schedule = await prisma.m13Schedule.create({
-      data: {
-        workflowId,
-        cronExpr,
-        timezone,
-        isActive: true,
-      },
-    });
-
-    return schedule.id;
-  }
-
-  /**
-   * PUBLIC API: Update a schedule.
-   */
-  async updateSchedule(
-    scheduleId: string,
-    updates: { cronExpr?: string; timezone?: string; isActive?: boolean }
-  ): Promise<void> {
-    await prisma.m13Schedule.update({
-      where: { id: scheduleId },
-      data: updates,
-    });
-  }
-
-  /**
-   * PUBLIC API: Delete a schedule.
-   */
-  async deleteSchedule(scheduleId: string): Promise<void> {
-    await prisma.m13Schedule.delete({
-      where: { id: scheduleId },
-    });
-  }
-
-  /**
-   * INTERNAL: Start the scheduler loop.
-   * Called by: M13 module initialization.
-   */
+  /** Module चढ़ते ही चालू — timer unref'd है, process को नहीं रोकेगा */
   startScheduler(): void {
-    if (this.intervalId) {
+    if (this.timer) return;
+    this.timer = setInterval(() => {
+      this.runDueJobsOnce().catch((error) => {
+        console.error('[M13] scheduler loop गिरा:', error);
+      });
+    }, POLL_INTERVAL_MS);
+    this.timer.unref();
+  }
+
+  stopScheduler(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+
+  /** अभी due सारे jobs चलाना (tests भी यही बुलाते हैं — deterministic) */
+  async runDueJobsOnce(now: Date = new Date()): Promise<number> {
+    if (this.running) return 0;
+    this.running = true;
+    try {
+      const repo = new AutomationRepository(prisma);
+      const jobs = await repo.findDueJobs(now);
+      let ran = 0;
+      for (const job of jobs) {
+        try {
+          await this.runJob(job, repo, now);
+          ran++;
+        } catch (error) {
+          // एक job का गिरना दूसरों को नहीं रोकेगा — पर छिपेगा भी नहीं
+          console.error(`[M13] job ${job.id} गिरा:`, error);
+        }
+      }
+      return ran;
+    } finally {
+      this.running = false;
+    }
+  }
+
+  /** tests / admin के लिए: एक ख़ास job को अभी चलाना (tenant की बंदिश साथ) */
+  async runJobNow(jobId: string, tenantId: string): Promise<void> {
+    const repo = new AutomationRepository(prisma);
+    const job = await repo.findJobById(jobId, tenantId);
+    if (!job) throw new AppError('NOT_FOUND', 'Scheduled job not found', 404);
+    await this.runJob(job, repo, new Date());
+  }
+
+  private async runJob(
+    job: {
+      id: string;
+      tenantId: string;
+      ruleId: string;
+      name: string;
+      cronExpr: string;
+      timezone: string;
+      payload: unknown;
+    },
+    repo: AutomationRepository,
+    now: Date,
+  ): Promise<void> {
+    // rule मौजूद और चालू हो — वरना job रोक दो (fail-closed, ख़ामोश नहीं)
+    const rule = await repo.findRuleById(job.ruleId, job.tenantId);
+    if (!rule || !rule.isActive) {
+      await repo.updateJob(job.id, { status: 'PAUSED' }, job.tenantId, 'system');
+      await repo.createLog({
+        tenantId: job.tenantId,
+        ruleId: job.ruleId,
+        jobId: job.id,
+        status: 'FAILED',
+        message: 'Rule मौजूद नहीं या निष्क्रिय है — job रोक दिया गया',
+      });
       return;
     }
 
-    this.intervalId = setInterval(async () => {
-      await this.checkSchedules();
-    }, M13_CONFIG.SCHEDULER_CHECK_INTERVAL_MS);
-  }
+    const payload = {
+      ...((job.payload as Record<string, unknown> | null) ?? {}),
+      jobName: job.name,
+      scheduledAt: now.toISOString(),
+    };
 
-  /**
-   * INTERNAL: Stop the scheduler loop.
-   */
-  stopScheduler(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-  }
-
-  /**
-   * INTERNAL: Check all active schedules and enqueue due jobs.
-   */
-  private async checkSchedules(): Promise<void> {
-    const now = new Date();
-    const schedules = await prisma.m13Schedule.findMany({
-      where: { isActive: true },
+    const log = await repo.createLog({
+      tenantId: job.tenantId,
+      ruleId: rule.id,
+      jobId: job.id,
+      status: 'RUNNING',
+    });
+    const result = await executeRuleActions(rule, job.tenantId, payload);
+    await repo.finishLog(log.id, job.tenantId, {
+      status: result.ok ? 'SUCCESS' : 'FAILED',
+      message: result.message,
+      metadata: { steps: result.steps },
     });
 
-    for (const schedule of schedules) {
-      // NOT SPECIFIED: Proper cron-to-next-run calculation v2.1
-      // Placeholder: Simple time-based check
-      const shouldRun = this.evaluateCron(schedule.cronExpr, now, schedule.timezone);
-
-      if (shouldRun) {
-        await this.enqueueScheduledJob(schedule.id, schedule.workflowId);
-
-        await prisma.m13Schedule.update({
-          where: { id: schedule.id },
-          data: { lastRunAt: now, nextRunAt: this.calculateNextRun(schedule.cronExpr) },
-        });
-      }
-    }
-  }
-
-  /**
-   * INTERNAL: Enqueue a scheduled workflow job.
-   */
-  private async enqueueScheduledJob(scheduleId: string, workflowId: string): Promise<void> {
-    const queue = getM13Queue(M13_QUEUE_NAMES.SCHEDULED);
-    await queue.add(M13_JOB_NAMES.PROCESS_SCHEDULE, {
-      scheduleId,
-      workflowId,
-      triggeredAt: new Date().toISOString(),
-    });
-  }
-
-  /**
-   * NOT SPECIFIED: Cron evaluation logic — placeholder implementation.
-   * Will be replaced with proper cron parser in v2.1.
-   */
-  private evaluateCron(cronExpr: string, now: Date, timezone: string): boolean {
-    // Placeholder: Always return true for demo
-    // NOT SPECIFIED: Real cron evaluation per roadmap v2.1
-    return false;
-  }
-
-  /**
-   * NOT SPECIFIED: Next run calculation — placeholder implementation.
-   */
-  private calculateNextRun(cronExpr: string): Date {
-    const next = new Date();
-    next.setMinutes(next.getMinutes() + 5);
-    return next;
+    await repo.updateJob(job.id, {
+      lastRunAt: now,
+      nextRunAt: nextRunAfter(job.cronExpr, now, job.timezone),
+    }, job.tenantId, 'system');
   }
 }
 

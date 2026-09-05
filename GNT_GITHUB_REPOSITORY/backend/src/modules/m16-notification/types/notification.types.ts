@@ -13,6 +13,7 @@ export type NotificationEntityType =
   | 'stock'
   | 'gst_return'
   | 'employee_salary'
+  | 'automation' // M13 के NOTIFY actions के लिए
   | 'general';
 
 export interface NotificationMaster {

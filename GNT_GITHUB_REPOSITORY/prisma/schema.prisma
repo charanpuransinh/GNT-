@@ -2890,3 +2890,73 @@ model party_master {
   @@map("party_master")
 }
 
+// ============================================================================
+// M13 — SMART AUTOMATION (blueprint §7.13: automation_rule, scheduled_job, job_execution_log)
+// एक ही मालिक: M13. बाक़ी modules public API से ही बात करेंगे — सीधे tables नहीं।
+// ============================================================================
+
+model AutomationRule {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  name         String
+  description  String?
+  triggerType  String   // EVENT | SCHEDULE | MANUAL
+  triggerEvent String?  // EVENT वाले rules के लिए event नाम (जैसे payment.reminder)
+  triggerConfig Json?   // trigger की अपनी सेटिंग
+  actions      Json     // क्रम से actions: [{type: NOTIFY|WEBHOOK|LOG, config}]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    String
+  updatedBy    String
+
+  scheduledJobs ScheduledJob[]
+  executionLogs JobExecutionLog[]
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, triggerType])
+  @@map("m13_automation_rules")
+}
+
+model ScheduledJob {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  ruleId    String
+  rule      AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  name      String
+  cronExpr  String   // 5 fields: minute hour day month weekday
+  timezone  String   @default("UTC")
+  payload   Json?
+  status    String   @default("ACTIVE") // ACTIVE | PAUSED
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String
+  updatedBy String
+
+  executionLogs JobExecutionLog[]
+
+  @@index([tenantId, status])
+  @@index([nextRunAt])
+  @@map("m13_scheduled_jobs")
+}
+
+model JobExecutionLog {
+  id         String    @id @default(cuid())
+  tenantId   String    @map("tenant_id")
+  ruleId     String?
+  rule       AutomationRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  jobId      String?
+  job        ScheduledJob? @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status     String    // RUNNING | SUCCESS | FAILED
+  message    String?
+  metadata   Json?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([tenantId, startedAt])
+  @@index([tenantId, jobId])
+  @@map("m13_job_execution_logs")
+}
+
