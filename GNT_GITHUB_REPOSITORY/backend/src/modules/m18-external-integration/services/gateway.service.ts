@@ -306,7 +306,7 @@ export class GatewayService {
   }
 
   // ─── Signature Validation ───
-  validateWebhookSignature(provider: string, rawBody: string, signature: string, secret: string): boolean {
+  validateWebhookSignature(provider: string, rawBody: string, signature: string, secret: string, fullUrl?: string): boolean {
     const p = provider.toLowerCase();
     if (p.includes('razorpay')) {
       const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
@@ -316,13 +316,22 @@ export class GatewayService {
       return this.validateStripeSignature(rawBody, signature, secret);
     }
     if (p.includes('twilio')) {
-      // Twilio का असली नियम: X-Twilio-Signature = base64(HMAC-SHA1(authToken, fullUrl + sorted POST params))
-      // इसके लिए fullUrl + params चाहिए जो यहाँ उपलब्ध नहीं — इसलिए default-deny (कभी भी जाली webhook स्वीकार नहीं)।
-      // TODO(#018): URL+params देकर असली Twilio validation लगाना।
-      return false;
+      return this.validateTwilioSignature(rawBody, signature, secret, fullUrl);
     }
     // Default: simple HMAC compare (x-webhook-signature वगैरह)
     const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+    return this.safeEqual(expected, signature);
+  }
+
+  private validateTwilioSignature(rawBody: string, signature: string, authToken: string, fullUrl?: string): boolean {
+    // Twilio: X-Twilio-Signature = base64(HMAC-SHA1(authToken, fullUrl + sorted POST params))
+    // fullUrl न मिले तो default-deny (कभी भी जाली webhook स्वीकार नहीं)।
+    if (!fullUrl) return false;
+
+    const params = new URLSearchParams(rawBody);
+    const keys = Array.from(params.keys()).sort();
+    const paramsString = keys.map(k => k + (params.get(k) ?? '')).join('');
+    const expected = crypto.createHmac('sha1', authToken).update(fullUrl + paramsString).digest('base64');
     return this.safeEqual(expected, signature);
   }
 

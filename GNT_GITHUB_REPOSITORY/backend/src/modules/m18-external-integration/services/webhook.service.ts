@@ -56,7 +56,7 @@ export class WebhookService {
       ?? dto.headers['stripe-signature']
       ?? dto.headers['x-webhook-signature']
       ?? '';
-    const isValid = this.gatewayService.validateWebhookSignature(provider, dto.raw_body, signature, cfg.webhook_secret);
+    const isValid = this.gatewayService.validateWebhookSignature(provider, dto.raw_body, signature, cfg.webhook_secret, dto.full_url);
     if (!isValid) {
       throw new AppError('GNT-ERR-1803', 'Webhook signature validation failed', 401);
     }

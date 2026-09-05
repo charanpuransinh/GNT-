@@ -153,6 +153,8 @@ export interface GatewayTestResult {
 export interface ReceiveWebhookDto {
   headers: Record<string, string>;
   raw_body: string;
+  /** पूरा request URL (query params सहित) — Twilio signature validation के लिए ज़रूरी */
+  full_url?: string;
 }
 
 // ─── Status DTOs ───
