@@ -127,6 +127,9 @@ export const routes: ReadonlyArray<AppRoute> = [
   { path: '/trade',                label: 'निर्यात/आयात',   element: pageDefault(() => import('./modules/m20-international-trade/pages/TradeDashboardPage')) },
   { path: '/trade/bill-of-entry',  label: 'बिल ऑफ़ एंट्री',  element: pageDefault(() => import('./modules/m20-international-trade/pages/BillOfEntryPage')) },
 
+  // M22 — Subscription & Billing
+  { path: '/subscriptions',        label: 'प्लान / सब्सक्रिप्शन', element: pageDefault(() => import('./modules/m22-subscription/pages/SubscriptionPricingPage')) },
+
   // M01 — Foundation
   { path: '/maintenance', public: true, element: page(() => import('./modules/m01-foundation/pages/MaintenancePage'), 'MaintenancePage') },
   { path: '/error',       public: true, element: page(() => import('./modules/m01-foundation/pages/ErrorPage'), 'ErrorPage') },
