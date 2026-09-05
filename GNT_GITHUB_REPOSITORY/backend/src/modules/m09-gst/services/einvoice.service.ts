@@ -35,8 +35,11 @@ export class EInvoiceService {
     private readonly irp: IRPProvider,
   ) {}
 
-  async generateIRN(invoiceId: string): Promise<any> {
-    const invoice = await this.repo.getInvoiceData(invoiceId);
+  // पहले companyId कहीं नहीं लिया जाता था — invoiceId/irn सिर्फ़ पता होने भर से
+  // कोई भी company दूसरी company के sales invoice पर असली सरकारी e-invoice/
+  // e-way bill बनवा या cancel कर सकती थी।
+  async generateIRN(invoiceId: string, companyId: string): Promise<any> {
+    const invoice = await this.repo.getInvoiceData(invoiceId, companyId);
     if (!invoice) throw new Error('Sales invoice not found');
     if (!Array.isArray(invoice.items) || invoice.items.length === 0) throw new Error('Sales invoice has no items');
 
@@ -57,24 +60,24 @@ export class EInvoiceService {
     });
   }
 
-  async cancelIRN(irn: string, reason: string): Promise<any> {
+  async cancelIRN(irn: string, reason: string, companyId: string): Promise<any> {
     if (!reason?.trim()) throw new Error('Cancellation reason is required');
-    const existing = await this.repo.findByIRN(irn);
+    const existing = await this.repo.findByIRN(irn, companyId);
     if (!existing) throw new Error('IRN not found');
     if (existing.status === 'cancelled') throw new Error('Already cancelled');
     await this.irp.cancelEInvoice(irn, reason);
-    return this.repo.updateEInvoiceStatus(irn, 'cancelled');
+    return this.repo.updateEInvoiceStatus(irn, companyId, 'cancelled');
   }
 
-  async getStatus(irn: string): Promise<any> {
-    return this.repo.findByIRN(irn);
+  async getStatus(irn: string, companyId: string): Promise<any> {
+    return this.repo.findByIRN(irn, companyId);
   }
 
-  async generateEWayBill(invoiceId: string, transport: TransportDetails): Promise<any> {
+  async generateEWayBill(invoiceId: string, transport: TransportDetails, companyId: string): Promise<any> {
     if (!Number.isFinite(transport?.distance_km) || transport.distance_km <= 0) {
       throw new Error('A positive transport distance is required');
     }
-    const invoice = await this.repo.getInvoiceData(invoiceId);
+    const invoice = await this.repo.getInvoiceData(invoiceId, companyId);
     if (!invoice) throw new Error('Sales invoice not found');
     const result = await this.irp.generateEWayBill(invoice, transport);
     if (!result.ewb_no || !result.ewb_date || !result.valid_upto) {

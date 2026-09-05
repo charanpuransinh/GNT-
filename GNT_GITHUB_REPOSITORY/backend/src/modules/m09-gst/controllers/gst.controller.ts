@@ -2,9 +2,8 @@ import { Request, Response } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { GSTService } from '../services/gst.service';
 import { GSTRepository } from '../repositories/gst.repository';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 
-const prisma = new PrismaClient();
 const gstService = new GSTService(new GSTRepository(prisma));
 
 export const GSTController = {
@@ -29,7 +28,11 @@ export const GSTController = {
 
   async calculateTax(req: Request, res: Response) {
     try {
-      const { items, state_code, company_state_code, company_id } = req.body;
+      // बाक़ी सब जगह की तरह यहाँ भी company_id token से — body से नहीं। पहले यहीं
+      // छूट गया था: कोई भी दूसरी company की tax slab/turnover इस्तेमाल करके अपना
+      // tax calculate करवा सकता था, बस body में उसकी company_id भेजकर।
+      const { items, state_code, company_state_code } = req.body;
+      const company_id = requireTenant(req).companyId;
       const result = await gstService.calculateTax(items, state_code, company_state_code, company_id);
       res.json(result);
     } catch (e: any) {

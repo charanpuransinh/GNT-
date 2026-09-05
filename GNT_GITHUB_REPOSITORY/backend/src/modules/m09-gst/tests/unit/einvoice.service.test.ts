@@ -47,7 +47,7 @@ describe('EInvoiceService', () => {
     });
     mocks.createEInvoice.mockResolvedValue({ id: 'ei1', irn: 'IRN123', status: 'generated', qr_code: 'QR' });
 
-    const result = await service.generateIRN('inv1');
+    const result = await service.generateIRN('inv1', 'c1');
     expect(result.irn).toMatch(/^IRN\d+/);
     expect(result.status).toBe('generated');
     expect(result.qr_code).toBeTruthy();
@@ -57,7 +57,7 @@ describe('EInvoiceService', () => {
     mocks.findByIRN.mockResolvedValue({ irn: 'IRN123', status: 'generated' });
     mocks.updateEInvoiceStatus.mockResolvedValue({ irn: 'IRN123', status: 'cancelled' });
 
-    const result = await service.cancelIRN('IRN123', 'Wrong entry');
+    const result = await service.cancelIRN('IRN123', 'Wrong entry', 'c1');
     expect(result.status).toBe('cancelled');
     expect(mocks.cancelEInvoice).toHaveBeenCalledWith('IRN123', 'Wrong entry');
   });

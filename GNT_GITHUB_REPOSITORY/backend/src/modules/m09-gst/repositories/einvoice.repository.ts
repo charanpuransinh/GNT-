@@ -3,8 +3,12 @@ import { Prisma, PrismaClient } from '@prisma/client';
 export class EInvoiceRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  // ⚠️ पहले company_id की जाँच यहाँ थी ही नहीं — invoiceId सिर्फ़ पता होने भर से
+  // कोई भी company दूसरी company के असली sales invoice पर सरकारी e-invoice (IRN)
+  // या e-way bill बनवा सकती थी। यह सिर्फ़ डेटा-लीक नहीं — IRP (सरकारी पोर्टल) को
+  // असली submission जाती है, ग़लत company के नाम पर। अब company_id अनिवार्य है।
   /** Reads the authoritative M08 sales invoice from the shared PostgreSQL schema. */
-  async getInvoiceData(invoiceId: string): Promise<any | null> {
+  async getInvoiceData(invoiceId: string, companyId: string): Promise<any | null> {
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT
         si.id,
@@ -40,7 +44,7 @@ export class EInvoiceRepository {
           WHERE sii.sales_invoice_id = si.id
         ), '[]'::json) AS items
       FROM sales_invoice si
-      WHERE si.id = ${invoiceId}
+      WHERE si.id = ${invoiceId} AND si.company_id = ${companyId}
       LIMIT 1
     `);
     return rows[0] ?? null;
@@ -52,22 +56,24 @@ export class EInvoiceRepository {
     return this.prisma.e_invoice_record.create({ data });
   }
 
-  async findByIRN(irn: string): Promise<any> {
-    return this.prisma.e_invoice_record.findUnique({ where: { irn } });
+  async findByIRN(irn: string, companyId: string): Promise<any> {
+    return this.prisma.e_invoice_record.findFirst({ where: { irn, company_id: companyId } });
   }
 
-  async updateEInvoiceStatus(irn: string, status: string): Promise<any> {
-    return this.prisma.e_invoice_record.update({
-      where: { irn },
+  async updateEInvoiceStatus(irn: string, companyId: string, status: string): Promise<any> {
+    const { count } = await this.prisma.e_invoice_record.updateMany({
+      where: { irn, company_id: companyId },
       data: { status, updated_at: new Date() },
     });
+    if (count === 0) throw new Error('E-Invoice not found for this company');
+    return this.findByIRN(irn, companyId);
   }
 
   async createEWayBill(data: Prisma.e_way_bill_recordUncheckedCreateInput): Promise<any> {
     return this.prisma.e_way_bill_record.create({ data });
   }
 
-  async findEWayBillByNo(ewbNo: string): Promise<any> {
-    return this.prisma.e_way_bill_record.findUnique({ where: { ewb_no: ewbNo } });
+  async findEWayBillByNo(ewbNo: string, companyId: string): Promise<any> {
+    return this.prisma.e_way_bill_record.findFirst({ where: { ewb_no: ewbNo, company_id: companyId } });
   }
 }

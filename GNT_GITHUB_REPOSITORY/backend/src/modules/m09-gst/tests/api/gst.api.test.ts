@@ -114,4 +114,33 @@ describe.runIf(process.env.TEST_DB === '1')('M09 GST API', () => {
     expect([200, 201]).toContain(res.status);
     expect(res.body.company_id).toBe(TEST_COMPANY_ID);
   });
+
+  it('🔒 /calculate में body की company_id अनदेखी होती है — token वाली company के ही slab लगते हैं', async () => {
+    // पहले यह सीधे body.company_id इस्तेमाल करता था — कोई भी दूसरी company के
+    // tax slab/turnover से अपना tax calculate करवा सकता था।
+    const withOwnHsn = await request(app)
+      .post('/api/v1/gst/calculate')
+      .set('Authorization', mintBearer())
+      .send({
+        items: [{ hsn_code: '1001', taxable_amount: 1000 }],
+        state_code: '27',
+        company_state_code: '27',
+        company_id: DUSRI_COMPANY_ID, // जान-बूझकर छेड़ने की कोशिश
+      });
+    const withDusriHsn = await request(app)
+      .post('/api/v1/gst/calculate')
+      .set('Authorization', mintBearer())
+      .send({
+        items: [{ hsn_code: '9999', taxable_amount: 1000 }],
+        state_code: '27',
+        company_state_code: '27',
+      });
+
+    expect(withOwnHsn.status).toBe(200);
+    // अपना HSN मिला, tax लगा — यानी company_id token से ही ली गई (DUSRI से नहीं)
+    expect(Number(withOwnHsn.body.total_tax_amount)).toBeGreaterThan(0);
+    // DUSRI कंपनी का HSN अपनी company के slabs में मौजूद ही नहीं — फटना चाहिए,
+    // चुपचाप DUSRI का slab इस्तेमाल नहीं होना चाहिए
+    expect(withDusriHsn.status).toBe(400);
+  });
 });
