@@ -92,6 +92,20 @@ export class SubscriptionService {
   }
 
   /**
+   * Trial शुरू करो — blueprint (myBillBook-style) 7-दिन trial। status=TRIAL + endDate auto।
+   */
+  async startTrial(companyId: string, planId: string, trialDays = 7) {
+    const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
+    if (!plan) throw new Error('Plan not found');
+    const endDate = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+    return prisma.companySubscription.upsert({
+      where: { companyId },
+      create: { companyId, planId, status: 'TRIAL', endDate, autoRenew: false },
+      update: { planId, status: 'TRIAL', endDate, autoRenew: false, updatedAt: new Date() },
+    });
+  }
+
+  /**
    * Feature gate: कंपनी के ACTIVE plan में यह feature है या नहीं।
    * `features: ['*']` = सब कुछ खुला। EXPIRED/CANCELLED पर false।
    */

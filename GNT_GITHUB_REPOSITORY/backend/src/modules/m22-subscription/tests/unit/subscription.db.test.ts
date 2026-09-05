@@ -10,7 +10,7 @@ const COMPANY_ID = '00000000-0000-4000-8000-000000000096';
 
 async function cleanup() {
   await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
-  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST', 'GATE-TEST', 'ALL-TEST'] } } });
+  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST', 'GATE-TEST', 'ALL-TEST', 'TRIAL-TEST'] } } });
 }
 
 describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () => {
@@ -77,5 +77,18 @@ describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () =
     await subscriptionService.subscribe(COMPANY_ID, { planId: p.id });
 
     expect(await subscriptionService.canAccess(COMPANY_ID, 'anything')).toBe(true);
+  });
+
+  it('trial shuru hota hai — status TRIAL + endDate ~7 din + feature access', async () => {
+    const p = await subscriptionService.createPlan({
+      code: 'TRIAL-TEST', name: 'Trial Plan', priceMonthly: 299, priceYearly: 2999,
+      features: ['gst'],
+    });
+    const sub = await subscriptionService.startTrial(COMPANY_ID, p.id);
+
+    expect(sub.status).toBe('TRIAL');
+    expect(sub.endDate).toBeTruthy();
+    // trial active hai to feature bhi milta hai
+    expect(await subscriptionService.canAccess(COMPANY_ID, 'gst')).toBe(true);
   });
 });
