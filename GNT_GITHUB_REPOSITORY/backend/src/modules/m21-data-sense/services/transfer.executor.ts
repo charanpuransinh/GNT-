@@ -10,8 +10,11 @@
 
 import { partyService } from '@/modules/m05-party-management';
 import { ProductService } from '@/modules/m06-inventory';
+import { TradeService } from '@/modules/m20-international-trade';
 import type { CreatePartyDTO } from '@/modules/m05-party-management';
 import type { ProductDTO } from '@/modules/m06-inventory';
+import { prisma } from '@/common/config/prisma';
+import { EventBus } from '@/shared/events/event-bus';
 import type { TransferPlanItem } from '../types/dataSense.types';
 
 export interface TransferRowResult {
@@ -72,6 +75,34 @@ function mapProduct(companyId: string, payload: Record<string, unknown>): Produc
   };
 }
 
+// export (M20) के लिए party — buyer नाम से ढूँढो, न मिले तो बनाओ
+async function resolvePartyId(companyId: string, buyerName: string | undefined, userId?: string): Promise<string> {
+  const name = buyerName?.trim();
+  if (name) {
+    const existing = (await partyService.listParties(companyId, { search: name, limit: 1 }) as any)?.data?.[0];
+    if (existing?.id) return existing.id;
+  }
+  const party = await partyService.createParty(
+    companyId,
+    mapParty({ name: name || 'बिना-नाम', partyType: 'customer' }),
+    userId,
+  );
+  return party.id;
+}
+
+// export (M20) के लिए product — नाम/hsn से ढूँढो, न मिले तो बनाओ
+async function resolveProductId(companyId: string, productName: string | undefined, hsn: string | undefined): Promise<string> {
+  const search = productName?.trim() || hsn?.trim();
+  if (search) {
+    const found = await productService.searchProducts(search, companyId);
+    if (found?.[0]?.id) return found[0].id;
+  }
+  const product = await productService.createProduct(
+    mapProduct(companyId, { name: search || 'बिना-नाम', hsn }),
+  );
+  return product.id;
+}
+
 export async function executeTransfer(
   companyId: string,
   plan: TransferPlanItem[],
@@ -105,6 +136,24 @@ export async function executeTransfer(
           const product = await productService.createProduct(mapProduct(companyId, item.payload));
           summary.created++;
           rows.push({ ...base, status: 'created', id: product.id });
+          break;
+        }
+        case 'm20-international-trade': {
+          const partyId = await resolvePartyId(companyId, str(item.payload.buyerName), userId);
+          const productId = await resolveProductId(companyId, str(item.payload.productName), str(item.payload.hsn));
+          const tradeService = new TradeService(prisma, new EventBus());
+          const shipment = await tradeService.createExportShipment({
+            company_id: companyId,
+            reference_no: str(item.payload.invoiceNo) ?? `EXP-${Date.now()}`,
+            party_id: partyId,
+            product_id: productId,
+            hsn_code: str(item.payload.hsn) ?? '',
+            quantity: num(item.payload.quantity) ?? 1,
+            currency: str(item.payload.currency) ?? 'INR',
+            value_fob: num(item.payload.fobValue),
+          });
+          summary.created++;
+          rows.push({ ...base, status: 'created', id: (shipment as any).id });
           break;
         }
         default: {

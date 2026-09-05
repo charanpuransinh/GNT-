@@ -96,6 +96,8 @@ export const GROUP_SPECS: Readonly<Record<DataGroup, GroupSpec>> = {
       fobValue: ['fobvalue', 'fob', 'exportvalue', 'invoicevalue'],
       hsn: ['hsn', 'hsncode', 'tariffcode', 'itchscode'],
       portCode: ['port', 'portcode', 'portofloading'],
+      quantity: ['quantity', 'qty', 'units', 'pieces', 'noofunits'],
+      productName: ['product', 'productname', 'item', 'itemname', 'goods', 'description'],
     },
   },
   scheme: {
