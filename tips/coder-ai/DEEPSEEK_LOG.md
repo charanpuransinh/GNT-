@@ -697,3 +697,14 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 **Claude handover के लिए:** M11 अब CERTIFIED है → Claude test + wiring कर सकता है।
 **अभी CERTIFIED नहीं:** M12 (सिर्फ़ 3 tests) · M21 (transfer partial) · M16 (WhatsApp send e2e नहीं)।
+
+
+## 💬 नियम (2026-09-05, मालिक) — रुको/idle हो तो तुरंत status update दो
+
+जब भी काम करते-करते **रुको या idle दिखो** (किसी भी वजह से — permission wait, सोचने का समय,
+या कुछ और), **तुरंत एक छोटा status update दो** — जैसे:
+
+> "अभी तक ये-ये काम हो गया है, ये चल रहा है।"
+
+मालिक को स्क्रीन खोलते ही पता चलना चाहिए: **क्या-क्या complete हुआ · अभी क्या चल रहा है ·
+अगर रुके हो तो किस वजह से।** ख़ाली/idle screen बिना update के मत छोड़ो।
