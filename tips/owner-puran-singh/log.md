@@ -1739,3 +1739,50 @@ DB में हमेशा token वाला असली user ही दर�
 असली DB पर नए tests से साबित: e-invoice route अब 404 नहीं देता; दूसरी company
 के invoice पर generate करने की कोशिश "not found" पर रुकती है, कोई record नहीं
 बनता; calculate में body की company_id/HSN का असर नहीं पड़ता।
+
+---
+
+# 🔔 CERTIFIED — M10 Accounting — 2026-09-05, दोपहर 1:29 — **M01–M10 पूरे हुए**
+
+**status:** ✅ CERTIFIED - PRODUCTION READY
+**tests:** 45/45 (real DB, TEST_DB=1), typecheck साफ़
+**समय:** 2026-09-05 दोपहर 1:29
+
+🛑 **दो P0 मिले और ठीक किए:**
+
+1. **पूरा Bank Reconciliation (BRS) feature किसी request तक पहुँचता ही नहीं
+   था** — controller पूरा लिखा था, कभी route से जुड़ा ही नहीं। चार routes जोड़े।
+
+2. **company की सीमा कहीं थी ही नहीं** — createBRS का company_id सीधे body से
+   आता था (इसी फ़ाइल की बाक़ी हर जगह — accounts, ledger, trial-balance — यह
+   पहले ही ठीक था, सिर्फ़ BRS छूटा था); bank_account_id भी बिना जाँचे किसी भी
+   company के account से लिया जा सकता था; matchItem/getStatus सिर्फ़ id पर
+   चलते थे। सभी जगह अब companyId अनिवार्य और जाँचा जाता है।
+
+साथ में दो controller + एक routes फ़ाइल का DB-connection-leak ठीक किया, मरी
+हुई models/accounting.model.ts हटाई, तीन बेवजह `as any` भी हटाए।
+
+---
+
+## 📋 सार — M01 से M10 तक, इस सत्र में जो मिला और ठीक हुआ
+
+| Module | मुख्य P0 |
+|---|---|
+| M01 | पिछले सत्र में CERTIFIED हुआ था |
+| M02 | JWT keys इस server पर सिरे से नहीं थीं + auth_hardening migration कभी लगी नहीं थी |
+| M03 | कोई असली बग नहीं मिली — पहले से साफ़ था |
+| M04 | POST /company/users हमेशा फटता था (username/password/role_ids कभी लेता ही नहीं था) |
+| M05 | party_ledger_view migration कभी लगी नहीं थी — getOutstanding हमेशा 0 |
+| M06 | हर file अपना अलग PrismaClient बनाती थी — production में connection pool ख़त्म होकर database अटक जाता |
+| M07 | audit trail (created_by/approved_by/posted_by) body/header से spoof हो सकता था — 5 जगह |
+| M08 | तेनंट company_id body से (challan) + audit trail header से spoof (approve/post) |
+| M09 | पूरा e-invoice/e-way-bill feature mount ही नहीं था + दो cross-tenant छेद (सरकारी IRP तक असर) |
+| M10 | पूरा BRS feature mount ही नहीं था + company की सीमा कहीं नहीं थी |
+
+**हर एक की पुष्टि असली DB पर नए/पुराने tests से हुई, कोई भी module ख़ुद
+"LOCKED" घोषित नहीं किया गया (वह फ़ैसला सिर्फ़ मालिक का, P0-2)। पूरा M01–M10
+एक साथ चलाकर देखा: 338/338 tests हरे, typecheck में M01–M10 का एक भी error
+नहीं (बचे 75 errors पूरी तरह M13-automation में हैं, DeepSeek का हिस्सा, नहीं
+छुआ)।**
+
+M01–M10 का काम यहीं पूरा हुआ। आगे कोई नया निर्देश न हो तो यह सत्र यहीं रुकता है।
