@@ -59,7 +59,12 @@ export class CompanyRepository {
 
   async findRoleById(id: string) { return this.prisma.role_master.findUnique({ where: { id } }); }
 
-  async updateRolePermissions(roleId: string, permissions: string[]) {
+  // service पहले ही role.company_id जाँच लेती है, पर यहाँ भी company_id को WHERE में
+  // रखा है (M02 के role.repository जैसा) — ताकि आगे कोई caller जाँच भूले तो भी
+  // दूसरी company की भूमिका बदल न जाए।
+  async updateRolePermissions(roleId: string, companyId: string, permissions: string[]) {
+    const role = await this.prisma.role_master.findFirst({ where: { id: roleId, company_id: companyId } });
+    if (!role) return null;
     return this.prisma.role_master.update({
       where: { id: roleId },
       data: {
@@ -76,6 +81,10 @@ export class CompanyRepository {
   }
 
   async findUserById(id: string) { return this.prisma.user_master.findUnique({ where: { id } }); }
+
+  async findUserByUsername(companyId: string, username: string) {
+    return this.prisma.user_master.findFirst({ where: { company_id: companyId, username } });
+  }
 
   // पहले: `createUser(data: any)` और service `{ ...data, companyId }` भेजती थी — schema में
   // field `company_id` है। वही `updatedAt` वाली गड़बड़ी, दूसरी जगह। अब नाम साफ़ मैप होते हैं।
@@ -99,7 +108,26 @@ export class CompanyRepository {
     });
   }
 
-  async toggleUserStatus(id: string, isActive: boolean) {
-    return this.prisma.user_master.update({ where: { id }, data: { is_active: isActive } });
+  // caller (service) पहले़ verifyRolesBelongToCompany से जाँच चुका है — यहाँ सिर्फ़ लिखना है।
+  async findRoleIdsInCompany(companyId: string, roleIds: string[]) {
+    const rows = await this.prisma.role_master.findMany({
+      where: { id: { in: roleIds }, company_id: companyId },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
+  async assignRoles(userId: string, roleIds: string[]) {
+    return this.prisma.user_role.createMany({
+      data: roleIds.map((roleId) => ({ user_id: userId, role_id: roleId })),
+    });
+  }
+
+  async toggleUserStatus(id: string, companyId: string, isActive: boolean) {
+    const { count } = await this.prisma.user_master.updateMany({
+      where: { id, company_id: companyId },
+      data: { is_active: isActive },
+    });
+    return count > 0;
   }
 }

@@ -11,4 +11,15 @@ export const financialYearSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), prefix: z.string().max(10),
 });
 export const rolePermissionsSchema = z.object({ permissions: z.array(z.string().uuid()) });
-export const userCreateSchema = z.object({ name: z.string().min(1).max(100), email: z.string().email(), roleId: z.string().uuid() });
+// पहले सिर्फ़ { name, email, roleId } जाँचता था — असली contract
+// (api-contracts/v1/M04-company.contract.yaml — UserCreate) माँगता है
+// username + password + role_ids भी। इनके बिना user_master बन ही नहीं सकता
+// (दोनों कॉलम NOT NULL हैं) — यानी POST /company/users हमेशा फटता था।
+export const userCreateSchema = z.object({
+  username: z.string().min(3).max(50),
+  password: z.string().min(8).max(100),
+  name: z.string().min(1).max(100),
+  email: z.string().email(),
+  phone: z.string().max(20).optional(),
+  role_ids: z.array(z.string().uuid()).optional().default([]),
+});

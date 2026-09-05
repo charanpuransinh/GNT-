@@ -66,7 +66,14 @@ export class CompanyController {
   }
 
   async createUser(req: Request, res: Response, next: NextFunction) {
-    try { const u = await this.companyService.createUser(requireTenant(req).companyId, req.body); res.status(201).json({ success: true, data: u }); }
+    try {
+      // contract भेजता है snake_case `role_ids` — service camelCase `roleIds` चाहती है
+      const { username, password, name, email, role_ids } = req.body;
+      const u = await this.companyService.createUser(requireTenant(req).companyId, {
+        username, password, name, email, roleIds: role_ids,
+      });
+      res.status(201).json({ success: true, data: u });
+    }
     catch(err){ next(err); }
   }
 

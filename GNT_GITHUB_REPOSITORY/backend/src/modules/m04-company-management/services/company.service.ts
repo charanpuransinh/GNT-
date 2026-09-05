@@ -5,14 +5,16 @@ import { EventBus } from "../../../common/events/event-bus";
 import { AuditLogger } from "../../../common/logging/audit-logger";
 import { Prisma } from "@prisma/client";
 import { AppError } from "../../../common/errors/error-classes";
+import { authInternal } from "@/modules/m02-core-architecture/services/auth.internal";
 
 /** company के अंदर नया user बनाने के लिए ज़रूरी जानकारी (पहले यह `any` थी) */
 export interface CreateCompanyUserInput {
   name: string;
   email: string;
   username: string;
-  passwordHash: string;
+  password: string;
   branchId?: string | null;
+  roleIds?: string[];
 }
 
 export class CompanyService {
@@ -63,14 +65,44 @@ export class CompanyService {
   async updateRolePermissions(roleId: string, companyId: string, permissions: string[]) {
     const role = await this.companyRepo.findRoleById(roleId);
     if (!role || role.company_id !== companyId) throw new AppError("GNT-ERR-0401", "Role not found", 404);
-    await this.companyRepo.updateRolePermissions(roleId, permissions);
+    await this.companyRepo.updateRolePermissions(roleId, companyId, permissions);
     this.audit.log({ action: "ROLE_PERMISSIONS_UPDATED", target: roleId });
   }
 
   async getUsers(companyId: string) { return this.companyRepo.findUsers(companyId); }
 
+  // पहले: कोई `username`/`password` लेता ही नहीं था (contract माँगता है), सीधे
+  // `passwordHash` की उम्मीद करता था जो कभी कोई caller भेजता ही नहीं — user_master
+  // के दो NOT NULL कॉलम (username, password_hash) ख़ाली जाते और create हमेशा फटता।
+  // और `roleId`/`role_ids` कहीं इस्तेमाल नहीं होता था — user बिना किसी भूमिका के बनता।
   async createUser(companyId: string, data: CreateCompanyUserInput) {
-    const user = await this.companyRepo.createUser({ ...data, companyId });
+    const existing = await this.companyRepo.findUserByUsername(companyId, data.username);
+    if (existing) throw new AppError("GNT-ERR-0404", "Username already exists", 409);
+
+    // role_ids पहले जाँच लो, user बनाने के बाद नहीं — वरना ग़लत role_id पर user बन
+    // चुका होता (बिना किसी भूमिका के orphan account) और सिर्फ़ error लौटता।
+    let validRoleIds: string[] = [];
+    if (data.roleIds?.length) {
+      validRoleIds = await this.companyRepo.findRoleIdsInCompany(companyId, data.roleIds);
+      if (validRoleIds.length !== data.roleIds.length) {
+        throw new AppError("GNT-ERR-0401", "One or more role_ids do not belong to this company", 400);
+      }
+    }
+
+    const passwordHash = await authInternal.hashPassword(data.password);
+    const user = await this.companyRepo.createUser({
+      companyId,
+      name: data.name,
+      email: data.email,
+      username: data.username,
+      passwordHash,
+      branchId: data.branchId,
+    });
+
+    if (validRoleIds.length) {
+      await this.companyRepo.assignRoles(user.id, validRoleIds);
+    }
+
     this.eventBus.publish("company.user.created", { userId: user.id, companyId });
     this.audit.log({ action: "USER_CREATED", target: user.id });
     return user;
@@ -79,7 +111,7 @@ export class CompanyService {
   async toggleUserStatus(userId: string, companyId: string) {
     const user = await this.companyRepo.findUserById(userId);
     if (!user || user.company_id !== companyId) throw new AppError("GNT-ERR-0402", "User not found", 404);
-    await this.companyRepo.toggleUserStatus(userId, !user.is_active);
+    await this.companyRepo.toggleUserStatus(userId, companyId, !user.is_active);
     this.audit.log({ action: "USER_STATUS_TOGGLED", target: userId });
   }
 }

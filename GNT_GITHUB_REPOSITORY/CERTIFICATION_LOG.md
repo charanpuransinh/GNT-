@@ -8,7 +8,7 @@ Each module is certified only after: (1) errors fixed, (2) blueprint/contract ru
 | M01 Foundation | CERTIFIED - PRODUCTION READY | 2026-09-05 | 31 passed / 0 failed / 7 skipped (DB-gated); typecheck clean; routes match contract |
 | M02 Core Architecture | CERTIFIED - PRODUCTION READY | 2026-09-05 | 102 passed / 0 failed / 0 skipped (real DB, TEST_DB=1); typecheck clean |
 | M03 Device Platform | CERTIFIED - PRODUCTION READY | 2026-09-05 | 23 passed / 0 failed / 0 skipped; typecheck clean; mount path + permission catalog verified; session/device ownership checks confirmed tenant-safe |
-| M04 Company Management | pending | — | — |
+| M04 Company Management | CERTIFIED - PRODUCTION READY | 2026-09-05 | 12 passed / 0 failed / 0 skipped (real DB, TEST_DB=1); typecheck clean; P0 in POST /company/users fixed |
 | M05 Party Management | pending | — | — |
 | M06 Inventory | pending | — | — |
 | M07 Purchase | pending | — | — |
