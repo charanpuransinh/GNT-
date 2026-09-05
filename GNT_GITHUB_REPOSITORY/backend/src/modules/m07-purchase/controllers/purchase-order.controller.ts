@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
-import { requireTenant } from '@/common/middleware/require-tenant';
+import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { PurchaseOrderService } from '../services/po.service';
 import { createPurchaseOrderSchema, updatePurchaseOrderSchema, purchaseOrderQuerySchema } from '../validators/purchase.schema';
 
 export class PurchaseOrderController {
   constructor(private readonly service: PurchaseOrderService) {}
 
+  // created_by कभी body से नहीं — असली पहचान token से (नीचे convert जैसा ही कारण)
   create = async (req: Request, res: Response) => {
-    try { const data = createPurchaseOrderSchema.parse(req.body); const company_id = requireTenant(req).companyId; res.status(201).json({ success: true, data: await this.service.createPO({ ...data, company_id }) }); }
+    try { const data = createPurchaseOrderSchema.parse(req.body); const company_id = requireTenant(req).companyId; res.status(201).json({ success: true, data: await this.service.createPO({ ...data, company_id, created_by: requireUser(req).id }) }); }
     catch (e: any) { res.status(400).json({ success: false, message: e.message }); }
   };
 
@@ -41,8 +42,11 @@ export class PurchaseOrderController {
     catch (e: any) { res.status(400).json({ success: false, message: e.message }); }
   };
 
+  // पहले: userId `req.body.user_id` से भी लिया जाता था — कोई भी login किया हुआ user
+  // किसी और के नाम पर invoice का created_by लिखवा सकता था (audit trail झूठा)।
+  // असली पहचान सिर्फ़ token से आती है, body से कभी नहीं।
   convert = async (req: Request, res: Response) => {
-    try { const company_id = String(requireTenant(req).companyId || ''); const userId = String(req.body.user_id || req.user?.id || ''); if (!company_id || !userId) throw new Error('Company and user context are required'); res.json({ success: true, data: await this.service.convertPOToInvoice(String(req.params.id), company_id, userId) }); }
+    try { const company_id = String(requireTenant(req).companyId || ''); const userId = requireUser(req).id; if (!company_id) throw new Error('Company context is required'); res.json({ success: true, data: await this.service.convertPOToInvoice(String(req.params.id), company_id, userId) }); }
     catch (e: any) { res.status(400).json({ success: false, message: e.message }); }
   };
 }

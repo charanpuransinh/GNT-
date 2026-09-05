@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Request, Response } from 'express';
-import { requireTenant } from '@/common/middleware/require-tenant';
+import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { PurchaseService } from '../services/purchase.service';
 import {
   createPurchaseInvoiceSchema,
@@ -22,7 +22,9 @@ export class PurchaseController {
     try {
       const validated = createPurchaseInvoiceSchema.parse(req.body);
       const company_id = requireTenant(req).companyId;
-      const invoice = await this.purchaseService.createPurchaseInvoice({ ...validated, company_id });
+      // created_by कभी body से नहीं — schema उसे स्वीकार करती है (पुराने callers के लिए),
+      // पर असली पहचान हमेशा token से ओवरराइट होती है, वरना कोई और के नाम पर बना सकता था।
+      const invoice = await this.purchaseService.createPurchaseInvoice({ ...validated, company_id, created_by: requireUser(req).id });
       res.status(201).json({ success: true, data: invoice });
     } catch (error: any) {
       res.status(400).json({ success: false, message: error.message || 'Validation failed' });
@@ -79,7 +81,9 @@ export class PurchaseController {
     try {
       const id = String(req.params.id);
       const company_id = requireTenant(req).companyId;
-      const approved_by = req.body.approved_by || req.user?.id;
+      // approved_by/posted_by कभी body से नहीं — वरना कोई भी किसी और के नाम पर approve/post
+      // करवा सकता था (audit trail झूठा)। असली पहचान सिर्फ़ token से।
+      const approved_by = requireUser(req).id;
       const result = await this.purchaseService.approvePurchaseInvoice(id, company_id, approved_by);
       res.status(200).json(result);
     } catch (error: any) {
@@ -91,7 +95,7 @@ export class PurchaseController {
     try {
       const id = String(req.params.id);
       const company_id = requireTenant(req).companyId;
-      const posted_by = req.body.posted_by || req.user?.id;
+      const posted_by = requireUser(req).id;
       const result = await this.purchaseService.postPurchaseInvoice(id, company_id, posted_by);
       res.status(200).json(result);
     } catch (error: any) {
@@ -190,8 +194,7 @@ export class PurchaseController {
     try {
       const id = String(req.params.id);
       const company_id = requireTenant(req).companyId;
-      const posted_by = req.body.posted_by || req.user?.id;
-      if (!posted_by) throw new Error('Posted-by user is required');
+      const posted_by = requireUser(req).id;
       const result = await this.purchaseService.postPurchaseReturn(id, company_id, posted_by);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {

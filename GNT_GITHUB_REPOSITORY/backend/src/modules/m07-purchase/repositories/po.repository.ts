@@ -2,7 +2,7 @@
 // M07 PURCHASE MANAGEMENT — Purchase Order Repository (INTERNAL)
 // ============================================================================
 
-import { PrismaClient, purchase_order, purchase_order_item, Prisma } from '@prisma/client';
+import { PrismaClient, purchase_order, purchase_order_item, Prisma, GRNStatus } from '@prisma/client';
 import { CreatePurchaseOrderDTO, UpdatePurchaseOrderDTO, PurchaseOrderQueryDTO } from '../types/purchase.types';
 
 export class PurchaseOrderRepository {
@@ -144,12 +144,7 @@ export class PurchaseOrderRepository {
     });
   }
 
-  async createGRN(data: { company_id: string; purchase_order_id: string; grn_number?: string; grn_date: Date; received_by?: string; status: string }) {
-    return this.prisma.grn.create({
-      data: {
-        ...data,
-        status: data.status as any,
-      },
-    });
+  async createGRN(data: { company_id: string; purchase_order_id: string; grn_number?: string; grn_date: Date; received_by?: string; status: GRNStatus }) {
+    return this.prisma.grn.create({ data });
   }
 }

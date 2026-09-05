@@ -201,7 +201,7 @@ export interface CreatePurchaseReturnDTO {
   return_date: Date | string;
   reason?: string;
   items: PurchaseReturnItemDTO[];
-  created_by?: string;
+  // created_by जान-बूझकर नहीं — purchase_return टेबल में यह column है ही नहीं
 }
 
 export interface PurchaseReturnResponseDTO {

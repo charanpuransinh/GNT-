@@ -57,7 +57,8 @@ export const createPurchaseInvoiceSchema = z.object({
   notes: z.string().optional(),
   round_off: z.number().optional(),
   items: z.array(purchaseInvoiceItemSchema).min(1, { message: 'At least one item is required' }),
-  created_by: z.string().uuid().optional(),
+  // created_by यहाँ जान-बूझकर नहीं — controller हमेशा token वाले user id से भरता है
+  // (पहले client अपनी मर्ज़ी का UUID भेज सकता था, audit trail झूठा बन सकता था)
 });
 
 export const updatePurchaseInvoiceSchema = z.object({
@@ -81,7 +82,7 @@ export const createPurchaseOrderSchema = z.object({
   notes: z.string().optional(),
   terms_conditions: z.string().optional(),
   items: z.array(purchaseOrderItemSchema).min(1, { message: 'At least one item is required' }),
-  created_by: z.string().uuid().optional(),
+  // created_by यहाँ जान-बूझकर नहीं — controller हमेशा token वाले user id से भरता है
 });
 
 export const updatePurchaseOrderSchema = z.object({
@@ -102,7 +103,10 @@ export const createPurchaseReturnSchema = z.object({
   return_date: z.coerce.date(),
   reason: z.string().optional(),
   items: z.array(purchaseReturnItemSchema).min(1, { message: 'At least one item is required' }),
-  created_by: z.string().uuid().optional(),
+  // created_by यहाँ कभी नहीं था और कभी नहीं होगा — purchase_return टेबल में यह column
+  // है ही नहीं (schema.prisma जाँच लिया)। पहले यह ज़ोन-बूझकर स्वीकार होता था और आगे
+  // Prisma तक पहुँचता — जिसने भी असल में भेजा होता, create वहीं "Unknown argument
+  // `created_by`" पर फटता।
 });
 
 export const ocrUploadSchema = z.object({

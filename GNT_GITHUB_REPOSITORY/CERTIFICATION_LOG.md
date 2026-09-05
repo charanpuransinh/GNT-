@@ -11,7 +11,7 @@ Each module is certified only after: (1) errors fixed, (2) blueprint/contract ru
 | M04 Company Management | CERTIFIED - PRODUCTION READY | 2026-09-05 | 12 passed / 0 failed / 0 skipped (real DB, TEST_DB=1); typecheck clean; P0 in POST /company/users fixed |
 | M05 Party Management | CERTIFIED - PRODUCTION READY | 2026-09-05 | 23 passed / 0 failed / 0 skipped (real DB, TEST_DB=1); typecheck clean; party_ledger_view applied, getOutstanding wired to real balance |
 | M06 Inventory | CERTIFIED - PRODUCTION READY | 2026-09-05 | 42 passed / 0 failed / 0 skipped (real DB, TEST_DB=1); typecheck clean; DB-connection-leak P0 fixed (7 stray `new PrismaClient()`, 3 per-call inside stock.internal.ts) |
-| M07 Purchase | pending | — | — |
+| M07 Purchase | CERTIFIED - PRODUCTION READY | 2026-09-05 | 8 passed / 0 failed / 0 skipped (real DB, TEST_DB=1); typecheck clean; audit-identity spoofing P0 fixed (created_by/approved_by/posted_by no longer trusted from request body) |
 | M08 Sales | pending | — | — |
 | M09 GST | pending | — | — |
 | M10 Accounting | pending | — | — |
