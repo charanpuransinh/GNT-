@@ -129,7 +129,7 @@ export class SyncController {
 
   static async getJobProgress(req: AuthenticatedRequest, res: Response) {
     try {
-      const progress = await SyncService.getJobProgress(String(req.params.id));
+      const progress = await SyncService.getJobProgress(String(req.params.id), req.tenantId!);
       if (!progress) return res.status(404).json({ success: false, error: 'Job not found' });
       res.json({ success: true, data: progress });
     } catch (error: any) {

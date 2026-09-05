@@ -77,8 +77,8 @@ export class SyncService {
   }
 
   static async updateConfig(id: string, tenantId: string, data: UpdateSyncConfigRequest): Promise<SyncConfig> {
-    return prisma.syncConfig.update({
-      where: { id },
+    const result = await prisma.syncConfig.updateMany({
+      where: { id, tenantId },
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
@@ -88,15 +88,19 @@ export class SyncService {
         ...(data.cronExpression !== undefined && { cronExpression: data.cronExpression }),
         ...(data.status && { status: data.status }),
         ...(data.errorThreshold !== undefined && { errorThreshold: data.errorThreshold })
-      },
-      include: { entityConfigs: true }
+      }
     });
+    if (result.count === 0) throw new Error('Sync config not found');
+    const config = await prisma.syncConfig.findFirst({ where: { id, tenantId }, include: { entityConfigs: true } });
+    if (!config) throw new Error('Sync config not found');
+    return config;
   }
 
   static async deleteConfig(id: string, tenantId: string): Promise<SyncConfig> {
-    return prisma.syncConfig.delete({
-      where: { id }
-    });
+    const existing = await prisma.syncConfig.findFirst({ where: { id, tenantId } });
+    if (!existing) throw new Error('Sync config not found');
+    await prisma.syncConfig.deleteMany({ where: { id, tenantId } });
+    return existing;
   }
 
   // ── Sync Job Engine ─────────────────────────────────────
@@ -430,14 +434,19 @@ export class SyncService {
       throw new Error('Cannot cancel a completed or failed job');
     }
 
-    return prisma.syncJob.update({
-      where: { id: jobId },
+    return prisma.syncJob.updateMany({
+      where: { id: jobId, tenantId },
       data: { status: 'CANCELLED', completedAt: new Date() }
+    }).then(async (result) => {
+      if (result.count === 0) throw new Error('Job not found');
+      const updated = await prisma.syncJob.findFirst({ where: { id: jobId, tenantId } });
+      if (!updated) throw new Error('Job not found');
+      return updated;
     });
   }
 
-  static async getJobProgress(jobId: string): Promise<SyncProgress | null> {
-    const job = await prisma.syncJob.findUnique({ where: { id: jobId } });
+  static async getJobProgress(jobId: string, tenantId: string): Promise<SyncProgress | null> {
+    const job = await prisma.syncJob.findFirst({ where: { id: jobId, tenantId } });
     if (!job) return null;
 
     const percent = job.totalEntities > 0

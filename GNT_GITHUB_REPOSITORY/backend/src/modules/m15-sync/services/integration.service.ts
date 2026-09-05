@@ -48,26 +48,31 @@ export class IntegrationService {
   }
 
   static async updateIntegration(id: string, tenantId: string, data: Partial<ExternalIntegration>): Promise<ExternalIntegration> {
-    return prisma.externalIntegration.update({
-      where: { id },
+    const result = await prisma.externalIntegration.updateMany({
+      where: { id, tenantId },
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
-        ...(data.authConfig && { authConfig: data.authConfig }),
+        ...(data.authConfig && { authConfig: data.authConfig as never }),
         ...(data.baseUrl && { baseUrl: data.baseUrl }),
         ...(data.apiVersion && { apiVersion: data.apiVersion }),
-        ...(data.endpoints && { endpoints: data.endpoints }),
+        ...(data.endpoints && { endpoints: data.endpoints as never }),
         ...(data.status && { status: data.status }),
-        ...(data.rateLimitConfig && { rateLimitConfig: data.rateLimitConfig }),
+        ...(data.rateLimitConfig && { rateLimitConfig: data.rateLimitConfig as never }),
         updatedAt: new Date()
       }
     });
+    if (result.count === 0) throw new Error('Integration not found');
+    const integration = await prisma.externalIntegration.findFirst({ where: { id, tenantId } });
+    if (!integration) throw new Error('Integration not found');
+    return integration;
   }
 
   static async deleteIntegration(id: string, tenantId: string): Promise<ExternalIntegration> {
-    return prisma.externalIntegration.delete({
-      where: { id }
-    });
+    const existing = await prisma.externalIntegration.findFirst({ where: { id, tenantId } });
+    if (!existing) throw new Error('Integration not found');
+    await prisma.externalIntegration.deleteMany({ where: { id, tenantId } });
+    return existing;
   }
 
   static async healthCheck(integrationId: string, tenantId: string): Promise<{
