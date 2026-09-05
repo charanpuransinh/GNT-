@@ -2,9 +2,19 @@
  * M19 — Security anomaly-detection rules ki jaanch (nakli repo se).
  * Rules: brute-force, suspicious IP, permission change, webhook failure.
  */
-import { test } from 'vitest';
+import { test, beforeEach, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { SecurityInternal } from '../../services/security.internal';
+
+// after-hours rule (22:00–06:00) time-dependent है — दिन के 12 बजे पर fix करो
+// ताकि "sadhaaran event" test रात में भी deterministic रहे।
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-05T12:00:00Z'));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const makeRepo = (opts: { failedCount?: number; ipEvents?: number } = {}) => {
   const events: any[] = [];

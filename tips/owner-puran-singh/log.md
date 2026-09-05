@@ -2265,3 +2265,13 @@ error नहीं। सारा काम commit और push हो चुक
 **कोई database schema नहीं बदला, कोई नई external dependency (bullmq/Redis) नहीं
 जोड़ी** — blueprint जो माँगता था वह सब मौजूदा, पहले से चल रहे architecture के अंदर ही
 पूरा हुआ।
+
+## 🟢 2026-09-05 (bad) — push resolve + M12 schema + M18/M21 tests
+
+Push theek hua (naya token). Aage aur thos kaam:
+- d1f5384 M18 webhook signature tests (6)
+- e390981 M12 leaveNumber per-tenant unique (schema + migration 014) + 3 tests
+- 74e94f1 M21 export->M20 adapter + test
+
+Suite ab: 113 files / 533 tests, 0 fail 0 skip, tsc 0.
+Baaki: M21 sales/purchase/accounting/scheme adapters (complex line-item mapping), M17 (PENDING FOR CLAUDE), M15 sync-queue external, M22 subscription (not created), M12 tax-slab (P0-3 owner decision).

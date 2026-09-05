@@ -1,20 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request } from 'express';
 
-export interface AuthenticatedRequest extends Request {
-  tenantId?: string;
-  user?: { id: string; role: string };
-}
-
-export const tenantMiddleware = (
-  req: AuthenticatedRequest,
-  _res: Response,
-  next: NextFunction
-) => {
-  // TEMP MOCK: In production, extract from JWT token
-  req.tenantId = req.headers['x-tenant-id'] as string || 'tenant-default';
-  req.user = {
-    id: (req.headers['x-user-id'] as string) || 'system',
-    role: (req.headers['x-user-role'] as string) || 'admin'
-  };
-  next();
-};
+/**
+ * M15 controllers का request type — असली पहचान अब main app की #009 chain से आती है
+ * (auth → tenant → permission)। `requireTenant(req)` / `requireUser(req)` common
+ * helper से JWT-आधारित `req.tenant.companyId` / `req.user.id` पढ़ा जाता है — कभी
+ * header से नहीं (पहले `x-tenant-id` spoof हो सकता था)।
+ */
+export interface AuthenticatedRequest extends Request {}
