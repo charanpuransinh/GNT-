@@ -68,7 +68,7 @@ export class LeaveController {
   async getPendingApprovals(req: Request, res: Response) {
     try {
       const tenantId = requireTenant(req).companyId;
-      const leaves = await this.service.getPendingApprovals(tenantId, req.body.approverId as string);
+      const leaves = await this.service.getPendingApprovals(tenantId, req.body?.approverId as string | undefined);
       res.json({ success: true, data: leaves });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
