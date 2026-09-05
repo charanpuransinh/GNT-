@@ -116,4 +116,13 @@ export class PartyRepository {
       data: { is_active: false },
     });
   }
+
+  // database/migrations/010_M05_party_ledger_view.sql — blueprint §8.1 का
+  // party_ledger_view, हर party का running balance (M10 के ledger से)
+  async getLedgerBalance(id: string, company_id: string): Promise<number | null> {
+    const rows = await this.prisma.$queryRaw<Array<{ balance: string }>>`
+      SELECT balance FROM party_ledger_view WHERE party_id = ${id}::uuid AND company_id = ${company_id}::uuid
+    `;
+    return rows.length > 0 ? Number(rows[0].balance) : null;
+  }
 }

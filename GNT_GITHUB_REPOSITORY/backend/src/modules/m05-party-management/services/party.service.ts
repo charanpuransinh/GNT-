@@ -85,11 +85,13 @@ export class PartyService {
     return checkCreditLimitInternal(party, 0, new_amount);
   }
 
-  /** TODO(#016): असली बकाया M10 के ledger से गिनकर आएगा — अभी ख़ाली (झूठा डेटा मना) */
-  async getOutstanding(_party_id: string, _company_id: string): Promise<PartyOutstanding> {
+  // पहले: हमेशा 0 लौटाता था (TODO #016) — party_ledger_view database में कभी बनी
+  // ही नहीं थी (migration फ़ाइल थी, लगी नहीं थी)। अब लागू है, असली running balance।
+  async getOutstanding(party_id: string, company_id: string): Promise<PartyOutstanding> {
+    const balance = await this.repository.getLedgerBalance(party_id, company_id);
     return {
-      party_id: _party_id,
-      outstanding: 0,
+      party_id,
+      outstanding: balance ?? 0,
       currency: 'INR',
       as_on: new Date(),
     };
