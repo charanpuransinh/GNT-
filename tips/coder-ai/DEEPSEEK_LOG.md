@@ -738,3 +738,18 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 **पूरी suite अब: 92 files / 451 tests, 0 fail 0 skip** · tsc 0
 
 **Certified सूची अब:** M11 ✅ · M12 ✅ · M16 ✅ · (M21 — अभी नहीं)
+
+
+## 🟢 2026-09-05 (रात) — लगातार 7 commits (M14/M15/M18/M19/M20)
+
+- `e78124f` M14 dead-file cleanup (tsc 0, m14 13 pass)
+- `dfce5fa` M15 2 TODO (OAuth2 refresh + PAYMENT sync queue)
+- `af1b428` M18 2 TODO (API-key cache/rate-limit + Twilio HMAC-SHA1)
+- `94eb833` M20 FX+HSN tests (11)
+- `06a1fcf` M20 shipping/CBM/currency/tax tests (23)
+- `f8a68ef` M20 trade-document tests (3)
+- `bfd2d81` M19 health tests (5)
+
+**पूरी suite अब: 101 files / 494 tests · 0 fail · 0 skip · tsc 0**
+
+**बाक़ी (सच):** M15 backup/restore असली नहीं (infra) · M15 sync.auth/tenant + sync.fetch (PENDING FOR CLAUDE) · M17 सारे adapters (PENDING FOR CLAUDE) · M21 export adapter party/product resolve design बाक़ी · M22/subscription module बना ही नहीं।
