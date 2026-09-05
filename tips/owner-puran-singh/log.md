@@ -1951,3 +1951,93 @@ DeepSeek को जो file/task Claude के modules (M05, M06, या M01–M
 
 **M11 अब Claude को test/wiring के लिए दे सकते हैं।** बाक़ी (M12, M21, M16) अभी certified नहीं —
 उनकी कमी `DEEPSEEK_LOG.md` में दर्ज है।
+
+---
+
+# 🔔 M11 का पूरा check + M10/M05 wiring — 2026-09-05, शाम 3:37 (Claude)
+
+**मालिक का आदेश था:** M11 (अब CERTIFIED/LOCKED) उठाओ, पूरी तरह जाँचो, M10 से और जो भी
+और module (M05/M06) से जुड़ना ज़रूरी हो उससे जोड़ो, रास्ते में मिली गड़बड़ी ठीक करो,
+असली tests से साबित करो, और यहाँ लिखो।
+
+## पहला क़दम — origin से merge (ज़रूरी था, M11 code वहीं था)
+
+इस server पर origin/main से 22 commits पीछे था (DeepSeek का M11-M22 काम, GitHub पर push
+हुआ)। Merge किया — दो docs file (AUTONOMY-RULES.md, log.md) में conflict था, दोनों तरफ़ का
+लिखा बचाकर जोड़ा (कुछ मिटाया नहीं)। साथ में तीन migrations लगाईं जो schema.prisma में
+थीं पर इस DB पर लगी नहीं थीं (M02/M05 वाला ही पैटर्न): M13 automation tables, M16
+campaigns, M11 payment-method-code per-tenant।
+
+**merge के बाद पूरा backend (95 files) पहली बार साथ चलाया तो 17 tests फ़ेल हुईं — जाँचकर
+पाया कि मेरी अपनी दो M01-M10 test files में race/collision bug थे** (मालिक चाहें तो
+अलग से इसका ब्योरा ऊपर "role.tenant.db.test.ts" वाले commit में है) — दोनों ठीक किए,
+अब पूरा backend साथ में 96 files/458 tests हरे, दो बार चलाकर स्थिर पाया।
+
+## M11 की जाँच में क्या मिला
+
+M11 का "CERTIFIED" (14/14 tests) सही था अपने अंदर — पर बाहर की तरफ़ पूरी तरह कटा हुआ था:
+
+**M11 का private EventBus कहीं पहुँचता ही नहीं था** — हर routes file अपना अलग
+`new EventBus()` बनाती थी। `payment.completed`/`invoice.payment_received` जैसे events
+publish होते थे, पर कोई भी listener (चाहे कहीं भी हो) उन्हें कभी पकड़ ही नहीं सकता था —
+हर file का instance अलग था। Comment में "M13/M15 consume these events" लिखा था, पर
+जाँचने पर कहीं कोई consumer मिला ही नहीं।
+
+**M10 से कोई असली connection नहीं था** — payment COMPLETED होने पर M11 अपनी private
+`PaymentLedgerEntry` table में hardcoded account codes ('CASH_BANK' debit, 'SALES_REVENUE'
+credit — दिशा चाहे जो हो) लिखता था। Comment में "M10 Finance integration" लिखा था, पर
+M10 का असली `ledger`/`account_master`/`voucher`/`sales_invoice.amountPaid` कभी छूता ही
+नहीं था। मतलब: पैसा असल में हाथ बदलता, पर कंपनी की असली किताबों (trial balance, P&L,
+balance sheet — M10 से) में वह payment कभी दिखता ही नहीं था।
+
+**M05 से party की कोई जाँच नहीं थी** — payerId कुछ भी हो सकता था, party_master में
+मौजूद हो या न हो, कोई फ़र्क़ नहीं पड़ता था।
+
+**wiring करते वक़्त तीन और असली bugs मिले (सब ठीक किए):**
+1. हर payment की `direction` हमेशा `'OUT'` hardcode थी — customer का receipt भी 'OUT'
+   दर्ज होता। Bank balance और cash-flow dashboard हमेशा ग़लत रहते।
+2. Bank balance update हमेशा बढ़ाता था — vendor को दिया गया payment भी balance बढ़ा देता।
+3. `referenceType` हमेशा 'INVOICE' (बिक्री) होता था चाहे payment किसी VENDOR को purchase
+   bill का हो — M10 ग़लत टेबल में ढूँढता, "बिल नहीं मिला" पर फटता।
+4. `payerType` हर जगह अलग रूप में आता था (frontend lowercase 'customer'/'supplier'
+   भेजता है, DB का enum 'CUSTOMER'/'VENDOR' चाहता है) — कहीं normalize नहीं होता था।
+
+## क्या किया
+
+- सभी 5 M11 services + 5 routes साझा `@/common/events/event-bus` पर लाए (M02/M04/M07/
+  M08/M10 पहले से जिस पर हैं)।
+- नई `ledgerBridge.service.ts` — M10 की सार्वजनिक `VoucherService.createPaymentVoucher`
+  बुलाती है (मालिक का पहले से बना voucher design — party+बिल से लिंक, partial payments)।
+  M11 के bank account/party-type से M10 के असली `account_master` खाते ढूँढती/बनाती है:
+  bank खाता M11 के accountCode से (कोड `M11-BANK-<code>`), party control account
+  company-वार 'Sundry Debtors'/'Sundry Creditors' (कोड `M11-AR-<companyId>`/
+  `M11-AP-<companyId>`) — **कोई नया चार्ट-ऑफ़-अकाउंट्स फ़ैसला ख़ुद नहीं लिया**, सिर्फ़
+  deterministic lookup-or-create, standard control-account पैटर्न जो M10 के अपने ही
+  test-suite में इस्तेमाल होता है।
+- `processPayment` अब पहले M10 में असली voucher बनाता है, **उसके बाद** payment को
+  COMPLETED करता है (M08 के postInvoice जैसा ही सिद्धांत — पहले side-effects, फिर status,
+  ताकि voucher बनना फ़ेल हो तो payment "COMPLETED" दिखाकर किताबें ग़लत न हों)।
+- CUSTOMER/VENDOR के लिए M05 की असली `partyService.getCustomerById/getSupplierById` से
+  जाँच — ग़लत/मिटी party पर payment 400 पर रुकता है।
+- direction/bank-balance-direction/referenceType/payerType — चारों bug ठीक किए।
+
+## जान-बूझकर नहीं छेड़ा (owner-decision)
+
+- **M11 का reconciliation feature vs M10 का BRS** — दो अलग bank-reconciliation सिस्टम
+  हैं। इन्हें जोड़ना/कौन authoritative हो — यह पहले से "PENDING FOR CLAUDE — P3: Bank
+  statement auto-posting/reconciliation, मालिक फ़ैसला" के तौर पर ऊपर दर्ज था। छुआ नहीं —
+  मालिक का फ़ैसला चाहिए, force नहीं किया।
+- **M06 (माल-गोदाम)** — M11 में कहीं भी product/stock का कोई संदर्भ नहीं मिला। Payment
+  सिर्फ़ पैसे की चीज़ है; कोई सीधा integration point नहीं बनता, इसलिए कुछ नहीं जोड़ा।
+
+## असली DB पर साबित (नई `m10-m05-wiring.db.test.ts`, पूरी HTTP राह से)
+
+- मौजूद न होने वाली party पर payment 400 पर रुकता है
+- CUSTOMER receipt process होने पर: M10 में असली voucher+ledger+allocation बनता है,
+  `sales_invoice.amountPaid/paymentStatus` सच में 'paid' होता है, bank balance सही
+  बढ़ता है, control accounts अपने-आप बनते हैं
+- VENDOR payment पर bank balance सही घटता है, referenceType सही 'BILL' दर्ज होता है
+
+**नतीजा:** M11: 17/17 tests हरे (14 पुराने + 3 नए, TEST_DB=1)। पूरा backend साथ: 96
+files, 458/458 tests हरे (दो बार चलाकर स्थिर), typecheck में पूरे repo का एक भी error
+नहीं (M13 समेत — schema/client सही होने के बाद अब साफ़)।
