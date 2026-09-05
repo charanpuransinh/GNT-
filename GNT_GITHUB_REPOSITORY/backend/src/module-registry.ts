@@ -136,7 +136,8 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     load: async () => {
       const [{ createIntegrationRoutes }, { IntegrationController }, { WebhookController },
              { IntegrationService }, { WebhookService }, { IntegrationRepository },
-             { GatewayService }, { prisma }, { EventEmitter }] = await Promise.all([
+             { GatewayService }, { prisma }, { EventEmitter },
+             { PaymentService }, { eventBus: commonEventBus }, { PAYMENT_WEBHOOK_SUCCESS, PAYMENT_WEBHOOK_FAILED }] = await Promise.all([
         import('./modules/m18-external-integration'),
         import('./modules/m18-external-integration/controllers/integration.controller'),
         import('./modules/m18-external-integration/controllers/webhook.controller'),
@@ -146,12 +147,29 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         import('./modules/m18-external-integration/services/gateway.service'),
         import('./common/config/prisma'),
         import('node:events'),
+        import('./modules/m11-payment/services/payment.service'),
+        import('./common/events/event-bus'),
+        import('./modules/m18-external-integration/events/integration.events'),
       ]);
       const repo = new IntegrationRepository(prisma);
       const gateway = new GatewayService(repo);
       const bus = new EventEmitter();
       const integrationService = new IntegrationService(repo, gateway, bus);
       const webhookService = new WebhookService(repo, gateway, integrationService, bus);
+
+      // असली wiring: webhook → M11 payment confirm (पहले event emit होता था पर कोई sunta nahi tha)
+      const paymentService = new PaymentService(prisma, commonEventBus);
+      bus.on(PAYMENT_WEBHOOK_SUCCESS, (event: { order_id: string; payload: Record<string, unknown> }) => {
+        paymentService.confirmByProviderRef(event.order_id, event.payload).catch((e: unknown) => {
+          console.error('[M18→M11] payment confirm failed:', e);
+        });
+      });
+      bus.on(PAYMENT_WEBHOOK_FAILED, (event: { order_id: string; payload: Record<string, unknown> }) => {
+        paymentService.confirmByProviderRef(event.order_id, event.payload).catch((e: unknown) => {
+          console.error('[M18→M11] payment fail handler:', e);
+        });
+      });
+
       return createIntegrationRoutes(new IntegrationController(integrationService), new WebhookController(webhookService));
     } },
   { code: 'M19', path: '/api/v1/monitoring', mounted: true,

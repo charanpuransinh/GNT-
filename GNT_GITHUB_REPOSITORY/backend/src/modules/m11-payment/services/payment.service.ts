@@ -171,6 +171,15 @@ export class PaymentService {
     return { ...updated, ledgerPosting: ledgerResult };
   }
 
+  // ==================== PUBLIC API: Confirm by provider ref (M18 webhook) ====================
+  /** M18 webhook से gateway order_id आता है — providerRef se payment ढूँढ़कर confirm करो */
+  async confirmByProviderRef(providerRef: string, gatewayResponse?: Record<string, unknown>) {
+    const payment = await this.prisma.paymentTransaction.findFirst({ where: { providerRef } });
+    if (!payment) return null;
+    if (payment.status !== 'PENDING') return payment;
+    return this.processPayment(payment.id, payment.tenantId, 'system', providerRef, gatewayResponse);
+  }
+
   // ==================== PUBLIC API: Fail Payment ====================
   async failPayment(id: string, tenantId: string, userId: string, reason: string) {
     const payment = await this.paymentRepo.findById(id, tenantId);
