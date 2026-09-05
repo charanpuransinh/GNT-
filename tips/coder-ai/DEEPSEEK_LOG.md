@@ -708,3 +708,20 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 मालिक को स्क्रीन खोलते ही पता चलना चाहिए: **क्या-क्या complete हुआ · अभी क्या चल रहा है ·
 अगर रुके हो तो किस वजह से।** ख़ाली/idle screen बिना update के मत छोड़ो।
+
+
+## 🔒 M12 CERTIFIED (दूसरा module — 3 शर्तें पूरी)
+
+**2026-09-05:** M12 (HR) अब CERTIFIED:
+1. ✅ कोई TODO/"not implemented" नहीं (grep साफ़)
+2. ✅ 100% tests pass — **9/9, 0 fail 0 skip** (TEST_DB=1); employee/department/attendance/leave/payroll + tenant isolation covered
+3. ✅ Production ready — 21/21 mount + HTTP end-to-end
+
+**2 असली bugs ठीक हुए:**
+- `leave.apply` पुराने schema पर लिखा था (`type`/`days`) — असल Leave model चाहता है
+  `leaveTypeId`/`reason`/`leaveNumber`/`daysRequested`; अब सही (runtime पर 500 नहीं)।
+- `GET /leaves/pending` controller `req.body.approverId` पढ़ता था (GET में body नहीं) → 500; अब `req.body?.`।
+
+**commit:** `ddb00a5` (push हो चुका) · पूरी suite अब **91 files / 449 tests, 0 fail 0 skip**।
+
+**Certified सूची अब:** M11 ✅ · M12 ✅ · (M21, M16 — अभी नहीं)

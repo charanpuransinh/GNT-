@@ -1768,3 +1768,11 @@ DeepSeek को जो file/task Claude के modules (M05, M06, या M01–M
 
 **M11 अब Claude को test/wiring के लिए दे सकते हैं।** बाक़ी (M12, M21, M16) अभी certified नहीं —
 उनकी कमी `DEEPSEEK_LOG.md` में दर्ज है।
+
+
+## 🔒 2026-09-05 — M12 (कर्मचारी/HR) अब CERTIFIED
+
+M12 भी आधिकारिक 3-शर्तों पर पूरा: कोई TODO नहीं · 9/9 जाँचें पास (skip 0, असली DB) · live पर चलता है।
+साथ ही 2 असली bugs ठीक हुए (छुट्टी-आवेदन का schema-मेल और pending-सूची का 500)।
+
+**Certified अब:** M11 (भुगतान) + M12 (कर्मचारी)। अगला: M21 या M16।
