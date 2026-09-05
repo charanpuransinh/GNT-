@@ -73,17 +73,34 @@ tail -20 /root/gnt-project/tools/auto_resume.log # क्या-क्या res
 
 ---
 
-## 4️⃣ Telegram अलर्ट — सिर्फ़ ज़रूरी पर
+## 4️⃣ Telegram अलर्ट — 2026-09-05 को मालिक ने नियम बदला (यह पुराने पर भारी है)
+
+**मालिक का नया स्थायी निर्देश (2026-09-05):**
+1. चालू काम पहले पूरा करो।
+2. हर progress report तुरंत Telegram पर भेजो, बिना पूछे।
+3. Green/certified lock होते ही अलग confirmation Telegram पर भेजो (नाम, status, tests, time)।
+4. कोई भी blocker/error तुरंत Telegram पर report करो।
+
+यानी नीचे पुरानी तालिका का "module का काम पूरा हुआ → चुपचाप note, अलर्ट नहीं" वाला
+नियम **रद्द है**। अब हर module certify होते ही अलग Telegram अलर्ट जाता है (नाम,
+status, कितनी tests पास, समय), routine restart अब भी चुपचाप log में ही जाता है (वह
+इस निर्देश के दायरे में नहीं — वह noise है, module/blocker नहीं)।
+
+⚠️ **इस server (Claude / M01–M10) पर सीमा:** `tools/notify.sh` जिस
+`/root/tools/notify_telegram.py` को बुलाता है, वह **इस मशीन पर मौजूद नहीं है** (न वह
+script, न `/opt/raw-repo/.env` में bot token/chat id) — जाँच लिया, 2026-09-05। यह setup
+शायद सिर्फ़ DeepSeek वाले server पर बना था। इसलिए अभी असली Telegram भेजना यहाँ से
+संभव नहीं — जब तक मालिक इस server पर भी bot token/chat id न दें (या notifier कॉपी न
+कर दें)। तब तक हर report यहीं `log.md` में तुरंत लिखा जाता है, ताकि कुछ भी छूटे नहीं —
+मालिक जब भी देखें, पूरी history यहाँ मिलेगी। notifier उपलब्ध होते ही यही reports असली
+Telegram पर भी जाने लगेंगे, कोई और बदलाव नहीं चाहिए होगा।
 
 | हालत | क्या करना है |
 |---|---|
-| routine restart (मरा, चालू कर दिया) | **चुपचाप log में लिखो** — अलर्ट मत भेजो |
-| **P0 फ़ैसला चाहिए** (बिंदु 2) | 🔔 **तुरंत अलर्ट** |
-| restart **लगातार 3 बार फ़ेल** | 🔔 **तुरंत अलर्ट** |
-| module का काम पूरा हुआ | चुपचाप note लिखो, अलर्ट नहीं |
-
-**कारण:** हर छोटी बात पर अलर्ट जाएगा तो मालिक अलर्ट देखना ही बंद कर देंगे — और तब असली
-ख़तरे की घंटी भी अनसुनी रह जाएगी।
+| routine restart (मरा, चालू कर दिया) | चुपचाप log में लिखो — अलर्ट नहीं (noise) |
+| **कोई module certify/green/locked हुआ** | 🔔 तुरंत अलर्ट (नाम, status, tests, समय) — इस server पर अभी log.md में |
+| **P0 फ़ैसला चाहिए** (बिंदु 2) | 🔔 तुरंत अलर्ट — इस server पर अभी log.md में |
+| **कोई भी blocker/error** | 🔔 तुरंत अलर्ट — इस server पर अभी log.md में |
 
 ---
 

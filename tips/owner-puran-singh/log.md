@@ -1602,3 +1602,36 @@ approved करके, post करने की कोशिश की — अ�
 
 Telegram पर अलर्ट भेज दिया है। **बाक़ी सारा काम जो इस फ़ैसले पर नहीं टिका,
 वो चालू है — रुका नहीं हूँ।**
+
+---
+
+# 🔔 मालिक का नया नियम दर्ज — 2026-09-05, दोपहर 12:48 (M01–M10 server)
+
+मालिक ने Telegram पर स्थायी नियम दिया (`AUTONOMY-RULES.md` §4 में भी लिख दिया):
+1. चालू काम पहले पूरा करो।
+2. हर progress report तुरंत Telegram पर भेजो, बिना पूछे।
+3. Green/certified lock होते ही अलग confirmation Telegram पर भेजो (नाम, status, tests, समय)।
+4. कोई भी blocker/error तुरंत Telegram पर report करो।
+
+**⚠️ जाँचकर पाया:** इस server पर `tools/notify.sh` जिस `/root/tools/notify_telegram.py`
+को बुलाता है, वह मौजूद ही नहीं है — न script, न bot token/chat id कहीं। यह शायद सिर्फ़
+DeepSeek वाले server पर बना था। इसलिए अभी से हर progress/certify/blocker report
+**यहीं log.md में तुरंत** लिखा जाएगा (टेलीग्राम जैसे तुरंत, सिर्फ़ चैनल अलग) — जब तक
+मालिक इस server पर भी notifier/token दें। मालिक को बता दिया गया है (इसी बातचीत में)।
+
+**अब तक की हालत (इसी सत्र में, M01–M10 क्रम से):**
+
+| Module | Status | Tests | नोट |
+|---|---|---|---|
+| M01 Foundation | ✅ CERTIFIED | 31/31 (7 skip DB-gated) | पिछले सत्र में हुआ |
+| M02 Core Architecture | ✅ CERTIFIED | 102/102 (TEST_DB=1) | इस server पर JWT keys सिरे से नहीं थे (.env में — gitignored, नया server) + auth_hardening migration कभी लगी नहीं थी। दोनों अभी लगाए/बनाए, असली DB पर 102/102 हरा |
+| M03 Device Platform | ✅ CERTIFIED | 23/23 | कोई असली बग नहीं मिली — mount/permission/tenant सब जाँचे, साफ़ थे |
+| M04 Company Management | ✅ CERTIFIED | 12/12 (TEST_DB=1) | 🛑 P0 मिला और ठीक किया: POST /company/users हमेशा फटता था (contract माँगता username+password+role_ids, code सिर्फ़ name+email+roleId लेता था और सीधे passwordHash की उम्मीद करता था) — कोई user कभी बन ही नहीं सकता था, role_ids कहीं इस्तेमाल ही नहीं होता था |
+| M05 Party Management | ✅ CERTIFIED | 23/23 (TEST_DB=1) | TODO(#016) बंद किया: party_ledger_view migration फ़ाइल थी, DB पर लगी कभी नहीं थी — getOutstanding हमेशा 0 लौटाता था। अब असली view से असली balance |
+| M06 Inventory | 🔄 चालू है | — | अभी शुरू किया — 3 `as any` मिले (stock repo/service), हटाए, दोबारा tsc+tests चलाकर देख रहा हूँ |
+
+**कोई module ख़ुद "LOCKED" घोषित नहीं किया — सिर्फ़ CERTIFIED (यह certification log में
+पहले से तय शब्द है, `CERTIFICATION_LOG.md` देखें); "LOCKED" का फ़ैसला अब भी सिर्फ़
+मालिक का है (P0-2)।**
+
+आगे M07–M10 उसी क्रम में जारी हैं। हर module पर यही रिपोर्ट यहीं मिलेगी।
