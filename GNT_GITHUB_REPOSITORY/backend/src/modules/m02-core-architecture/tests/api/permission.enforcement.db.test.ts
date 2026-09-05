@@ -203,6 +203,24 @@ describe.runIf(process.env.TEST_DB === '1')('अनुमति-व्यवस�
       const res = await request(app).get('/api/v1/inventory/stock').set('Authorization', bearer(users[ROLE_ACCOUNTANT]));
       expect(res.status).toBe(403);
     });
+
+    // 2026-09-05 — blueprint से तय (§7.8, §7.11): M08 USES M09+M10, M11 USES M10।
+    // यानी बिल और भुगतान का मिलान इनके बिना हो ही नहीं सकता।
+    it('खाता-बही (M10) देख सकता है — blueprint के अनुसार', async () => {
+      const res = await request(app).get('/api/v1/accounting/ledger').set('Authorization', bearer(users[ROLE_ACCOUNTANT]));
+      expect(res.status).not.toBe(403);
+    });
+
+    it('GST (M09) देख सकता है — blueprint के अनुसार', async () => {
+      const res = await request(app).get('/api/v1/gst/returns').set('Authorization', bearer(users[ROLE_ACCOUNTANT]));
+      expect(res.status).not.toBe(403);
+    });
+
+    it('🔒 फिर भी खाता-बही में कुछ मिटा नहीं सकता (देख + एडिट ही, मालिक की शर्त)', async () => {
+      const res = await request(app).delete('/api/v1/accounting/vouchers/00000000-0000-4000-8000-00000000dead')
+        .set('Authorization', bearer(users[ROLE_ACCOUNTANT]));
+      expect(res.status).toBe(403);
+    });
   });
 
   // ── 4. Supervisor ───────────────────────────────────────────────────────

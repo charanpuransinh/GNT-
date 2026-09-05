@@ -151,6 +151,41 @@ describe.runIf(process.env.TEST_DB === '1')('🔒 हार्ड रूल — 
     expect(balance).toBe(0);
   });
 
+  // ── blueprint §8.1 का `party_ledger_view` ───────────────────────────────
+  // blueprint में यह view M05 की canonical चीज़ के तौर पर लिखा है, पर database में
+  // बना कभी नहीं था। यह मालिक के नियम 5 ("बैलेंस self-contained") का सीधा औज़ार है।
+  it('party_ledger_view — हर पंक्ति सिर्फ़ एक party की, बैलेंस उसी का', async () => {
+    const rows = await prisma.$queryRaw<Array<{
+      party_id: string; party_name: string; balance: string; entry_count: bigint; is_active: boolean;
+    }>>`
+      SELECT party_id::text, party_name, balance::text, entry_count, is_active
+      FROM party_ledger_view
+      WHERE company_id = ${COMPANY_ID}::uuid
+      ORDER BY party_name
+    `;
+
+    // तीनों parties की अलग-अलग पंक्तियाँ — एक भी दोहरी नहीं
+    const ids = rows.map((r) => r.party_id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const A = rows.find((r) => r.party_id === partyA);
+    const B = rows.find((r) => r.party_id === partyB);
+    const C = rows.find((r) => r.party_id === partyC);
+
+    // वही बैलेंस जो service देती है — यानी view और service एक ही सच बोलते हैं
+    expect(Number(A?.balance)).toBe(await service.getPartyBalance(COMPANY_ID, partyA));
+    expect(Number(B?.balance)).toBe(7000);
+    expect(C?.is_active).toBe(false);              // inactive party भी अपनी पंक्ति के साथ मौजूद
+    expect(Number(C?.balance)).toBe(250);
+  });
+
+  it('🔒 party_ledger_view दूसरी कंपनी की party कभी नहीं दिखाता', async () => {
+    const rows = await prisma.$queryRaw<Array<{ party_id: string }>>`
+      SELECT party_id::text FROM party_ledger_view WHERE company_id = ${COMPANY_ID}::uuid
+    `;
+    expect(rows.every((r) => r.party_id !== dusriParty)).toBe(true);
+  });
+
   it('🔒 दूसरी कंपनी का खाता सिर्फ़ account_id जानकर नहीं पढ़ा जा सकता (यह छेद खुला था)', async () => {
     const rows = await service.getLedgerByAccount(COMPANY_ID, dusriAccountId);
     expect(rows.length).toBe(0);

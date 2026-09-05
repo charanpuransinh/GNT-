@@ -5,7 +5,8 @@
  * मिलेगा, यह इस फ़ाइल में नहीं — `common/auth/permission-catalog.ts` में तय है।
  *
  *   npm run perms:seed                      — अनुमतियाँ + चारों भूमिकाएँ + पुराने users
- *   npm run perms:grant-owner -- <email>    — किसी user को "Owner" बनाओ
+ *   npm run perms:create-owner -- …         — असली कंपनी + मालिक का खाता बनाओ (पहली बार)
+ *   npm run perms:grant-owner -- <email>    — मौजूद user को "Owner" बनाओ
  *   npm run perms:grant-bundle -- "<भूमिका>" <bundle>   — extra विभाग खोलो
  *   npm run perms:show -- <email>           — किसी user के पास इस वक़्त क्या-क्या है
  *
@@ -13,6 +14,7 @@
  */
 
 import { prisma } from '@/common/config/prisma';
+import { authInternal } from '@/modules/m02-core-architecture/services/auth.internal';
 import {
   ALL_PERMISSIONS,
   ROLE_TEMPLATES,
@@ -180,10 +182,82 @@ async function show(emailOrUsername: string) {
   log('');
 }
 
+/**
+ * पहली बार के लिए — असली कंपनी और मालिक का खाता, दोनों एक साथ।
+ *
+ * क्यों चाहिए: `grant-owner` सिर्फ़ **मौजूद** user को भूमिका देता है। database में
+ * अभी कोई असली user है ही नहीं (सिर्फ़ tests के fixtures), इसलिए मालिक को "Owner"
+ * बनाने से पहले उनका खाता बनाना ज़रूरी है।
+ *
+ * दोबारा चलाने पर कुछ दोहराया नहीं जाएगा — कंपनी/user पहले से हों तो उन्हीं पर
+ * भूमिका लग जाएगी।
+ */
+async function createOwner(args: string[]) {
+  const get = (flag: string): string | undefined => {
+    const i = args.indexOf(flag);
+    return i >= 0 ? args[i + 1] : undefined;
+  };
+
+  const companyName = get('--company');
+  const companyCode = get('--code');
+  const name = get('--name');
+  const email = get('--email');
+  const username = get('--username');
+  const password = get('--password');
+
+  const missing = [
+    ['--company', companyName], ['--code', companyCode], ['--name', name],
+    ['--email', email], ['--username', username], ['--password', password],
+  ].filter(([, v]) => !v).map(([f]) => f);
+
+  if (missing.length) {
+    throw new Error(
+      `ये चाहिए: ${missing.join(' ')}\n\n` +
+      `उदाहरण:\n  npm run perms:create-owner -- --company "मेरी कंपनी" --code MERICO \\\n` +
+      `    --name "पूरन सिंह" --email aap@example.com --username puran --password "कोई-मज़बूत-पासवर्ड"`,
+    );
+  }
+  if (password!.length < 8) throw new Error('पासवर्ड कम से कम 8 अक्षर का हो');
+
+  let company = await prisma.company_master.findFirst({ where: { code: companyCode } });
+  if (!company) {
+    company = await prisma.company_master.create({ data: { name: companyName!, code: companyCode! } });
+    log(`✅ कंपनी बनी: ${company.name} (${company.code})`);
+  } else {
+    log(`ℹ️  कंपनी पहले से है: ${company.name} (${company.code})`);
+  }
+
+  // इस नई कंपनी में भी चारों भूमिकाएँ चाहिए
+  const permIds = await seedPermissionMaster();
+  await seedRolesForCompany(company.id, company.name, permIds);
+
+  let user = await prisma.user_master.findFirst({
+    where: { company_id: company.id, OR: [{ email: email! }, { username: username! }] },
+  });
+  if (!user) {
+    user = await prisma.user_master.create({
+      data: {
+        company_id: company.id,
+        name: name!,
+        email: email!,
+        username: username!,
+        password_hash: await authInternal.hashPassword(password!),
+      },
+    });
+    log(`✅ खाता बना: ${user.username} (${user.email})`);
+  } else {
+    log(`ℹ️  खाता पहले से है: ${user.username} — पासवर्ड बदला नहीं गया`);
+  }
+
+  await grantOwner(user.email);
+  log(`\n🔑 अब आप इससे login कर सकते हैं:  कंपनी code = ${company.code}, username = ${user.username}`);
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   switch (command) {
     case 'seed': await seed(); break;
+    case 'create-owner': await createOwner(args); break;
     case 'grant-owner': {
       if (!args[0]) throw new Error('email या username दो: npm run perms:grant-owner -- <email>');
       await grantOwner(args[0]); break;
@@ -197,7 +271,7 @@ async function main() {
       await show(args[0]); break;
     }
     default:
-      log('commands: seed | grant-owner <email> | grant-bundle <role> <bundle> | show <email>');
+      log('commands: seed | create-owner --company … | grant-owner <email> | grant-bundle <role> <bundle> | show <email>');
       process.exitCode = 1;
   }
 }

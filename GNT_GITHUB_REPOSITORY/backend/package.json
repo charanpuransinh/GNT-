@@ -13,7 +13,8 @@
     "perms:seed": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts seed",
     "perms:grant-owner": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts grant-owner",
     "perms:grant-bundle": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts grant-bundle",
-    "perms:show": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts show"
+    "perms:show": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts show",
+    "perms:create-owner": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts create-owner"
   },
   "dependencies": {
     "express": "^5.1.0",

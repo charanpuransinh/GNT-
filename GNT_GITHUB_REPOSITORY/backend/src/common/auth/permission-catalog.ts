@@ -128,12 +128,17 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
       // मालिक के शब्द: "सिर्फ Billing और Payment module का access (देख + एडिट)"
       // Billing = M08 (बिल), Payment = M11 (भुगतान)। create/delete जान-बूझकर नहीं दिए।
       ...grant(['M08', 'M11'], ['view', 'edit']),
+
+      // 2026-09-05 — यह blueprint से तय हुआ, अंदाज़े से नहीं।
+      // मालिक का आदेश: blueprint ही सबसे बड़ा अधिकार है, उसी से फ़ैसला करो।
+      // blueprint (§7.8, §7.11) साफ़ लिखता है:
+      //     M08 (Billing)  USES: M05, M06, **M09 (GST)**, **M10 (Accounting)**
+      //     M11 (Payment)  USES: M05, M07/M08, **M10 (Ledger)**
+      // यानी जिन दो modules का हक़ लेखाकार को दिया गया है, वे ख़ुद M09/M10 पर टिके
+      // हैं — इनके बिना लेखाकार बिल और भुगतान का मिलान कर ही नहीं सकता।
+      // इसलिए यहाँ भी सिर्फ़ **देख + एडिट** — बनाना/मिटाना अब भी नहीं।
+      ...grant(['M09', 'M10'], ['view', 'edit']),
     ],
-    optionalBundles: {
-      // ⚠️ मालिक से पूछा गया है: लेखाकार को खाता-बही (M10) और GST (M09) चाहिए या नहीं।
-      // मालिक ने "सिर्फ़ Billing और Payment" कहा था, इसलिए यह **बंद** है — माँगने पर चालू होगा।
-      accounting_ledger: grant(['M09', 'M10'], ['view', 'edit']),
-    },
   },
   {
     name: ROLE_SUPERVISOR,
