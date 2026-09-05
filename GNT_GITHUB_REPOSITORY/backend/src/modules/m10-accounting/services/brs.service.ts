@@ -1,17 +1,26 @@
 import { PrismaClient } from '@prisma/client';
 
+// 2026-09-05 — पूरी BRS feature में कहीं भी company की सीमा नहीं थी: createBRS
+// body.company_id पर चलता था (जो भी भेजा वही मान लिया जाता), matchItem/getStatus
+// सिर्फ़ brsId/id पर — यानी कोई भी दूसरी company की bank reconciliation पढ़/बदल
+// सकता था, और createBRS में bank_account_id भी बिना जाँचे किसी और company के
+// account से balance खींच सकता था। अब हर जगह companyId अनिवार्य है, controller
+// उसे हमेशा token से भरता है।
 export class BRSService {
   constructor(private prisma: PrismaClient) {}
 
-  async createBRS(data: any): Promise<any> {
-    const { company_id, bank_account_id, statement_date, statement_balance, ledger_entries } = data;
+  async createBRS(companyId: string, data: any): Promise<any> {
+    const { bank_account_id, statement_date, statement_balance, ledger_entries } = data;
+
+    const account = await this.prisma.account_master.findFirst({ where: { id: bank_account_id, company_id: companyId } });
+    if (!account) throw new Error('Bank account not found for this company');
 
     const ledgerBalance = await this.getLedgerBalance(bank_account_id, statement_date);
     const difference = Number((Number(statement_balance) - ledgerBalance).toFixed(4));
 
     const brs = await this.prisma.bank_reconciliation.create({
       data: {
-        company_id,
+        company_id: companyId,
         bank_account_id,
         statement_date: new Date(statement_date),
         statement_balance,
@@ -34,11 +43,12 @@ export class BRSService {
     return brs;
   }
 
-  async matchItem(brsId: string, ledgerEntryId: string, statementEntryId?: string): Promise<any> {
+  async matchItem(companyId: string, brsId: string, ledgerEntryId: string, statementEntryId?: string): Promise<any> {
     const item = await this.prisma.bank_reconciliation_item.findFirst({
       where: {
         bank_reconciliation_id: brsId,
         ledger_entry_id: ledgerEntryId,
+        brs: { company_id: companyId },
       },
     });
 
@@ -56,9 +66,9 @@ export class BRSService {
     return updated;
   }
 
-  async getStatus(brsId: string): Promise<any> {
-    const brs = await this.prisma.bank_reconciliation.findUnique({
-      where: { id: brsId },
+  async getStatus(companyId: string, brsId: string): Promise<any> {
+    const brs = await this.prisma.bank_reconciliation.findFirst({
+      where: { id: brsId, company_id: companyId },
       include: { items: true },
     });
     if (!brs) throw new Error('BRS not found');

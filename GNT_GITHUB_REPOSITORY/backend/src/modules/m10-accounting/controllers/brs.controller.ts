@@ -1,15 +1,18 @@
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { Request, Response } from 'express';
 import { BRSService } from '../services/brs.service';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 
-const prisma = new PrismaClient();
 const brsService = new BRSService(prisma);
 
 export const BRSController = {
+  // पहले company_id सीधे req.body से जाता था — कोई भी दूसरी company के नाम पर
+  // (और उसके bank account के हिसाब से) reconciliation बना सकता था। अब token से।
   async createBRS(req: Request, res: Response) {
     try {
-      const brs = await brsService.createBRS(req.body);
+      const company_id = requireTenant(req).companyId;
+      const { company_id: _ignored, ...body } = req.body;
+      const brs = await brsService.createBRS(company_id, body);
       res.status(201).json(brs);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
@@ -34,9 +37,10 @@ export const BRSController = {
 
   async reconcileItem(req: Request, res: Response) {
     try {
+      const company_id = requireTenant(req).companyId;
       const brs_id = String(req.params.brs_id);
       const { ledger_entry_id, statement_entry_id } = req.body;
-      const result = await brsService.matchItem(brs_id, ledger_entry_id, statement_entry_id);
+      const result = await brsService.matchItem(company_id, brs_id, ledger_entry_id, statement_entry_id);
       res.json(result);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
@@ -44,8 +48,13 @@ export const BRSController = {
   },
 
   async getReconciliationStatus(req: Request, res: Response) {
-    const id = String(req.params.id);
-    const status = await brsService.getStatus(id);
-    res.json(status);
+    try {
+      const company_id = requireTenant(req).companyId;
+      const id = String(req.params.id);
+      const status = await brsService.getStatus(company_id, id);
+      res.json(status);
+    } catch (e: any) {
+      res.status(404).json({ error: e.message });
+    }
   },
 };

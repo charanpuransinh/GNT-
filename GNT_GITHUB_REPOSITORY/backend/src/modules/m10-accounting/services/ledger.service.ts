@@ -33,7 +33,7 @@ export class LedgerService {
       where: { company_id: companyId, is_active: true },
     });
     const sums = await this.repo.getLedgerSumsByAccount(companyId, asOfDate);
-    return AccountingInternalEngine.computeTrialBalance(accounts as any, sums);
+    return AccountingInternalEngine.computeTrialBalance(accounts, sums);
   }
 
   async getProfitLoss(companyId: string, fromDate: Date, toDate: Date): Promise<any> {
@@ -41,7 +41,7 @@ export class LedgerService {
       where: { company_id: companyId, type: { in: ['income', 'expense'] } },
     });
     const sums = await this.repo.getLedgerSumsByAccount(companyId, toDate);
-    return AccountingInternalEngine.computeProfitLoss(accounts as any, sums, fromDate, toDate);
+    return AccountingInternalEngine.computeProfitLoss(accounts, sums, fromDate, toDate);
   }
 
   async getBalanceSheet(companyId: string, asOfDate: Date): Promise<any> {
@@ -49,6 +49,6 @@ export class LedgerService {
       where: { company_id: companyId, type: { in: ['asset', 'liability', 'equity'] } },
     });
     const sums = await this.repo.getLedgerSumsByAccount(companyId, asOfDate);
-    return AccountingInternalEngine.computeBalanceSheet(accounts as any, sums, asOfDate);
+    return AccountingInternalEngine.computeBalanceSheet(accounts, sums, asOfDate);
   }
 }

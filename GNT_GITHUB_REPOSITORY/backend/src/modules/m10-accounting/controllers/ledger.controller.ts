@@ -1,10 +1,9 @@
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { LedgerService } from '../services/ledger.service';
 import { LedgerRepository } from '../repositories/ledger.repository';
 
-const prisma = new PrismaClient();
 const ledgerService = new LedgerService(new LedgerRepository(prisma), prisma);
 
 export const LedgerController = {

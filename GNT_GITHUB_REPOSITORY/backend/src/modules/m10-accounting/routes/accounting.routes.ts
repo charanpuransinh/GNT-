@@ -1,7 +1,9 @@
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { Router } from 'express';
+import { prisma } from '@/common/config/prisma';
 import { LedgerController } from '../controllers/ledger.controller';
 import { VoucherController } from '../controllers/voucher.controller';
+import { BRSController } from '../controllers/brs.controller';
 
 const router = Router();
 
@@ -9,8 +11,6 @@ const router = Router();
 // अपनी request में दूसरी कंपनी का `company_id` डालकर उनके खातों में नया खाता बना
 // सकता था। अब company token से आती है और body से आया company_id माना ही नहीं जाता।
 router.post('/accounts', async (req, res) => {
-  const { PrismaClient } = await import('@prisma/client');
-  const prisma = new PrismaClient();
   const company_id = requireTenant(req).companyId;
   const { name, code, type, subtype, parent_id, opening_balance, is_bank_account, bank_name, bank_account_no } = req.body ?? {};
   if (!name || !code || !type) {
@@ -34,8 +34,6 @@ router.post('/accounts', async (req, res) => {
 });
 
 router.get('/accounts', async (req, res) => {
-  const { PrismaClient } = await import('@prisma/client');
-  const prisma = new PrismaClient();
   // 2026-09-04 tenant fix: company token से, query string से नहीं
   const company_id = requireTenant(req).companyId;
   const { type, search } = req.query;
@@ -70,5 +68,13 @@ router.get('/party-outstanding', VoucherController.getPartyOutstanding);
 router.get('/trial-balance', LedgerController.getTrialBalance);
 router.get('/profit-loss', LedgerController.getProfitLoss);
 router.get('/balance-sheet', LedgerController.getBalanceSheet);
+
+// पहले BRSController कहीं किसी route से जुड़ा ही नहीं था — पूरी bank
+// reconciliation feature (create/list/match/status, चारों लिखी और आंशिक रूप से
+// tested) किसी request तक पहुँचती ही नहीं थी।
+router.post('/brs', BRSController.createBRS);
+router.get('/brs', BRSController.getBRSList);
+router.post('/brs/:brs_id/match', BRSController.reconcileItem);
+router.get('/brs/:id/status', BRSController.getReconciliationStatus);
 
 export default router;
