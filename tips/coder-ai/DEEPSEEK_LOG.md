@@ -756,3 +756,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ⛔ 2026-09-05 — push अटका: GitHub push timeout (2 commits local, remote tak nahi gaye); auth/network verify करना बाक़ी
+
+
+## ⛔ 2026-09-05 — M13 blockage: 9-model blueprint (Workflow/Webhook/AutomationLog) ka code repo me hai hi nahi, sirf database/schema/M13_Automation.prisma schema hai; live M13 3-model green hai. Full rebuild Claude ka scope.
