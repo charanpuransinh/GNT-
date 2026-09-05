@@ -2443,3 +2443,43 @@ chat में भी यही text दिया है।
    थोड़ा design-काम है)
 3. M15 dead files हटाना/स्पष्ट करना
 4. बाक़ी सब PrismaClient singleton जैसी छोटी सफ़ाई
+
+---
+
+# ✅ DeepSeek ने M14 point 1/2/3 सच में ठीक किए — मैंने ख़ुद चलाकर जाँचा — 2026-09-06
+
+रिपोर्ट भेजने के कुछ ही घंटों में DeepSeek ने जवाब दिया — **सिर्फ़ commit message पर
+भरोसा नहीं किया, ख़ुद कोड पढ़ा और असली DB पर tests चलाकर पुष्टि की:**
+
+**M14 Import (`8e2e4f7`) — सच में ठीक:**
+- File अब असल में डिस्क पर लिखी जाती है (`uploads/imports/<tenantId>/<timestamp>-
+  <name>`), हर job का अपना unique path — पहले वाला hardcoded placeholder हटा।
+- `processJob` अब सच में ट्रिगर होता है (upload के तुरंत बाद, dryRun न हो तो)।
+- हर valid row अब **M05 की असली `partyService.createParty` / M06 की असली
+  `ProductService.createProduct` public API से insert होती है** — सीधे table में
+  नहीं, सही तरीक़े से module boundary के पार। जो entity type अभी wire नहीं (party/
+  product के अलावा), वहाँ साफ़ error देता है ("अभी wired नहीं — fail-closed"), झूठा
+  success नहीं।
+- नई `import.end-to-end.db.test.ts`: असली CSV अपलोड करके `party_master` में असली
+  पंक्ति बनने की जाँच — मैंने ख़ुद चलाई, पास हुई।
+
+**M14 Export (`4c8b6fd`) — सच में ठीक:**
+- `fetchEntityData` अब असली `party_master`/`product_master` से (company-scoped),
+  पहले वाले नक़ली 100 dummy items हटे।
+- `processJob` अब ट्रिगर होता है, output directory पहले से बना दी जाती है।
+- नई `export.end-to-end.db.test.ts`: असली party बनाकर export करने पर सही
+  `totalRecords: 1` (100 नहीं) और असली `fileKey` — मैंने ख़ुद चलाई, पास हुई।
+
+**M12 tax-slabs — DeepSeek ने ख़ुद अपनी ग़लती पकड़ी और सुधारी:** पहले commit
+`68b7c84` में उन्होंने असली भारतीय slabs डाल दिए थे — फिर ख़ुद एहसास हुआ कि यह
+owner/accountant का फ़ैसला था (P0-3), बिना पूछे बदलना ग़लत था — commits `26b9c11` +
+`c89765a` में **ख़ुद वापस placeholder किया**, कमेंट में साफ़ लिखा क्यों। यह ठीक वही
+अनुशासन है जो autonomy-rules माँगते हैं — अच्छा संकेत।
+
+**पुष्टि (ख़ुद चलाकर, commit message पर नहीं):** पूरा repo merge किया, नई migration
+(016, M22 invoice) लगाई, typecheck 0 errors, पूरा backend साथ — **128 files, 584/584
+tests हरे**। सब push हो चुका है।
+
+**बचा हुआ (अगली बार जाँचूँगा जब update आए):** M14 की dead middleware/routes files
+अभी नहीं हटीं, M15 का dead-code audit शुरू हुआ है (commit `ed7a4fd` का जिक्र) पर
+पूरा नहीं। M17-M22 की गहरी जाँच अभी बाक़ी।
