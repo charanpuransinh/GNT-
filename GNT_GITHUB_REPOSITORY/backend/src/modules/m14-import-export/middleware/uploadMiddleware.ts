@@ -27,7 +27,8 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 // ── Storage Configuration ──
 const storage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
-    const tenantId = req.headers['x-tenant-id'] as string || 'default';
+    // tenant JWT से (req.tenant) — कभी spoofable x-tenant-id header से नहीं
+    const tenantId = req.tenant?.companyId || 'default';
     const uploadDir = path.join(process.cwd(), 'uploads', tenantId, 'imports');
 
     if (!fs.existsSync(uploadDir)) {
