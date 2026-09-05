@@ -3019,9 +3019,28 @@ model CompanySubscription {
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
+  invoices   SubscriptionInvoice[]
+
   @@unique([companyId])
   @@index([companyId, status])
   @@index([planId])
   @@map("m22_company_subscriptions")
+}
+
+model SubscriptionInvoice {
+  id             String             @id @default(cuid())
+  companyId      String             @map("company_id")
+  subscriptionId String
+  subscription   CompanySubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  planId         String
+  amount         Decimal            @db.Decimal(10, 2)
+  billingCycle   String             @default("MONTHLY") // MONTHLY, YEARLY
+  status         String             @default("PENDING") // PENDING, PAID, OVERDUE
+  periodStart    DateTime
+  periodEnd      DateTime
+  createdAt      DateTime           @default(now())
+
+  @@index([companyId, status])
+  @@map("m22_subscription_invoices")
 }
 
