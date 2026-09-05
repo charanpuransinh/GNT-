@@ -1,34 +1,52 @@
-// [LOCK-9] Leave Service
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+// [LOCK-9] Leave Service — tenant-scoped
+import { prisma } from '@/common/config/prisma';
 
 export class LeaveService {
-  async apply(data: any) {
+  private async assertEmployeeOwned(tenantId: string, employeeId: string): Promise<void> {
+    const emp = await prisma.employee.findFirst({ where: { id: employeeId, tenantId }, select: { id: true } });
+    if (!emp) throw new Error('Employee not found');
+  }
+
+  async apply(tenantId: string, data: any) {
+    await this.assertEmployeeOwned(tenantId, data.employeeId);
     const days = this.calculateDays(data.startDate, data.endDate);
-    const balance = await this.getBalance(data.employeeId);
+    const balance = await this.getBalance(tenantId, data.employeeId);
     const field = data.type.toLowerCase();
     if (balance && (balance as any)[field] < days) {
       throw new Error(`Insufficient ${data.type} leave balance`);
     }
-    return prisma.leave.create({ data: { ...data, days, status: 'PENDING' } });
+    return prisma.leave.create({ data: { ...data, tenantId, days, status: 'PENDING' } });
   }
 
-  async approve(id: string, approvedById: string, rejectionReason?: string) {
-    const leave = await prisma.leave.update({ where: { id }, data: { status: 'APPROVED', approvedById, approvedAt: new Date() } });
+  async approve(tenantId: string, id: string, approvedById: string) {
+    const result = await prisma.leave.updateMany({
+      where: { id, tenantId },
+      data: { status: 'APPROVED', approvedById, approvedAt: new Date() }
+    });
+    if (result.count === 0) throw new Error('Leave not found');
+    const leave = await prisma.leave.findFirst({ where: { id, tenantId } });
+    if (!leave) throw new Error('Leave not found');
     await prisma.leaveBalance.updateMany({ where: { employeeId: leave.employeeId }, data: { used: { increment: Number(leave.daysRequested) } } });
-    await prisma.employee.update({ where: { id: leave.employeeId }, data: { employmentStatus: 'ON_LEAVE' } });
+    await prisma.employee.updateMany({ where: { id: leave.employeeId, tenantId }, data: { employmentStatus: 'ON_LEAVE' } });
     return leave;
   }
 
-  async reject(id: string, approvedById: string, rejectionReason: string) {
-    return prisma.leave.update({ where: { id }, data: { status: 'REJECTED', approvedById, approvedAt: new Date(), rejectionReason } });
+  async reject(tenantId: string, id: string, approvedById: string, rejectionReason: string) {
+    const result = await prisma.leave.updateMany({
+      where: { id, tenantId },
+      data: { status: 'REJECTED', approvedById, approvedAt: new Date(), rejectionReason }
+    });
+    if (result.count === 0) throw new Error('Leave not found');
+    const rejected = await prisma.leave.findFirst({ where: { id, tenantId } });
+    if (!rejected) throw new Error('Leave not found');
+    return rejected;
   }
 
-  async getByEmployee(employeeId: string) {
-    return prisma.leave.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' } });
+  async getByEmployee(tenantId: string, employeeId: string) {
+    return prisma.leave.findMany({ where: { employeeId, tenantId }, orderBy: { createdAt: 'desc' } });
   }
 
-  async getBalance(employeeId: string) {
+  async getBalance(tenantId: string, employeeId: string) {
     const year = new Date().getFullYear();
     let balance = await prisma.leaveBalance.findUnique({ where: { employeeId_year: { employeeId, year } } });
     if (!balance) {
@@ -39,9 +57,9 @@ export class LeaveService {
     return balance;
   }
 
-  async getPendingApprovals(approverId?: string) {
+  async getPendingApprovals(tenantId: string, approverId?: string) {
     return prisma.leave.findMany({
-      where: { status: 'PENDING' },
+      where: { tenantId, status: 'PENDING' },
       include: { employee: { select: { firstName: true, lastName: true, employeeCode: true, department: { select: { name: true } } } } },
       orderBy: { createdAt: 'desc' }
     });

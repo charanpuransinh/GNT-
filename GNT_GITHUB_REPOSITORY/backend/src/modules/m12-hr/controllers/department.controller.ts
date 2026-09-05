@@ -1,5 +1,6 @@
-// [LOCK-5] Department Controller
+// [LOCK-5] Department Controller — tenant-scoped
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { DepartmentService } from '../services/department.service';
 
 export class DepartmentController {
@@ -7,7 +8,8 @@ export class DepartmentController {
 
   async create(req: Request, res: Response) {
     try {
-      const dept = await this.service.create(req.body);
+      const tenantId = requireTenant(req).companyId;
+      const dept = await this.service.create(tenantId, req.body);
       res.status(201).json({ success: true, data: dept });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -16,7 +18,8 @@ export class DepartmentController {
 
   async findAll(req: Request, res: Response) {
     try {
-      const depts = await this.service.findAll();
+      const tenantId = requireTenant(req).companyId;
+      const depts = await this.service.findAll(tenantId);
       res.json({ success: true, data: depts });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -25,7 +28,8 @@ export class DepartmentController {
 
   async update(req: Request, res: Response) {
     try {
-      const dept = await this.service.update(String(req.params.id), req.body);
+      const tenantId = requireTenant(req).companyId;
+      const dept = await this.service.update(tenantId, String(req.params.id), req.body);
       res.json({ success: true, data: dept });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -34,7 +38,8 @@ export class DepartmentController {
 
   async remove(req: Request, res: Response) {
     try {
-      await this.service.remove(String(req.params.id));
+      const tenantId = requireTenant(req).companyId;
+      await this.service.remove(tenantId, String(req.params.id));
       res.json({ success: true, message: 'Department deleted' });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -43,7 +48,8 @@ export class DepartmentController {
 
   async getTree(req: Request, res: Response) {
     try {
-      const tree = await this.service.getDepartmentTree();
+      const tenantId = requireTenant(req).companyId;
+      const tree = await this.service.getDepartmentTree(tenantId);
       res.json({ success: true, data: tree });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });

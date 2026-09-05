@@ -1,18 +1,17 @@
-// [LOCK-7] Employee Service
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+// [LOCK-7] Employee Service — tenant-scoped (company_id की बंदिश हर query पर)
+import { prisma } from '@/common/config/prisma';
 
 export class EmployeeService {
-  async create(data: any) {
+  async create(tenantId: string, data: any) {
     const employeeCode = await this.generateEmployeeCode();
     return prisma.employee.create({
-      data: { ...data, employeeCode },
+      data: { ...data, tenantId, employeeCode },
       include: { department: true, documents: true }
     });
   }
 
-  async findAll(filters: any) {
-    const where: any = {};
+  async findAll(tenantId: string, filters: any) {
+    const where: any = { tenantId };
     if (filters.status) where.employmentStatus = filters.status;
     if (filters.departmentId) where.departmentId = filters.departmentId;
     if (filters.search) {
@@ -33,9 +32,9 @@ export class EmployeeService {
     return { data, meta: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) } };
   }
 
-  async findOne(id: string) {
-    return prisma.employee.findUnique({
-      where: { id },
+  async findOne(tenantId: string, id: string) {
+    return prisma.employee.findFirst({
+      where: { id, tenantId },
       include: {
         department: true, documents: true,
         attendances: { take: 30, orderBy: { date: 'desc' } },
@@ -45,25 +44,36 @@ export class EmployeeService {
     });
   }
 
-  async update(id: string, data: any) {
-    return prisma.employee.update({ where: { id }, data, include: { department: true } });
+  async update(tenantId: string, id: string, data: any) {
+    const result = await prisma.employee.updateMany({ where: { id, tenantId }, data });
+    if (result.count === 0) throw new Error('Employee not found');
+    const employee = await prisma.employee.findFirst({ where: { id, tenantId }, include: { department: true } });
+    if (!employee) throw new Error('Employee not found');
+    return employee;
   }
 
-  async remove(id: string) {
-    return prisma.employee.update({ where: { id }, data: { employmentStatus: 'TERMINATED', dateOfExit: new Date() } });
+  async remove(tenantId: string, id: string) {
+    const result = await prisma.employee.updateMany({
+      where: { id, tenantId },
+      data: { employmentStatus: 'TERMINATED', dateOfExit: new Date() }
+    });
+    if (result.count === 0) throw new Error('Employee not found');
+    return prisma.employee.findFirst({ where: { id, tenantId } });
   }
 
-  async addDocument(employeeId: string, docData: any) {
+  async addDocument(tenantId: string, employeeId: string, docData: any) {
+    const emp = await prisma.employee.findFirst({ where: { id: employeeId, tenantId }, select: { id: true } });
+    if (!emp) throw new Error('Employee not found');
     return prisma.employeeDocument.create({ data: { ...docData, employeeId } });
   }
 
-  async getDashboardStats() {
+  async getDashboardStats(tenantId: string) {
     const [total, active, onLeave, departments, newThisMonth] = await Promise.all([
-      prisma.employee.count(),
-      prisma.employee.count({ where: { employmentStatus: 'ACTIVE' } }),
-      prisma.employee.count({ where: { employmentStatus: 'ON_LEAVE' } }),
-      prisma.department.count(),
-      prisma.employee.count({ where: { dateOfJoining: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } })
+      prisma.employee.count({ where: { tenantId } }),
+      prisma.employee.count({ where: { tenantId, employmentStatus: 'ACTIVE' } }),
+      prisma.employee.count({ where: { tenantId, employmentStatus: 'ON_LEAVE' } }),
+      prisma.department.count({ where: { tenantId } }),
+      prisma.employee.count({ where: { tenantId, dateOfJoining: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } })
     ]);
     return { total, active, onLeave, departments, newThisMonth };
   }

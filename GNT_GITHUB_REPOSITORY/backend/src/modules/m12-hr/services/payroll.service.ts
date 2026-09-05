@@ -1,11 +1,9 @@
-// [LOCK-11] Payroll Service — schema (Payroll model) के असली fields से मिलाया गया
-import { PrismaClient } from '@prisma/client';
-import { requireTenant } from '@/common/middleware/require-tenant';
-const prisma = new PrismaClient();
+// [LOCK-11] Payroll Service — tenant-scoped (schema Payroll model के असली fields से)
+import { prisma } from '@/common/config/prisma';
 
 export class PayrollService {
-  async generate(month: number, year: number, employeeIds?: string[]) {
-    const where: Record<string, unknown> = { employmentStatus: 'ACTIVE' };
+  async generate(tenantId: string, month: number, year: number, employeeIds?: string[]) {
+    const where: Record<string, unknown> = { tenantId, employmentStatus: 'ACTIVE' };
     if (employeeIds?.length) where.id = { in: employeeIds };
     const employees = await prisma.employee.findMany({ where: where as never, include: { department: true } });
     const payrolls = [];
@@ -39,7 +37,7 @@ export class PayrollService {
           totalDeductions,
           netPay,
           status: 'DRAFT',
-          tenantId: emp.tenantId,
+          tenantId,
         },
       });
       payrolls.push(payroll);
@@ -47,25 +45,29 @@ export class PayrollService {
     return payrolls;
   }
 
-  async getByEmployee(employeeId: string) {
-    return prisma.payroll.findMany({ where: { employeeId }, orderBy: [{ year: 'desc' }, { month: 'desc' }] });
+  async getByEmployee(tenantId: string, employeeId: string) {
+    return prisma.payroll.findMany({ where: { employeeId, tenantId }, orderBy: [{ year: 'desc' }, { month: 'desc' }] });
   }
 
-  async markAsPaid(id: string, data: { paymentTransactionId: string; notes?: string }) {
-    return prisma.payroll.update({
-      where: { id },
+  async markAsPaid(tenantId: string, id: string, data: { paymentTransactionId: string; notes?: string }) {
+    const result = await prisma.payroll.updateMany({
+      where: { id, tenantId },
       data: { status: 'PAID', paidAt: new Date(), paymentTransactionId: data.paymentTransactionId, payslipGeneratedAt: new Date() },
     });
+    if (result.count === 0) throw new Error('Payroll not found');
+    const payroll = await prisma.payroll.findFirst({ where: { id, tenantId } });
+    if (!payroll) throw new Error('Payroll not found');
+    return payroll;
   }
 
-  async getMonthlySummary(month: number, year: number) {
+  async getMonthlySummary(tenantId: string, month: number, year: number) {
     const agg = await prisma.payroll.aggregate({
-      where: { month, year },
+      where: { tenantId, month, year },
       _sum: { basicSalary: true, hra: true, pfEmployee: true, tds: true, netPay: true },
       _count: true,
     });
     const byStatus = await prisma.payroll.groupBy({
-      by: ['status'], where: { month, year }, _count: true, _sum: { netPay: true },
+      by: ['status'], where: { tenantId, month, year }, _count: true, _sum: { netPay: true },
     });
     return {
       totalEmployees: agg._count,
