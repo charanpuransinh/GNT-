@@ -1742,3 +1742,18 @@ zabardasti नहीं करना। तुरंत मालिक को �
 lag raha hai, madad chahiye।" फ़ैसला मालिक का — वो module Claude के पास जाएगा।
 
 (नियम `AUTONOMY-RULES.md` §5 और दोनों logs में स्थायी।)
+
+
+## 🧱 PENDING FOR CLAUDE — सूची (मालिक का नियम, 2026-09-05)
+
+DeepSeek को जो file/task Claude के modules (M05, M06, या M01–M10) से जुड़ी/निर्भर मिले, वह
+ख़ुद fix नहीं करेगा — उसे **"PENDING FOR CLAUDE"** mark करके आगे बढ़ेगा। यह सूची Claude के लिए:
+
+| # | काम | क्यों Claude |
+|---|---|---|
+| P1 | M21 adapters: sales→M08, purchase→M07, accounting→M10, scheme→M08 | M07/M08/M10 की public create API |
+| P2 | M16 "buyer order → M08 pending order" + scheme validation | M08 sales |
+| P3 | Bank statement auto-posting / reconciliation | M10 + मालिक फ़ैसला #3 |
+| P4 | M13 (पूरा module) | मालिक ने Claude को दिया |
+
+(नियम `AUTONOMY-RULES.md` §5 और `tips/coder-ai/DEEPSEEK_LOG.md` में स्थायी।)

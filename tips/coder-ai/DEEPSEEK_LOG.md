@@ -662,3 +662,21 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 फ़ैसला owner का — वो उस module को Claude के पास shift करेंगे। यह नियम स्थायी है
 (`AUTONOMY-RULES.md` §5 में भी दर्ज)।
+
+
+## 🧱 नियम (2026-09-05, मालिक) — "PENDING FOR CLAUDE"
+
+अगर काम करते-करते कोई file **Claude के modules (M05, M06, या M01–M10 कोई भी) से related/dependent**
+मिले — तो उसे **ख़ुद fix करने की कोशिश मत करो**। उसे साफ़ **"PENDING FOR CLAUDE"** mark करो
+(comment या log में) और **उस पर से आगे बढ़ जाओ, काम रुके नहीं।**
+
+हर "PENDING FOR CLAUDE" item को `tips/owner-puran-singh/log.md` की सूची में भी record करते रहो,
+ताकि बाद में Claude सब एक साथ देख सके।
+
+### अभी तक की PENDING FOR CLAUDE सूची:
+| # | काम | क्यों Claude |
+|---|---|---|
+| P1 | M21 adapters: sales→M08, purchase→M07, accounting→M10, scheme→M08 | M07/M08/M10 की public create API (Claude) |
+| P2 | M16 "buyer order → M08 pending order" + server-side scheme validation | M08 sales (Claude) |
+| P3 | Bank statement auto-posting / reconciliation | M10 (Claude) + मालिक फ़ैसला #3 |
+| P4 | M13 (पूरा module) | मालिक ने Claude को दे दिया |
