@@ -4,8 +4,10 @@
 // spec §16/§35: M21 किसी master का मालिक नहीं बनता — यह सिर्फ़ सही module को
 // सौंपता है। यहाँ हर target module की PUBLIC API बुलाई जाती है (सीधी tables नहीं)।
 //
-// अभी जुड़े adapters: party→M05, item→M06। बाक़ी (sales/purchase/accounting/
-// export/scheme) `pending-adapter` लौटाते हैं — वो अगले increment का काम।
+// अभी जुड़े adapters: party→M05, item→M06, export→M20 (createExportShipment)।
+// बाक़ी (sales→M08, purchase→M07, accounting→M10, scheme→M08) `pending-adapter`
+// लौटाते हैं — उनके लिए M07/M08/M10 की complex line-item DTO + account/party
+// resolve चाहिए (Claude के modules की internals)।
 // ============================================================================
 
 import { partyService } from '@/modules/m05-party-management';

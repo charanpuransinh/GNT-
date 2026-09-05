@@ -759,3 +759,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ⛔ 2026-09-05 — M13 blockage: 9-model blueprint (Workflow/Webhook/AutomationLog) ka code repo me hai hi nahi, sirf database/schema/M13_Automation.prisma schema hai; live M13 3-model green hai. Full rebuild Claude ka scope.
+
+
+## ⛔ 2026-09-05 — baaki atkaav: M15 sync.fetch + sync-queue (external system boundary, koi real external system nahi), M21 sales/purchase/accounting/scheme (M07/M08/M10 complex DTOs + line-items, Claude internals), M17 (M06-M09 reporting facade), M12 tax-slab (owner P0-3). In-scope sab complete.
