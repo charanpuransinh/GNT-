@@ -5,6 +5,7 @@
 
 import { SendNotificationPayload } from '../types/notification.types';
 import { notificationRepository } from '../repositories/notification.repository';
+import { notificationGateway } from './gateway.binding';
 
 
 class EmailService {
@@ -19,8 +20,13 @@ class EmailService {
       if (!payload.toAddress) {
         throw new Error('Recipient address (toAddress) missing — fail-closed (userId को email नहीं माना गया)');
       }
-      // M18 email gateway अभी नहीं बना है — fail-closed
-      throw new Error('M18 email gateway not implemented — email delivery unavailable (fail-closed)');
+      await notificationGateway.sendEmail(payload.companyId, {
+        to: payload.toAddress,
+        subject: payload.title,
+        text: this.buildEmailBody(payload),
+        html: this.buildEmailHtml(payload),
+      });
+      await notificationRepository.createDeliveryLog(notificationId, 'email', 'delivered');
     } catch (error) {
       await notificationRepository.createDeliveryLog(
         notificationId,

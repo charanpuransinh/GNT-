@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import {
   SendWhatsAppDto,
   SendSmsDto,
+  SendEmailDto,
   ProcessPaymentDto,
   VerifyGstnDto,
   GatewayTestResult,
@@ -186,6 +187,30 @@ export class GatewayService {
     }
 
     throw new Error(`Unsupported payment provider: ${provider}`);
+  }
+
+  // ─── Email Gateway (SendGrid-compatible REST) ───
+  async sendEmail(companyId: string, dto: SendEmailDto): Promise<{ messageId: string; status: string }> {
+    const config = await this.repository.findActiveIntegrationByType(companyId, 'email');
+    if (!config) throw new Error('No active email gateway configured');
+
+    const cfg = config.config_json as { api_key: string; from_email: string; base_url?: string };
+    const baseUrl = cfg.base_url ?? 'https://api.sendgrid.com/v3';
+
+    const res = await fetch(`${baseUrl}/mail/send`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${cfg.api_key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: dto.to }], subject: dto.subject }],
+        from: { email: cfg.from_email },
+        content: [
+          { type: 'text/plain', value: dto.text },
+          ...(dto.html ? [{ type: 'text/html', value: dto.html }] : []),
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(`Email API error: ${await res.text()}`);
+    return { messageId: 'email-sent', status: 'sent' };
   }
 
   // ─── GSTN Verification ───
