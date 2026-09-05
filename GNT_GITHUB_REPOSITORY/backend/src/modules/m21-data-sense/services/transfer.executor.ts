@@ -158,6 +158,48 @@ export async function executeTransfer(
           rows.push({ ...base, status: 'created', id: (shipment as any).id });
           break;
         }
+        case 'm08-sales': {
+          // असली M08 sales_invoice बनाओ (single line item from summary) — pending-adapter नहीं
+          const partyId = await resolvePartyId(companyId, str(item.payload.partyName ?? item.payload.buyerName), userId);
+          const taxable = num(item.payload.taxableValue) ?? 0;
+          const tax = num(item.payload.gstAmount) ?? 0;
+          const total = num(item.payload.invoiceTotal) ?? (taxable + tax);
+          const dateStr = str(item.payload.invoiceDate);
+          const date = dateStr ? new Date(dateStr) : new Date();
+          const invoice = await prisma.salesInvoice.create({
+            data: {
+              companyId,
+              branchId: companyId,
+              customerId: partyId,
+              invoiceNumber: str(item.payload.invoiceNo) ?? `INV-${Date.now()}`,
+              invoiceDate: date,
+              dueDate: date,
+              totalAmount: taxable,
+              totalTax: tax,
+              totalDiscount: 0,
+              netAmount: taxable,
+              roundOff: 0,
+              grandTotal: total,
+              items: {
+                create: [{
+                  productId: str(item.payload.hsn) ?? 'generic',
+                  quantity: 1,
+                  rate: taxable,
+                  discountPercent: 0,
+                  discountAmount: 0,
+                  amount: taxable,
+                  taxRate: taxable > 0 ? (tax / taxable) * 100 : 0,
+                  taxAmount: tax,
+                  netAmount: taxable,
+                  hsnCode: str(item.payload.hsn) ?? null,
+                }],
+              },
+            },
+          });
+          summary.created++;
+          rows.push({ ...base, status: 'created', id: invoice.id });
+          break;
+        }
         default: {
           summary.pendingAdapter++;
           rows.push({ ...base, status: 'pending-adapter', note: `${item.targetModule} का adapter अगले increment में` });
