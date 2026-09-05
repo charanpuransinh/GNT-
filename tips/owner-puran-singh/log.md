@@ -1682,3 +1682,31 @@ body-fallback पूरी तरह हटाया; तीनों create sch
 अब भेज ही नहीं सकता, controller हमेशा authoritative भरता है। असली DB पर नए
 tests से साबित: body में जान-बूझकर ग़लत id भेजकर भी DB column में हमेशा token
 वाला असली user ही जाता है।
+
+---
+
+# 🔔 CERTIFIED — M08 Sales — 2026-09-05, दोपहर 1:11
+
+**status:** ✅ CERTIFIED - PRODUCTION READY
+**tests:** 27/27 (real DB, TEST_DB=1), typecheck साफ़
+**समय:** 2026-09-05 दोपहर 1:11
+
+🛑 **दो P0 मिले और ठीक किए:**
+
+1. **किसी भी company के नाम पर delivery challan बन सकती थी** —
+   `POST /sales/challans` companyId सीधे `req.body` से लेता था (बाक़ी दो challan
+   routes सही थे, यह वाला नहीं)। कोई भी login किया हुआ user किसी भी companyId के
+   नाम पर challan बना सकता था। ठीक किया: companyId अब हमेशा tenant middleware
+   से; साथ ही salesOrderId भी अब उसी company का है या नहीं जाँचा जाता है।
+
+2. **invoice approve/post header से spoof होता था** — controller
+   `req.headers['x-user-id']` को सीधे approvedBy/postedBy मान लेता था। header
+   भेजना body भेजने से भी आसान है, कोई भी किसी और के नाम पर approve/post करवा
+   सकता था। ठीक किया: असली पहचान अब सिर्फ़ token से।
+
+साथ में M06 जैसा ही DB-connection-leak: 10 जगह अपना अलग `new PrismaClient()`
+(हर repo/service + routes के तीन inline handlers में `require()` से भी) — सब
+साझा singleton पर लाया। मरी हुई `models/sales.model.ts` हटाई।
+
+असली DB पर नए test से साबित: approve पर जान-बूझकर ग़लत `x-user-id` भेजने पर भी
+DB में हमेशा token वाला असली user ही दर्ज होता है।
