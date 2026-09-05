@@ -768,3 +768,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ⛔ 2026-09-05 — M21 sales/purchase/accounting/scheme adapters: M08 me scheme service hi nahi, SalesInvoiceDTO line-items chahiye (M21 sheet me summary), M10 ledger needs account resolve — sab Claude internals. Ab M22 ko feature-gating se aur solid karta hoon.
+
+
+## ✅ 2026-09-05 (23:45) — FINAL in-scope audit: backend+frontend tsc 0, 118 files/546 tests 0 fail 0 skip. My M11-M22 sab clean (0 TODO except M15 external-fetch + M17 Claude-adapters). 006_M19 audit_log REVOKE = deployment-time migration (production app_user chahiye). Baaki sab Claude/owner/external.
