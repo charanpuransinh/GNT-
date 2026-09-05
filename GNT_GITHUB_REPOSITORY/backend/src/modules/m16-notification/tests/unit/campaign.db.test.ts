@@ -70,6 +70,16 @@ describe.runIf(process.env.TEST_DB === '1')('M16 Campaign — live DB', () => {
     await expect(campaignService.resolveOrderLink('nakli-token')).rejects.toThrow();
   });
 
+  it('send bina target party → 400 (BAD_REQUEST)', async () => {
+    const empty = await campaignService.create(
+      { name: 'Empty campaign', message: 'no one', targetPartyIds: [] },
+      TEST_COMPANY_ID,
+      TEST_USER_ID,
+    );
+    await expect(campaignService.send(empty.id, TEST_COMPANY_ID, TEST_USER_ID)).rejects.toThrow(/target party/);
+    await campaignService.delete(empty.id, TEST_COMPANY_ID);
+  });
+
   it('campaign मिटता है (अपनी company)', async () => {
     await campaignService.delete(campaignId, TEST_COMPANY_ID);
     await expect(campaignService.get(campaignId, TEST_COMPANY_ID)).rejects.toThrow();
