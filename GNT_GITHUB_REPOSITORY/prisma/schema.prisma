@@ -2060,7 +2060,7 @@ model LeaveType {
 
 model Leave {
   id              String   @id @default(cuid())
-  leaveNumber     String   @unique // LEV-2026-0001
+  leaveNumber     String   // LEV-2026-0001 — per-tenant unique (हर कंपनी की अपनी sequence)
 
   employeeId      String
   employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -2094,6 +2094,7 @@ model Leave {
 
   @@index([employeeId, status])
   @@index([tenantId, startDate])
+  @@unique([tenantId, leaveNumber])
   @@map("m12_leaves")
 }
 
