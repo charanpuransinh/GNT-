@@ -560,3 +560,25 @@ service/repository method `tenantId`/`companyId` लेकर भी query स�
 
 **नियम:** जब भी इनमें से कोई काम हाथ लगे, अपनी तरफ़ की public API/contract तैयार करके
 बाक़ी को `HOLD BY CLAUDE - PENDING` लिखकर छोड़ना है — Claude की files ख़ुद बदलना मना है।
+
+
+## 🔴 मालिक का फ़ैसला (2026-09-05) — M13 अब DeepSeek के पास नहीं, Claude संभालेगा
+
+**मालिक का निर्देश (शब्द-दर-शब्द इरादा):**
+> "M13-automation module ab tumhare responsibility mein nahi hai — Claude ise handle karega.
+> Tumhara M11-M12, M14+ ka kaam jaisa hai waisa hi rahega, bas M13 hata liya gaya."
+
+**DeepSeek का दायरा अब:** M11, M12, M14, M15, M16, M17, M18, M19, M20, M21, M22 (M13 हटा)।
+
+**⚠️ ईमानदार सुधार (ground truth — छिपाया नहीं):**
+मालिक को बताया गया था कि M13 में "75 typecheck errors pending" हैं — यह जानकारी **पुरानी** है।
+इसी session में DeepSeek ने M13 को blueprint §7.13 के 3 tables (`automation_rule`, `scheduled_job`,
+`job_execution_log`) पर **पूरा दोबारा बनाया था**:
+- tsc backend: **0 errors** (पहले 75 + 8 छिपी files)
+- tests: `TEST_DB=1` से **17/17 pass, skip 0**
+- mount: 21/21 (M13 गिरता था, अब चढ़ता है)
+- commit `2ffc7e9` — GitHub पर push हो चुका
+
+यानी Claude को **75 errors नहीं मिलेंगे** — एक हरा (green) module मिलेगा, जिसे वह अपनी
+तरफ़ से verify करके CERTIFIED कर ले। फ़ैसला फिर भी मालिक का है — M13 अब Claude का दायरा है।
+M13 की पूरी तकनीकी कहानी ऊपर "टास्क #030 M11+M13" वाली entry में दर्ज है।
