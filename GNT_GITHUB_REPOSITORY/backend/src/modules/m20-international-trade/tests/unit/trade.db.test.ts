@@ -74,4 +74,32 @@ describe.runIf(process.env.TEST_DB === '1')('M20 trade — live DB', () => {
     const del = await request(app).delete(`/api/v1/trade/shipments/${shipmentId}`).set('Authorization', auth());
     expect([200, 204]).toContain(del.status);
   });
+
+  it('galat HSN → 400 (INVALID_HSN, fake shipment nahi banti)', async () => {
+    const res = await request(app)
+      .post('/api/v1/trade/exports')
+      .set('Authorization', auth())
+      .send({
+        type: 'export', reference_no: 'EXP-BAD-HSN', party_id: 'p', product_id: 'pr',
+        hsn_code: '99999999', quantity: 1, currency: 'INR',
+      });
+    expect(res.status).toBe(400);
+
+    const job = await prisma.trade_job.findFirst({ where: { reference_no: 'EXP-BAD-HSN' } });
+    expect(job).toBeNull();
+  });
+
+  it('foreign currency bina fx_rate → 400 (FX_RATE_MISSING)', async () => {
+    const res = await request(app)
+      .post('/api/v1/trade/exports')
+      .set('Authorization', auth())
+      .send({
+        type: 'export', reference_no: 'EXP-NO-FX', party_id: 'p', product_id: 'pr',
+        hsn_code: HSN, quantity: 1, currency: 'EUR', value_fob: 100,
+      });
+    expect(res.status).toBe(400);
+
+    const job = await prisma.trade_job.findFirst({ where: { reference_no: 'EXP-NO-FX' } });
+    expect(job).toBeNull();
+  });
 });
