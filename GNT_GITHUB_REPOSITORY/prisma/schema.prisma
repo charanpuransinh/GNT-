@@ -2984,3 +2984,44 @@ model NotificationCampaign {
   @@map("m16_campaigns")
 }
 
+// ============================================================================
+// M22 — SUBSCRIPTION & BILLING (PRICING_SUBSCRIPTION_STRATEGY.md का blueprint)
+// plan = पेशकश · subscription = किस कंपनी ने कौन-सा plan लिया है
+// ============================================================================
+
+model SubscriptionPlan {
+  id            String   @id @default(cuid())
+  code          String   @unique // FOUNDING, BASIC, PRO, ENTERPRISE
+  name          String
+  description   String?
+  priceMonthly  Decimal  @db.Decimal(10, 2)
+  priceYearly   Decimal  @db.Decimal(10, 2)
+  billingCycle  String   @default("MONTHLY") // MONTHLY, YEARLY
+  features      Json     @default("[]")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions CompanySubscription[]
+
+  @@map("m22_subscription_plans")
+}
+
+model CompanySubscription {
+  id         String           @id @default(cuid())
+  companyId  String           @map("company_id")
+  planId     String
+  plan       SubscriptionPlan @relation(fields: [planId], references: [id])
+  status     String           @default("ACTIVE") // ACTIVE, TRIAL, EXPIRED, CANCELLED
+  startDate  DateTime         @default(now())
+  endDate    DateTime?
+  autoRenew  Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([companyId])
+  @@index([companyId, status])
+  @@index([planId])
+  @@map("m22_company_subscriptions")
+}
+

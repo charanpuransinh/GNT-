@@ -162,6 +162,8 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     load: async () => (await import('./modules/m21-data-sense')).dataSenseRoutes },
   { code: 'M20', path: '/api/v1/trade',         mounted: true,
     load: async () => (await import('./modules/m20-international-trade')).tradeRoutes },
+  { code: 'M22', path: '/api/v1/subscriptions', mounted: true,
+    load: async () => (await import('./modules/m22-subscription')).subscriptionRoutes },
 ];
 
 export const pendingMounts = (): ReadonlyArray<ModuleMount> => MODULE_MOUNTS.filter((m) => !m.mounted);
