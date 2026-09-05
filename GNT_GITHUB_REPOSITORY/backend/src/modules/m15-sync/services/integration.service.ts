@@ -155,13 +155,67 @@ export class IntegrationService {
           if (expiresAt > new Date()) {
             return authConfig.accessToken;
           }
-          // TODO: Refresh token logic
+          return this.refreshOAuth2Token(integrationId, tenantId, authConfig);
         }
         return authConfig.accessToken || null;
       case 'BASIC':
         return authConfig.credentials || null;
       default:
         return null;
+    }
+  }
+
+  /**
+   * Refresh an expired OAuth2 access token using the stored refresh token.
+   * Persists the refreshed token back to the integration so the next call is a cache hit.
+   * Returns null when refresh is impossible (no refresh token/token URL) or the provider rejects it.
+   */
+  private static async refreshOAuth2Token(
+    integrationId: string,
+    tenantId: string,
+    authConfig: any
+  ): Promise<string | null> {
+    if (!authConfig.refreshToken || !authConfig.tokenUrl) {
+      return null;
+    }
+
+    try {
+      const params = new URLSearchParams();
+      params.append('grant_type', 'refresh_token');
+      params.append('refresh_token', authConfig.refreshToken);
+      if (authConfig.clientId) params.append('client_id', authConfig.clientId);
+      if (authConfig.clientSecret) params.append('client_secret', authConfig.clientSecret);
+      if (authConfig.scope) params.append('scope', authConfig.scope);
+
+      const res = await axios.post(authConfig.tokenUrl, params, {
+        timeout: 10000,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      const newToken = res.data?.access_token ?? res.data?.accessToken;
+      if (!newToken) return null;
+
+      const expiresIn = Number(res.data?.expires_in ?? res.data?.expiresIn ?? 0);
+      const newRefreshToken = res.data?.refresh_token ?? res.data?.refreshToken;
+
+      const updatedConfig = {
+        ...authConfig,
+        accessToken: newToken,
+        ...(newRefreshToken ? { refreshToken: newRefreshToken } : {}),
+        ...(expiresIn > 0
+          ? { expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString() }
+          : {})
+      };
+
+      await prisma.externalIntegration.update({
+        where: { id: integrationId },
+        data: { authConfig: updatedConfig as never }
+      });
+
+      return newToken;
+    } catch {
+      // Provider rejected the refresh — token is unusable, return null (caller should re-auth).
+      return null;
     }
   }
 }

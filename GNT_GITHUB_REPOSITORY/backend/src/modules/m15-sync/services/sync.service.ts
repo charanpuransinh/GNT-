@@ -1,4 +1,4 @@
-import { PrismaClient, SyncConfig, SyncJob, SyncEntityLog, SyncConflict, SyncState, BackupJob } from '@prisma/client';
+import { PrismaClient, SyncConfig, SyncJob, SyncEntityLog, SyncConflict, SyncState, BackupJob, SyncEntityConfig } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'events';
 import {
@@ -64,7 +64,7 @@ export class SyncService {
     });
   }
 
-  static async listConfigs(tenantId: string, filters?: { sourceSystem?: string; status?: string }): Promise<SyncConfig[]> {
+  static async listConfigs(tenantId: string, filters?: { sourceSystem?: string; status?: string }): Promise<(SyncConfig & { entityConfigs: SyncEntityConfig[] })[]> {
     return prisma.syncConfig.findMany({
       where: {
         tenantId,

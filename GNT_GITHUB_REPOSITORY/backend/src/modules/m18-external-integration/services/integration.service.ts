@@ -26,6 +26,14 @@ import { GatewayService } from './gateway.service';
 import { GATEWAY_STATUS_CHANGED } from '../events/integration.events';
 
 export class IntegrationService {
+  // Short-lived cache + rate limiter for API-key validation (production hardening).
+  // Key: sha256 hash → permissions; invalid attempts keyed by plain-key prefix.
+  private readonly keyCache = new Map<string, { permissions: string[]; expiresAt: number }>();
+  private readonly invalidAttempts = new Map<string, { count: number; windowStart: number }>();
+  private static readonly CACHE_TTL_MS = 60_000;
+  private static readonly RATE_LIMIT_MAX = 10;
+  private static readonly RATE_LIMIT_WINDOW_MS = 60_000;
+
   constructor(
     private readonly repository: IntegrationRepository,
     private readonly gatewayService: GatewayService,
@@ -163,18 +171,49 @@ export class IntegrationService {
 
   async validateApiKey(plainKey: string): Promise<{ valid: boolean; permissions?: string[] }> {
     const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex');
-    // TODO(production): add a short-lived cache in front of this lookup
-    // and rate-limit repeated invalid attempts per IP/key prefix.
+    const now = Date.now();
+
+    // 1. Short-lived cache — valid key lookup without hitting the DB every time.
+    const cached = this.keyCache.get(keyHash);
+    if (cached && cached.expiresAt > now) {
+      return { valid: true, permissions: cached.permissions };
+    }
+    if (cached) this.keyCache.delete(keyHash); // expired
+
+    // 2. Rate-limit repeated invalid attempts per key prefix.
+    const prefix = plainKey.slice(0, 8);
+    const attempt = this.invalidAttempts.get(prefix);
+    if (attempt && now - attempt.windowStart < IntegrationService.RATE_LIMIT_WINDOW_MS
+        && attempt.count >= IntegrationService.RATE_LIMIT_MAX) {
+      return { valid: false };
+    }
+
     const record = await this.repository.findApiKeyByHash(keyHash);
 
     if (!record) {
+      this.recordInvalidAttempt(prefix, now);
       return { valid: false };
     }
 
     if (record.expires_at && record.expires_at < new Date()) {
+      this.recordInvalidAttempt(prefix, now);
       return { valid: false };
     }
 
+    // Cache a valid key, capped at the TTL or at the key's own expiry.
+    const cacheExpiry = record.expires_at
+      ? Math.min(record.expires_at.getTime(), now + IntegrationService.CACHE_TTL_MS)
+      : now + IntegrationService.CACHE_TTL_MS;
+    this.keyCache.set(keyHash, { permissions: record.permissions, expiresAt: cacheExpiry });
     return { valid: true, permissions: record.permissions };
+  }
+
+  private recordInvalidAttempt(prefix: string, now: number): void {
+    const attempt = this.invalidAttempts.get(prefix);
+    if (!attempt || now - attempt.windowStart >= IntegrationService.RATE_LIMIT_WINDOW_MS) {
+      this.invalidAttempts.set(prefix, { count: 1, windowStart: now });
+    } else {
+      attempt.count += 1;
+    }
   }
 }

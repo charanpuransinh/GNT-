@@ -2054,3 +2054,35 @@ M12 भी आधिकारिक 3-शर्तों पर पूरा: �
 
 M16 पूरा: कोई TODO नहीं (email gateway अब असली) · 13/13 जाँचें पास (skip 0, असली DB) · live पर चलता है।
 **Certified अब:** M11 + M12 + M16। अगला: M21।
+
+
+## 🟢 2026-09-05 (रात) — लगातार 4 commits: M14, M15, M18, M20
+
+**इस window में ठोस, verified काम (सब push, सब real DB `TEST_DB=1`, tsc 0):**
+
+- `e78124f` **M14** dead-file सफ़ाई — duplicate import/export/queue/parser/formatter + lock-artifact config हटाए, index.ts सिर्फ़ LIVE exports (m14 7 files/13 pass)
+- `dfce5fa` **M15** 2 TODO हटाए — OAuth2 refresh-token real logic + PAYMENT event ab active config के लिए targeted sync queue (m15 10 files/16 pass)
+- `af1b428` **M18** 2 TODO हटाए — API-key validate में cache+rate-limit + Twilio webhook real HMAC-SHA1 (m18 5/5)
+- `94eb833` **M20** FX + HSN services के 11 नए unit tests (m20 4 files/18 pass)
+
+**अभी पूरी suite: 95 files / 463 tests · 0 fail · 0 skip · tsc 0**
+
+**बाक़ी (सच, बिना बहाने):**
+- **M15** — 4 जगह अब भी असली नहीं: `sync.auth.ts`+`tenant.middleware.ts` (M01 JWT — **PENDING FOR CLAUDE**), `sync.service.ts` fetch (M05/M06/M07 cross-module — **PENDING FOR CLAUDE**), `backup.service.ts`+`sync-queue.service.ts` (अपना scope, असली DB backup/restore अभी नहीं — infra काम बाक़ी)।
+- **M17** — सारे adapters M06/M07/M08/M09 की reporting facade का इंतज़ार (सब **PENDING FOR CLAUDE**, 9 जगह TODO(#016))।
+- **M21** — export→M20 adapter बाक़ी (party/product resolve की design कमी है: export sheet में सिर्फ़ buyerName+hsn, product sku/name नहीं); sales/purchase/accounting/scheme adapters **PENDING FOR CLAUDE**।
+- **M22/subscription** — module अभी बना ही नहीं है (blueprint `PRICING_SUBSCRIPTION_STRATEGY.md` + task #018 "Subscription Phase 0→4" — owner के फ़ैसलों के बाद)।
+
+**अगला कदम:** M20 की बाक़ी services (trade-document/shipping calculators) के tests → फिर M19 की असली जाँच।
+
+
+## 🟢 2026-09-05 (रात, update) — अब 7 commits, suite 101 files/494 tests
+
+उसी रात आगे (सब push, tsc 0, 0 fail 0 skip):
+- `06a1fcf` **M20** shipping calculator + container CBM + currency exchange + country tax rules के 23 tests
+- `f8a68ef` **M20** trade document service के 3 tests (BOE/shipping bill content + 404)
+- `bfd2d81` **M19** health service के 5 tests (worst-status priority)
+
+**अब M20 = 9 files/44 tests · M19 = 3 files/9 tests · पूरी suite = 101 files/494 tests · 0 fail · 0 skip · tsc 0**
+
+**M20 अब अच्छी coverage में है** (customs, fx, hsn, shipping, cbm, currency-exchange, country-tax, trade-document)। अगला: M19 के बाक़ी services (audit/security) के tests, फिर M21 export adapter का party/product resolve design (owner/Claude फ़ैसला चाहिए)।

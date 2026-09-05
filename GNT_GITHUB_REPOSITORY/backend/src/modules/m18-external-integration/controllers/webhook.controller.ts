@@ -26,6 +26,7 @@ export class WebhookController {
       const result = await this.service.receiveWebhook(provider, {
         headers: req.headers as Record<string, string>,
         raw_body: rawBody,
+        full_url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
       });
 
       res.status(200).json({ received: true, log_id: result.logId });
