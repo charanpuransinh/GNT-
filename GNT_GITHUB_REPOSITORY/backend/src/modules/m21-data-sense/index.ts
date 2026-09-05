@@ -50,6 +50,7 @@ export { dataSenseService, DataSenseService } from './services/dataSense.service
 export { senseSheet, mapRow, GROUP_SPECS } from './services/sense.engine';
 export { validateRow, findDuplicates } from './services/validate.engine';
 export { buildTransferPlan } from './services/transfer.planner';
+export { executeTransfer } from './services/transfer.executor';
 export { DEFAULT_OPTIONS } from './types/dataSense.types';
 export type {
   AnalyzeResult, ColumnMapping, DataSenseOptions, IntakeSheet, RowVerdict,

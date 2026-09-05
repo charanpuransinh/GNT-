@@ -15,6 +15,7 @@ import {
 import { mapRow, senseSheet } from './sense.engine';
 import { findDuplicates, validateRow } from './validate.engine';
 import { buildTransferPlan } from './transfer.planner';
+import { executeTransfer } from './transfer.executor';
 
 export class DataSenseService {
   /**
@@ -91,6 +92,29 @@ export class DataSenseService {
         reviewZone.length === 0 &&
         suspenseZone.length === 0,
     };
+  }
+
+  /**
+   * मंज़ूरी के बाद असल TRANSFER — importable हो तो ही GREEN rows चढ़ती हैं।
+   * importable न हो तो blocked=true — कुछ नहीं चढ़ता (कोई झूठा आधा-import नहीं)।
+   */
+  async transfer(companyId: string, sheet: IntakeSheet, options?: Partial<DataSenseOptions>, userId?: string) {
+    const analysis = this.analyze(companyId, sheet, options);
+    if (!analysis.importable) {
+      return {
+        ...analysis,
+        blocked: true,
+        reason:
+          analysis.totals.red > 0
+            ? 'RED पंक्तियाँ हैं — पहले सुधारो'
+            : analysis.sense.missingRequiredFields.length > 0
+              ? `ज़रूरी fields गायब हैं: ${analysis.sense.missingRequiredFields.join(', ')}`
+              : 'कुछ पंक्तियाँ Review/Suspense में रुकी हैं — पहले मंज़ूर करो',
+        transferred: null,
+      };
+    }
+    const transferred = await executeTransfer(companyId, analysis.transferPlan, userId);
+    return { ...analysis, blocked: false, reason: null, transferred };
   }
 }
 
