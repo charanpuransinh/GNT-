@@ -777,3 +777,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ✅ 2026-09-06 — frontend build verified: vite build + tsc 0 (M22 SubscriptionPricingPage bundle me aa gaya, 5.04s). dist git-ignored. Full-stack build green.
+
+
+## ✅ 2026-09-06 — M15 getAuthToken (OAuth2 fail-closed) ab tested. Ab tak M11-M22 ki sab own-logic covered (M14 utils/template/job, M15 services, M16 send, M17 report, M18 validateApiKey, M20 error-paths). Suite 126/580. Baaki sirf Claude/owner/external items.
