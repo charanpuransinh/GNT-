@@ -762,3 +762,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ⛔ 2026-09-05 — baaki atkaav: M15 sync.fetch + sync-queue (external system boundary, koi real external system nahi), M21 sales/purchase/accounting/scheme (M07/M08/M10 complex DTOs + line-items, Claude internals), M17 (M06-M09 reporting facade), M12 tax-slab (owner P0-3). In-scope sab complete.
+
+
+## 📌 2026-09-05 — M22 done (plan+subscribe+cancel+HTTP+tenant-isolation, 4 tests). Baaki sirf Claude/owner/external-boundary items (M13 9-model, M17, M21 sales/purchase/accounting/scheme, M12 tax-slab). In-scope backend sab complete.
