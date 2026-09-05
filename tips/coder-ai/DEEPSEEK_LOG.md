@@ -783,3 +783,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ⛔ 2026-09-06 — M12 tax-slab P0-3 (money/tax, owner confirm chahiye) abhi rukka; M13/M17/M21 Claude ke. Ab M22 billing/invoice bana raha hoon (owner-faisla nahi chahiye).
+
+
+## 📌 2026-09-06 — M14 import+export ab end-to-end REAL (e2e tests se prove). Ab M15 (Sync) verify: dead code + external boundary. M16-M21 ke baad.
