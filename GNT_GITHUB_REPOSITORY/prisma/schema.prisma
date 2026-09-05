@@ -2960,3 +2960,26 @@ model JobExecutionLog {
   @@map("m13_job_execution_logs")
 }
 
+// ============================================================================
+// M16 — NOTIFICATION CAMPAIGN (SPEC-B: WhatsApp campaign + secure order link)
+// ============================================================================
+
+model NotificationCampaign {
+  id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
+  name         String
+  message      String
+  channel      String   @default("whatsapp") // whatsapp | sms | email
+  status       String   @default("DRAFT")    // DRAFT, SENDING, COMPLETED, FAILED
+  targetPartyIds Json?  // ग्राहक parties की id सूची
+  orderOffer   String?  // secure order-link खोलने पर दिखने वाला ऑफ़र/संदेश
+  sentCount    Int      @default(0)
+  failedCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    String
+
+  @@index([companyId, status])
+  @@map("m16_campaigns")
+}
+

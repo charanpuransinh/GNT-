@@ -47,7 +47,8 @@ describe.runIf(process.env.TEST_DB === '1')('M21 Data Sense TRANSFER — live DB
     expect(result.sense.group).toBe('party');
     expect(result.importable).toBe(true);
     expect(result.blocked).toBe(false);
-    expect(result.transferred.summary.created).toBe(2);
+    expect(result.transferred).not.toBeNull();
+    expect(result.transferred!.summary.created).toBe(2);
 
     const created = await prisma.party_master.findMany({ where: { company_id: TEST_COMPANY_ID } });
     expect(created.length).toBe(2);
@@ -64,7 +65,8 @@ describe.runIf(process.env.TEST_DB === '1')('M21 Data Sense TRANSFER — live DB
     });
 
     expect(result.blocked).toBe(false);
-    expect(result.transferred.summary.created).toBe(1);
+    expect(result.transferred).not.toBeNull();
+    expect(result.transferred!.summary.created).toBe(1);
 
     // TEST company की party गिनती नहीं बढ़ी
     const testParties = await prisma.party_master.count({ where: { company_id: TEST_COMPANY_ID } });

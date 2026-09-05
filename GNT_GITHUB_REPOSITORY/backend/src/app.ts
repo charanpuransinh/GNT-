@@ -57,6 +57,10 @@ const PUBLIC_PREFIXES = [
   // balancer बिना token बुला सके; 401 देने वाला health check बेकार है।
   '/api/v1/foundation/health',
   '/api/v1/foundation/maintenance',
+  // ── M16 (2026-09-05) ──
+  // buyer का secure order-link बिना login खुलना चाहिए — link ही उसकी पहचान है
+  // (HMAC-signed + expiry, M16 campaign.service)। सिर्फ़ यही GET रास्ता public है।
+  '/api/v1/notifications/order-link',
 ];
 const isPublicPath = (p: string): boolean =>
   PUBLIC_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`) || p.startsWith(`${pre}?`));
