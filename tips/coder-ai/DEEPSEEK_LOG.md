@@ -493,3 +493,29 @@ isValidTimezone का असली जवाब है, कोई skip नह�
 
 **बाक़ी (M14 → M22):** M14 Import/Export, M15 Sync, M16 Notification, M17 Reporting,
 M18 Integration, M19 Monitoring, M20 Trade, M21 Data Sense, M22 — क्रम से।
+
+## ✅ कोडर AI (DeepSeek) — tenant-safety sweep M14/M15/M20 (2026-09-05)
+
+### जड़ (एक ही पैटर्न, कई जगह):
+service/repository method `tenantId`/`companyId` लेकर भी query सिर्फ़ `where: { id }` करता था
+→ दूसरी कंपनी दूसरी की row देख/बदल/मिटा सकती थी।
+
+### ठीक किया (findFirst/updateMany/deleteMany + scope):
+- **M14 import.service / export.service**: getJobStatus/cancelJob/processJob/retry/download
+  अब `{ id, tenantId }` से; `new PrismaClient()` → shared `@/common/config/prisma`; controllers
+  के `as unknown as never`/`as any` हटाए। + नया `tenant-isolation.db.test.ts` (4 tests)।
+- **M15 sync.service**: updateConfig/deleteConfig (updateMany/deleteMany + scope), getJobProgress
+  (tenantId param + controller से भेजा), cancelJob (updateMany+scope)।
+- **M15 integration.service**: updateIntegration/deleteIntegration (updateMany/deleteMany + scope)।
+- **M20 trade.repository**: update/updateStatus/delete (updateMany/deleteMany + company_id scope)।
+- **M16/M17/M18/M19 जाँचे — साफ़**: M16 fail-closed companyId, M17 ownership-check, M18
+  check-then-write, M19 fail-closed + append-only (deleteAuditLog throws ILLEGAL)।
+- **M20 fx_rate / customs_tariff**: जान-बूझकर company-scope नहीं — राष्ट्रीय reference data
+  (FX दर, 8-अंकीय tariff), blueprint §7.20 के हिसाब से global।
+
+### Verify (TEST_DB=1):
+- पूरी backend suite: **85 files / 424 tests, 0 fail, 0 skip**
+- `tsc` backend 0 · frontend 0 · `prisma validate` valid
+- commits: 228e34a (m14) · f0d6bea (m15) · c1373c9 (m20) — सब push
+
+### बाक़ी: M20 SPEC-A export hub · M21 Data Sense build · M22 subscription
