@@ -9,7 +9,11 @@
     "dev": "tsx watch --tsconfig ../tsconfig.backend.json src/server.ts",
     "typecheck": "tsc -p ../tsconfig.backend.json --noEmit",
     "test:m16-m21": "node --import tsx --test src/modules/m1[6-9]*/tests/unit/*.test.ts src/modules/m2[01]*/tests/unit/*.test.ts",
-    "test:deterministic": "node --import tsx --test ../tests/m20-m21.deterministic.test.ts"
+    "test:deterministic": "node --import tsx --test ../tests/m20-m21.deterministic.test.ts",
+    "perms:seed": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts seed",
+    "perms:grant-owner": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts grant-owner",
+    "perms:grant-bundle": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts grant-bundle",
+    "perms:show": "tsx --tsconfig ../tsconfig.backend.json src/scripts/permissions-cli.ts show"
   },
   "dependencies": {
     "express": "^5.1.0",

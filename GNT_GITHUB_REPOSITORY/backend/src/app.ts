@@ -17,6 +17,7 @@ import { requestTracer } from './common/middleware/request-tracer';
 import { auditContextMiddleware } from './common/middleware/audit-context';
 import { authMiddleware } from './common/middleware/auth-middleware';
 import { tenantMiddleware } from './common/middleware/tenant-middleware';
+import { requirePermissionMiddleware } from './common/middleware/require-permission';
 import { AppError } from './common/errors/error-classes';
 import { MODULE_MOUNTS, type ModuleMount } from './module-registry';
 
@@ -70,6 +71,16 @@ app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
 app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
   if (isPublicPath(req.originalUrl)) return next();
   return tenantMiddleware(req, res, next);
+});
+
+// ─── अनुमति की जाँच (मालिक का फ़ैसला, 2026-09-05) ───
+// auth = "कौन हो", tenant = "किस कंपनी के हो", और यह तीसरा = "इस काम का हक़ है या नहीं"।
+// पहले यह तीसरी जाँच पूरे system में कहीं थी ही नहीं (P0, 2026-09-04) — यानी बिल देखने
+// वाला क्लर्क भी users बना/मिटा सकता था और भूमिकाएँ बदल सकता था।
+// किस रास्ते पर कौन सी अनुमति चाहिए, यह `common/auth/permission-catalog.ts` तय करता है।
+app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
+  if (isPublicPath(req.originalUrl)) return next();
+  return requirePermissionMiddleware(req, res, next);
 });
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
