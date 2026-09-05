@@ -786,3 +786,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## 📌 2026-09-06 — M14 import+export ab end-to-end REAL (e2e tests se prove). Ab M15 (Sync) verify: dead code + external boundary. M16-M21 ke baad.
+
+
+## 📌 2026-09-06 — M21 sales adapter done. Ab purchase->M07 + accounting->M10 adapters (sales jaisa). Baaki: M12 tax-slab owner, M16/M19/M20 re-verify, M22 depth.
