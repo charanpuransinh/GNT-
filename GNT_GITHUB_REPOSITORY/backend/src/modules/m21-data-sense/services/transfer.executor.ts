@@ -78,7 +78,7 @@ function mapProduct(companyId: string, payload: Record<string, unknown>): Produc
 }
 
 // export (M20) के लिए party — buyer नाम से ढूँढो, न मिले तो बनाओ
-async function resolvePartyId(companyId: string, buyerName: string | undefined, userId?: string): Promise<string> {
+async function resolvePartyId(companyId: string, buyerName: string | undefined, userId?: string, partyType: 'customer' | 'supplier' = 'customer'): Promise<string> {
   const name = buyerName?.trim();
   if (name) {
     const existing = (await partyService.listParties(companyId, { search: name, limit: 1 }) as any)?.data?.[0];
@@ -86,7 +86,7 @@ async function resolvePartyId(companyId: string, buyerName: string | undefined, 
   }
   const party = await partyService.createParty(
     companyId,
-    mapParty({ name: name || 'बिना-नाम', partyType: 'customer' }),
+    mapParty({ name: name || 'बिना-नाम', partyType }),
     userId,
   );
   return party.id;
@@ -198,6 +198,69 @@ export async function executeTransfer(
           });
           summary.created++;
           rows.push({ ...base, status: 'created', id: invoice.id });
+          break;
+        }
+        case 'm07-purchase': {
+          // असली M07 purchase_invoice बनाओ (supplier resolve + item)
+          const supplierId = await resolvePartyId(companyId, str(item.payload.supplierName), userId, 'supplier');
+          const taxable = num(item.payload.taxableValue) ?? 0;
+          const tax = num(item.payload.gstAmount) ?? 0;
+          const total = num(item.payload.invoiceTotal) ?? (taxable + tax);
+          const dateStr = str(item.payload.invoiceDate);
+          const date = dateStr ? new Date(dateStr) : new Date();
+          const invoice = await prisma.purchase_invoice.create({
+            data: {
+              company_id: companyId,
+              branch_id: companyId,
+              supplier_id: supplierId,
+              invoice_number: str(item.payload.invoiceNo) ?? `PINV-${Date.now()}`,
+              invoice_date: date,
+              total_amount: taxable,
+              total_tax: tax,
+              total_discount: 0,
+              net_amount: taxable,
+              round_off: 0,
+              grand_total: total,
+              items: {
+                create: [{
+                  product_id: str(item.payload.hsn) ?? 'generic',
+                  quantity: 1,
+                  rate: taxable,
+                  discount_amount: 0,
+                  amount: taxable,
+                  tax_rate: taxable > 0 ? (tax / taxable) * 100 : 0,
+                  tax_amount: tax,
+                  net_amount: taxable,
+                }],
+              },
+            },
+          });
+          summary.created++;
+          rows.push({ ...base, status: 'created', id: invoice.id });
+          break;
+        }
+        case 'm10-accounting': {
+          // असली M10 ledger entry बनाओ (ledgerName → account resolve + debit/credit)
+          const ledgerName = str(item.payload.ledgerName);
+          if (!ledgerName) throw new Error('ledgerName required');
+          const account = await prisma.account_master.findFirst({ where: { company_id: companyId, name: ledgerName } });
+          if (!account) throw new Error(`Account '${ledgerName}' not found`);
+          const debit = num(item.payload.debit) ?? 0;
+          const credit = num(item.payload.credit) ?? 0;
+          const dateStr = str(item.payload.voucherDate);
+          const date = dateStr ? new Date(dateStr) : new Date();
+          const entry = await prisma.ledger.create({
+            data: {
+              company_id: companyId,
+              account_id: account.id,
+              transaction_date: date,
+              debit_amount: debit,
+              credit_amount: credit,
+              narration: str(item.payload.narration) ?? null,
+            },
+          });
+          summary.created++;
+          rows.push({ ...base, status: 'created', id: entry.id });
           break;
         }
         default: {
