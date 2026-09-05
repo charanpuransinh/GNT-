@@ -6,7 +6,7 @@ Each module is certified only after: (1) errors fixed, (2) blueprint/contract ru
 | Module | Status | Date | Evidence |
 |--------|--------|------|----------|
 | M01 Foundation | CERTIFIED - PRODUCTION READY | 2026-09-05 | 31 passed / 0 failed / 7 skipped (DB-gated); typecheck clean; routes match contract |
-| M02 Core Architecture | pending | — | — |
+| M02 Core Architecture | CERTIFIED - PRODUCTION READY | 2026-09-05 | 102 passed / 0 failed / 0 skipped (real DB, TEST_DB=1); typecheck clean |
 | M03 Device Platform | pending | — | — |
 | M04 Company Management | pending | — | — |
 | M05 Party Management | pending | — | — |
