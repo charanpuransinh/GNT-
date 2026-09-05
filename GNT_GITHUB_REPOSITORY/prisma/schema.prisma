@@ -1500,7 +1500,7 @@ model ReportTemplate {
 
 model PaymentMethod {
   id              String   @id @default(cuid())
-  code            String   @unique // CASH, BANK_TRANSFER, UPI, CARD, CHEQUE, WALLET
+  code            String   // CASH, BANK_TRANSFER, UPI, CARD, CHEQUE, WALLET — per-tenant unique
   name            String
   description     String?
   isActive        Boolean  @default(true)
@@ -1522,7 +1522,7 @@ model PaymentMethod {
   schedules       PaymentSchedule[]
 
   @@index([tenantId, isActive])
-  @@index([code, tenantId])
+  @@unique([code, tenantId])
   @@map("m11_payment_methods")
 }
 
