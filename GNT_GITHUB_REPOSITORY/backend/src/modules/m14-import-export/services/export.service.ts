@@ -5,7 +5,7 @@ import { ExportJob, Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
 import { createObjectCsvWriter } from 'csv-writer';
 import * as XLSX from 'xlsx';
-import { writeFileSync } from 'fs';
+import { writeFileSync, mkdirSync } from 'fs';
 import { ExportColumn } from '../types/export.types';
 import path from 'path';
 
@@ -45,7 +45,7 @@ export class ExportService {
     });
 
     try {
-      const mockData = await this.fetchEntityData(job.sourceEntity, job.filters, job.columns);
+      const mockData = await this.fetchEntityData(job.sourceEntity, tenantId, job.filters);
       const fileKey = await this.generateFile(job, mockData);
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -72,6 +72,7 @@ export class ExportService {
 
   private static async generateFile(job: ExportJob, data: unknown[]): Promise<string> {
     const outputDir = 'uploads/exports/';
+    mkdirSync(outputDir, { recursive: true }); // directory pehle banao — csv-writer khud nahi banata
     const baseName = `${job.id}_${Date.now()}`;
 
     switch (job.format.toLowerCase()) {
@@ -119,16 +120,18 @@ export class ExportService {
     return filePath;
   }
 
-  private static async fetchEntityData(_entityType: string, _filters: unknown, _columns: unknown): Promise<Record<string, unknown>[]> {
-    // असली entity table से data अगले चरण का काम — अभी deterministic नमूना (झूठ नहीं)
-    return Array.from({ length: 100 }, (_, i) => ({
-      id: `ENT-${i + 1}`,
-      name: `Item ${i + 1}`,
-      email: `item${i + 1}@example.com`,
-      price: (i * 7.5).toFixed(2),
-      quantity: (i % 20) + 1,
-      createdAt: new Date().toISOString()
-    }));
+  private static async fetchEntityData(entityType: string, tenantId: string, _filters: unknown): Promise<Record<string, unknown>[]> {
+    const t = (entityType ?? '').toLowerCase();
+    // असली entity table से data (fake 100 items नहीं) — tenant-scoped
+    if (t === 'customer' || t === 'party' || t === 'supplier') {
+      const rows = await prisma.party_master.findMany({ where: { company_id: tenantId }, take: 500 });
+      return rows.map((r) => ({ id: r.id, name: r.name, email: r.email, phone: r.phone, gstin: r.gstin }));
+    }
+    if (t === 'product' || t === 'item' || t === 'inventory') {
+      const rows = await prisma.product_master.findMany({ where: { company_id: tenantId }, take: 500 });
+      return rows.map((r) => ({ id: r.id, name: r.name, sku: r.code, hsn: r.hsn_code, price: Number(r.sale_price ?? 0) }));
+    }
+    return []; // unsupported entity — खाली (ईमानदार), fake नहीं
   }
 
   static async getJobStatus(jobId: string, tenantId: string): Promise<ExportJob | null> {
@@ -156,7 +159,30 @@ export class ExportService {
 
   // ─── नई controllers यही नाम बुलाती हैं ───
   static async createExportJob(data: unknown): Promise<ExportJob> {
-    return ExportService.createJob(data as Parameters<typeof ExportService.createJob>[0]);
+    const d = data as {
+      tenantId: string;
+      module?: string;
+      entityType?: string;
+      format?: string;
+      filters?: Record<string, unknown>;
+      columns?: unknown[];
+      createdBy?: string;
+      userId?: string;
+      name?: string;
+    };
+    const job = await ExportService.createJob({
+      tenantId: d.tenantId,
+      name: d.name ?? `${d.entityType ?? d.module ?? 'export'}-${(d.format ?? 'csv').toLowerCase()}`,
+      format: d.format ?? 'csv',
+      sourceModule: d.module ?? 'M14',
+      sourceEntity: d.entityType ?? 'EXPORT',
+      filters: d.filters,
+      columns: d.columns,
+      createdBy: d.createdBy ?? d.userId ?? '',
+    });
+    // पहले processJob कभी चलता ही नहीं था — अब असली file बनाने के लिए trigger
+    ExportService.processJob(job.id, d.tenantId).catch(() => {});
+    return job;
   }
   static async getExportJob(jobId: string, tenantId?: string): Promise<ExportJob | null> {
     if (!tenantId) throw new Error('Tenant required');
