@@ -79,7 +79,9 @@ export class PaymentRepository {
     return { data, total };
   }
 
-  async create(dto: CreatePaymentDto, tenantId: string, userId: string): Promise<PaymentTransaction> {
+  async create(dto: CreatePaymentDto, tenantId: string, userId: string, partyType: string, direction: 'IN' | 'OUT'): Promise<PaymentTransaction> {
+    // पहले direction हमेशा 'OUT' hardcode थी — customer से आया receipt भी 'OUT' (हम भेज रहे)
+    // दर्ज होता, cash-flow/dashboard हमेशा ग़लत होते। अब असली partyType से तय (payment.service.ts)।
     return this.prisma.paymentTransaction.create({
       data: {
         tenantId,
@@ -88,15 +90,18 @@ export class PaymentRepository {
         currency: dto.currency || 'INR',
         baseAmount: toDecimal(dto.amount),
         status: 'PENDING',
-        direction: 'OUT',
+        direction,
         paymentMethodId: dto.paymentMethodId,
-        referenceType: dto.invoiceId ? 'INVOICE' : null,
+        // पहले referenceType हमेशा 'INVOICE' (बिक्री) होता था, चाहे payerType VENDOR
+        // ही क्यों न हो — यानी सप्लायर को दिया गया payment भी ग़लती से sales invoice
+        // की तरह टैग होता, असली purchase bill कभी सही से लिंक नहीं होता।
+        referenceType: dto.invoiceId ? (direction === 'IN' ? 'INVOICE' : 'BILL') : null,
         referenceId: dto.invoiceId || null,
         bankAccountId: dto.bankAccountId || null,
         partyName: dto.payerName || '',
         partyContact: dto.payerEmail || null,
         partyId: dto.payerId || '',
-        partyType: dto.payerType || 'SYSTEM',
+        partyType,
         narration: dto.description || null,
         transactionDate: new Date(),
         createdBy: userId,

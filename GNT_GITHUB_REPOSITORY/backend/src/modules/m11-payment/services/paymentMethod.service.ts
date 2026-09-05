@@ -2,7 +2,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { PaymentMethodRepository } from '../repositories/paymentMethod.repository';
-import { EventBus } from '../events/event.bus';
+import type { EventBus } from '@/common/events/event-bus';
 import { CreatePaymentMethodDto, UpdatePaymentMethodDto } from '../types';
 import { AppError } from '@/common/errors/error-classes';
 

@@ -2,7 +2,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
-import { EventBus } from '../events/event.bus';
+import type { EventBus } from '@/common/events/event-bus';
 import { CreateBankAccountDto, UpdateBankAccountDto } from '../types';
 import { AppError } from '@/common/errors/error-classes';
 

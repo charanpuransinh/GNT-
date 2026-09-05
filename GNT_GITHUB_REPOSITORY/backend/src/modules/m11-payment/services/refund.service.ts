@@ -6,7 +6,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { RefundRepository } from '../repositories/refund.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
-import { EventBus } from '../events/event.bus';
+import type { EventBus } from '@/common/events/event-bus';
 import { RefundFilter, CreateRefundDto, UpdateRefundDto } from '../types';
 import { AppError } from '@/common/errors/error-classes';
 

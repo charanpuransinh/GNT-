@@ -8,7 +8,8 @@ import { PaymentRepository } from '../repositories/payment.repository';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { PaymentMethodRepository } from '../repositories/paymentMethod.repository';
-import { EventBus } from '../events/event.bus';
+import { LedgerBridgeService, normalizePartyType, directionForPartyType } from './ledgerBridge.service';
+import type { EventBus } from '@/common/events/event-bus';
 import {
   PaymentFilter, CreatePaymentDto, UpdatePaymentDto,
   PaymentCompletedEvent,
@@ -21,6 +22,7 @@ export class PaymentService {
   private bankRepo: BankAccountRepository;
   private ledgerRepo: LedgerRepository;
   private pmRepo: PaymentMethodRepository;
+  private ledgerBridge: LedgerBridgeService;
   private eventBus: EventBus;
 
   constructor(private prisma: PrismaClient, eventBus: EventBus) {
@@ -28,6 +30,7 @@ export class PaymentService {
     this.bankRepo = new BankAccountRepository(prisma);
     this.ledgerRepo = new LedgerRepository(prisma);
     this.pmRepo = new PaymentMethodRepository(prisma);
+    this.ledgerBridge = new LedgerBridgeService(prisma);
     this.eventBus = eventBus;
   }
 
@@ -58,10 +61,19 @@ export class PaymentService {
       if (!account) throw this.badRequest('Bank account not found');
     }
 
+    // payerType कहीं से भी आए (frontend 'customer'/'supplier' भेजता है) — एक ही
+    // सामान्य रूप, और M05 में असली party जाँच (सिर्फ़ CUSTOMER/VENDOR के लिए —
+    // बिना जाँचे किसी भी id पर payment बन जाता था, मिटी/ग़लत party पर भी)
+    const partyType = normalizePartyType(dto.payerType);
+    if (dto.payerId) {
+      await this.ledgerBridge.assertPartyExists(tenantId, partyType, dto.payerId);
+    }
+    const direction = directionForPartyType(partyType);
+
     // Create payment within transaction
     const payment = await this.prisma.$transaction(async (tx) => {
       const repo = new PaymentRepository(tx);
-      return repo.create(dto, tenantId, userId);
+      return repo.create(dto, tenantId, userId, partyType, direction);
     });
 
     // Publish event (async - fire and forget)
@@ -87,6 +99,26 @@ export class PaymentService {
     if (payment.status !== 'PENDING') throw this.badRequest('Payment is not pending');
 
     const amount = payment.amount;
+    // पहले यह हमेशा 'OUT' मानकर चलता था (create के hardcode की वजह से)। अब असली
+    // direction — customer से receipt आया तो 'IN', वरना 'OUT'।
+    const isReceipt = payment.direction === 'IN';
+
+    // M10 में असली voucher — payment "COMPLETED" कहलाने से **पहले**। अगर यह फटा
+    // (जैसे party/bank account resolve न हो पाए) तो payment PENDING ही रहता है,
+    // "COMPLETED" दिखाकर किताबें ग़लत नहीं होतीं (M08 के postInvoice जैसा ही सिद्धांत:
+    // पहले सारे side-effects, फिर status बदलो)।
+    const ledgerResult = await this.ledgerBridge.postPaymentToLedger({
+      companyId: tenantId,
+      userId,
+      partyType: normalizePartyType(payment.partyType),
+      partyId: payment.partyId,
+      amount: Number(amount),
+      bankAccountId: payment.bankAccountId,
+      referenceType: payment.referenceType,
+      referenceId: payment.referenceId,
+      narration: payment.narration,
+      voucherDate: new Date(),
+    });
 
     await this.prisma.$transaction(async (tx) => {
       const pRepo = new PaymentRepository(tx);
@@ -96,29 +128,19 @@ export class PaymentService {
       // Update payment status
       await pRepo.updateStatus(id, 'COMPLETED', tenantId, userId, gatewayRef, gatewayResponse);
 
-      // Update bank account if linked
+      // Update bank account if linked — receipt बढ़ाता है, payment घटाता है
       if (payment.bankAccountId) {
-        await bRepo.updateBalance(payment.bankAccountId, amount, tenantId, userId, true);
+        await bRepo.updateBalance(payment.bankAccountId, amount, tenantId, userId, isReceipt);
       }
 
-      // Create ledger entries (M10 Finance integration)
-      await lRepo.create([
-        {
-          transactionId: id,
-          accountCode: 'CASH_BANK', // Asset account
-          debitAmount: amount,
-          creditAmount: zeroDecimal(),
-          narration: `Payment received - ${payment.narration || id}`,
-          entryDate: new Date(),
-        },
-        {
-          transactionId: id,
-          accountCode: 'SALES_REVENUE', // Revenue account
-          debitAmount: zeroDecimal(),
-          creditAmount: amount,
-          narration: `Revenue recognized - ${payment.narration || id}`,
-          entryDate: new Date(),
-        },
+      // M11 का अपना संक्षिप्त audit ledger (हर payment के लिए, चाहे M10 posting
+      // लागू हो या न हो — ऊपर देखें कब M10 posting skip होती है)
+      await lRepo.create(isReceipt ? [
+        { transactionId: id, accountCode: 'CASH_BANK', debitAmount: amount, creditAmount: zeroDecimal(), narration: `Receipt - ${payment.narration || id}`, entryDate: new Date() },
+        { transactionId: id, accountCode: 'ACCOUNTS_RECEIVABLE', debitAmount: zeroDecimal(), creditAmount: amount, narration: `Receipt - ${payment.narration || id}`, entryDate: new Date() },
+      ] : [
+        { transactionId: id, accountCode: 'ACCOUNTS_PAYABLE', debitAmount: amount, creditAmount: zeroDecimal(), narration: `Payment - ${payment.narration || id}`, entryDate: new Date() },
+        { transactionId: id, accountCode: 'CASH_BANK', debitAmount: zeroDecimal(), creditAmount: amount, narration: `Payment - ${payment.narration || id}`, entryDate: new Date() },
       ], tenantId, userId);
     });
 
@@ -143,7 +165,10 @@ export class PaymentService {
       transactionId: id,
     });
 
-    return this.getPayment(id, tenantId);
+    const updated = await this.getPayment(id, tenantId);
+    // ledgerResult पारदर्शी रहे — caller को पता चले कि M10 में असली voucher बना या
+    // (जान-बूझकर) skip हुआ, चुपचाप नहीं
+    return { ...updated, ledgerPosting: ledgerResult };
   }
 
   // ==================== PUBLIC API: Fail Payment ====================

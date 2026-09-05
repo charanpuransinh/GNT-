@@ -5,7 +5,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
-import { EventBus } from '../events/event.bus';
+import type { EventBus } from '@/common/events/event-bus';
 import { CreateReconciliationDto, UpdateReconciliationItemDto } from '../types';
 import { AppError } from '@/common/errors/error-classes';
 
