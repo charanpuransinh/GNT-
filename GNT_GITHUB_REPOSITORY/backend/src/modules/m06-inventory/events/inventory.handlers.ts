@@ -1,6 +1,7 @@
 // GNT M06 — Inventory Event Handlers
 import { inventoryEvents } from '../services/stock.service';
 import { StockInternalService } from '../services/stock.internal';
+import { eventBus } from '@/common/events/event-bus';
 import {
   StockUpdatedEvent,
   StockLowEvent,
@@ -22,13 +23,15 @@ export class InventoryEventHandlers {
 
   private handleStockUpdated(event: StockUpdatedEvent) {
     console.log(`[STOCK UPDATED] Product: ${event.product_id} | ${event.before_qty} → ${event.after_qty}`);
-    // Audit logging, cache invalidation, etc.
+    // साझा event bus पर भी — blueprint §7.13: M13 EVENT-triggered rules इसी से चलते हैं
+    void eventBus.publish(EVENT_NAMES.STOCK_UPDATED, event);
   }
 
   private handleStockLow(event: StockLowEvent) {
     console.log(`[STOCK LOW] Product: ${event.product_name} (${event.product_id}) | Current: ${event.current_qty} | Reorder: ${event.reorder_level}`);
-    // Trigger notifications to M16, auto-PO draft to M13
-    // This would publish to message bus in production
+    // पहले सिर्फ़ log होता था — कमेंट में लिखा था "M13 को publish करेंगे" पर होता नहीं था।
+    // अब साझा event bus पर, ताकि M13 के EVENT-trigger rules (blueprint: M13 USES M06) असल में चलें।
+    void eventBus.publish(EVENT_NAMES.STOCK_LOW, event);
   }
 
   async checkBatchExpiry(company_id: string) {

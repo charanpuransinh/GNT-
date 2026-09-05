@@ -97,6 +97,7 @@ export class StockService {
     if (isLow) {
       const product = await productRepo.findById(product_id, company_id);
       inventoryEvents.emit('stock.low', {
+        company_id,
         product_id,
         branch_id,
         current_qty: afterQty,
@@ -107,6 +108,7 @@ export class StockService {
 
     // Emit stock updated
     inventoryEvents.emit('stock.updated', {
+      company_id,
       product_id,
       branch_id,
       before_qty: beforeQty,
@@ -175,6 +177,7 @@ export class StockService {
 
     // Emit stock updated
     inventoryEvents.emit('stock.updated', {
+      company_id,
       product_id,
       branch_id,
       before_qty: beforeQty,
@@ -224,6 +227,7 @@ export class StockService {
     } as StockMovementDTO);
 
     inventoryEvents.emit('stock.updated', {
+      company_id,
       product_id: input.product_id,
       branch_id: input.branch_id,
       before_qty: beforeQty,

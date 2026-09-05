@@ -1,5 +1,6 @@
 // GNT M06 — Inventory Event Definitions
 export interface StockUpdatedEvent {
+  company_id: string;
   product_id: string;
   branch_id?: string | null;
   before_qty: number;
@@ -9,7 +10,10 @@ export interface StockUpdatedEvent {
   timestamp: Date;
 }
 
+// company_id ज़रूरी है — बिना इसके M13 (blueprint §7.13, "USES M06") tenant तय नहीं
+// कर पाता और सारी companies के event-rules इस पर चल जाते, चाहे stock किसी और की हो।
 export interface StockLowEvent {
+  company_id: string;
   product_id: string;
   branch_id?: string | null;
   current_qty: number;

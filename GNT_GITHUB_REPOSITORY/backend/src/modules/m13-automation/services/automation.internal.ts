@@ -79,28 +79,70 @@ async function runNotifyAction(
   return `NOTIFY ok (${result.notificationId})`;
 }
 
+// ⚠️ SSRF सुरक्षा — पहले यहाँ कोई जाँच नहीं थी: कोई भी tenant अपने automation rule
+// के WEBHOOK action में `url: "http://169.254.169.254/..."` या
+// `http://localhost:5432` जैसा पता डालकर server से ख़ुद अपने internal network पर
+// request करवा सकता था (cloud metadata endpoint, internal services)। अब सिर्फ़
+// public HTTPS host को इजाज़त है, redirect बंद है, URL में credentials मना हैं,
+// और request 10 सेकंड में timeout होती है (अटकी हुई webhook किसी और job को न रोके)।
+function assertSafeWebhookUrl(raw: string): URL {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error('WEBHOOK url अमान्य है');
+  }
+  if (u.protocol !== 'https:') throw new Error('WEBHOOK url सिर्फ़ https:// हो सकता है');
+  if (u.username || u.password) throw new Error('WEBHOOK url में credentials मना हैं');
+  const h = u.hostname.toLowerCase();
+  if (
+    h === 'localhost' || h.endsWith('.localhost') || h === '127.0.0.1' || h === '::1' ||
+    h.startsWith('10.') || h.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) || h.startsWith('169.254.')
+  ) {
+    throw new Error('WEBHOOK निजी/internal नेटवर्क पते पर नहीं जा सकता');
+  }
+  return u;
+}
+
 async function runWebhookAction(action: AutomationAction, payload: Record<string, unknown>): Promise<string> {
   const url = configString(action.config, 'url');
   if (!url) {
     throw new Error('WEBHOOK action में url ज़रूरी है');
   }
+  const safeUrl = assertSafeWebhookUrl(url);
   const method = (configString(action.config, 'method') ?? 'POST').toUpperCase();
+  if (!/^(GET|POST|PUT|PATCH|DELETE)$/.test(method)) {
+    throw new Error(`WEBHOOK method अमान्य: "${method}"`);
+  }
   const extraHeaders = configRecord(action.config, 'headers');
   const headers: Record<string, string> = {
     'content-type': 'application/json',
     ...(extraHeaders
-      ? Object.fromEntries(Object.entries(extraHeaders).map(([k, v]) => [k, String(v)]))
+      ? Object.fromEntries(
+          Object.entries(extraHeaders)
+            .filter(([k]) => !['host', 'content-length'].includes(k.toLowerCase()))
+            .map(([k, v]) => [k, String(v)]),
+        )
       : {}),
   };
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: JSON.stringify({ payload }),
-  });
-  if (!response.ok) {
-    throw new Error(`WEBHOOK ${method} ${url} → HTTP ${response.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(safeUrl, {
+      method,
+      headers,
+      body: method === 'GET' ? undefined : JSON.stringify({ payload }),
+      redirect: 'error',
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`WEBHOOK ${method} ${url} → HTTP ${response.status}`);
+    }
+    return `WEBHOOK ok (${method} ${url})`;
+  } finally {
+    clearTimeout(timer);
   }
-  return `WEBHOOK ok (${method} ${url})`;
 }
 
 function runLogAction(action: AutomationAction, payload: Record<string, unknown>): string {

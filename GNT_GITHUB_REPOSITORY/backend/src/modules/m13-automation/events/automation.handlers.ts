@@ -12,11 +12,19 @@ import { executeRuleActions } from '../services/automation.internal';
 
 let registered = false;
 
+// ⚠️ पहले सिर्फ़ camelCase (tenantId/companyId) देखा जाता था — M07/M08/M09/M10/M06
+// जैसे modules अपने events में snake_case `company_id` भेजते हैं (उनका Prisma
+// schema भी snake_case है)। नतीजा: उन modules के events पर tenantId हमेशा
+// undefined निकलता, findActiveRulesByEvent की tenant-जाँच छूट जाती, और
+// **हर company के matching rules चल जाते** — चाहे event किसी और company का हो।
+// असली bug था — m06-wiring.db.test.ts में दूसरी company का rule ग़लती से चल
+// गया, तभी पकड़ में आया।
 function payloadTenant(payload: unknown): string | undefined {
   if (!payload || typeof payload !== 'object') return undefined;
   const p = payload as Record<string, unknown>;
   if (typeof p.tenantId === 'string') return p.tenantId;
   if (typeof p.companyId === 'string') return p.companyId;
+  if (typeof p.company_id === 'string') return p.company_id;
   return undefined;
 }
 
