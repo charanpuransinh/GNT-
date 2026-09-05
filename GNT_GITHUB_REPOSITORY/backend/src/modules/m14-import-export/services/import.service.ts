@@ -9,8 +9,13 @@ import { JSONParser } from '../utils/jsonParser';
 import { ValidationEngine } from '../validators/import.validators';
 import { ImportRow, FieldMapping, ImportPreview, ImportProgress } from '../types/import.types';
 import { EventEmitter } from 'events';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { partyService } from '@/modules/m05-party-management';
+import { ProductService } from '@/modules/m06-inventory';
 
 const progressEmitter = new EventEmitter();
+const productService = new ProductService();
 
 export class ImportService {
   static async createJob(data: {
@@ -119,8 +124,18 @@ export class ImportService {
         for (const row of batch) {
           const result = validator.validateRow(row, fieldMapping);
           if (result.isValid) {
-            successRows++;
-            // असली entity table में save अगले चरण का काम — अभी validation ही असली काम है
+            try {
+              // असली insert — सिर्फ़ गिनती नहीं (पहले "successfully imported" झूठ था)
+              await ImportService.insertRow(job.targetEntity, tenantId, result.data);
+              successRows++;
+            } catch (e) {
+              failedRows++;
+              validationErrors.push({
+                rowNumber: row._rowNumber,
+                errors: (e as Error).message,
+                data: row
+              });
+            }
           } else {
             failedRows++;
             validationErrors.push({
@@ -180,6 +195,38 @@ export class ImportService {
     return prisma.importJob.findFirst({ where: { id: jobId, tenantId } });
   }
 
+  /** असली entity table में insert — M05 party / M06 product के public API से (M21 जैसा) */
+  private static async insertRow(entityType: string, tenantId: string, data: Record<string, unknown>): Promise<{ id: string }> {
+    const t = (entityType ?? '').toLowerCase();
+    if (t === 'customer' || t === 'supplier' || t === 'party') {
+      const party = await partyService.createParty(tenantId, {
+        party_type: t === 'supplier' ? 'supplier' : 'customer',
+        name: String(data.name ?? data.customerName ?? data.full_name ?? 'बिना-नाम'),
+        gstin: (data.gstin as string) ?? null,
+        phone: (data.phone as string) ?? null,
+        email: (data.email as string) ?? null,
+        billing_address: (data.address as string) ?? null,
+        state_code: (data.state as string) ?? null,
+        opening_balance: Number(data.openingBalance ?? 0) || 0,
+        opening_type: 'dr',
+      });
+      return { id: party.id };
+    }
+    if (t === 'product' || t === 'item' || t === 'inventory') {
+      const product = await productService.createProduct({
+        company_id: tenantId,
+        name: String(data.name ?? data.productName ?? data.itemName ?? 'बिना-नाम'),
+        code: (data.sku as string) ?? null,
+        hsn_code: (data.hsn as string) ?? null,
+        unit: (data.unit as string) ?? null,
+        sale_price: Number(data.price ?? data.sale_price) || undefined,
+        purchase_price: Number(data.purchasePrice ?? data.purchase_price) || undefined,
+      });
+      return { id: product.id };
+    }
+    throw new Error(`Import target '${entityType}' अभी wired नहीं — सिर्फ़ customer/supplier/product समर्थित (fail-closed, झूठा success नहीं)`);
+  }
+
   static async listJobs(tenantId: string, entityType?: string): Promise<ImportJob[]> {
     return prisma.importJob.findMany({
       where: { tenantId, ...(entityType && { targetEntity: entityType }) },
@@ -203,6 +250,7 @@ export class ImportService {
   static async createImportJob(data: unknown): Promise<ImportJob> {
     const d = data as {
       tenantId: string;
+      fileBuffer?: Buffer;
       fileName?: string;
       fileType?: string;
       fileSize?: number;
@@ -211,16 +259,50 @@ export class ImportService {
       module?: string;
       createdBy?: string;
       userId?: string;
+      mappingOverride?: FieldMapping[];
+      options?: { dryRun?: boolean };
     };
-    return ImportService.createJob({
+    const fileType = (d.fileType ?? 'csv').toLowerCase().split('/').pop() ?? 'csv';
+    const ext = fileType.includes('xlsx') || fileType.includes('sheet') ? 'xlsx' : fileType.includes('json') ? 'json' : 'csv';
+    const fileName = d.fileName ?? `upload.${ext}`;
+
+    // असली file ज़मीन पर रखो (memory-buffer से) — पहले hardcoded path से कभी file नहीं पढ़ी जाती थी
+    let filePath = d.filePath ?? '';
+    if (d.fileBuffer) {
+      const dir = path.join(process.cwd(), 'uploads', 'imports', d.tenantId);
+      await fs.mkdir(dir, { recursive: true });
+      filePath = path.join(dir, `${Date.now()}-${fileName}`);
+      await fs.writeFile(filePath, d.fileBuffer);
+    }
+
+    const job = await ImportService.createJob({
       tenantId: d.tenantId,
-      fileName: d.fileName ?? 'upload',
-      fileType: d.fileType ?? 'csv',
-      fileSize: d.fileSize ?? 0,
-      filePath: d.filePath ?? 'uploads/imports/upload',
+      fileName,
+      fileType: ext,
+      fileSize: d.fileSize ?? d.fileBuffer?.length ?? 0,
+      filePath: filePath || 'uploads/imports/upload',
       entityType: d.entityType ?? d.module ?? 'IMPORT',
       createdBy: d.createdBy ?? d.userId ?? 'system',
     });
+
+    // असली processing — dryRun नहीं तो तुरंत चलाओ (पहले processJob कभी चलता ही नहीं था)
+    if (!d.options?.dryRun) {
+      let mapping = d.mappingOverride;
+      if (!mapping) {
+        try {
+          const preview = await ImportService.previewFile(job.fileKey, job.fileType);
+          mapping = preview.suggestedMapping;
+        } catch {
+          mapping = [];
+        }
+      }
+      ImportService.processJob(job.id, mapping, d.tenantId).catch((e) => {
+        // background me fail hua bhi to job status FAILED ho jaata hai (processJob ke catch me)
+        void e;
+      });
+    }
+
+    return job;
   }
   static async getImportJob(jobId: string, tenantId?: string): Promise<ImportJob | null> {
     if (!tenantId) throw new Error('Tenant required');
