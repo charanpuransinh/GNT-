@@ -62,6 +62,11 @@ router.get('/vouchers/:id', VoucherController.getVoucherById);
 router.post('/vouchers/:id/post', VoucherController.postVoucher);
 router.post('/vouchers/:id/cancel', VoucherController.cancelVoucher);
 
+// मालिक का design — payment/receipt की voucher, और बकाया का हिसाब
+router.post('/vouchers/payment', VoucherController.createPaymentVoucher);
+router.get('/vouchers/outstanding', VoucherController.getBillOutstanding);
+router.get('/party-outstanding', VoucherController.getPartyOutstanding);
+
 router.get('/trial-balance', LedgerController.getTrialBalance);
 router.get('/profit-loss', LedgerController.getProfitLoss);
 router.get('/balance-sheet', LedgerController.getBalanceSheet);

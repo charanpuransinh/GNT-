@@ -783,10 +783,44 @@ model voucher {
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 
-  items voucher_item[]
+  items       voucher_item[]
+  allocations voucher_allocation[]
 
   @@index([company_id, voucher_date])
   @@index([voucher_type, status])
+}
+
+// मालिक पूरन सिंह का फ़ैसला (2026-09-05):
+//   "हर payment(full/partial) = अलग voucher, party ledger+bill से linked।
+//    Partial payments allowed."
+//
+// यह तालिका इसीलिए बनी: पहले voucher में बिल का कोई कॉलम ही नहीं था, और कहीं दर्ज
+// नहीं होता था कि किस voucher ने किस बिल का **कितना** चुकाया। इसलिए न matching हो
+// सकती थी, न बकाया निकल सकता था।
+//
+// एक बिल के against कई vouchers = कई पंक्तियाँ, हर एक का अपना allocated_amount।
+// बकाया = बिल का grand_total − उस बिल की सारी allocated_amount का जोड़।
+//
+// `party_id` हर पंक्ति में है और service उसे बिल की party से मिलाकर ही लिखती है —
+// इसलिए मालिक का party-isolation हार्ड रूल यहाँ भी कायम रहता है: एक voucher सिर्फ़
+// उसी party के बिल से जुड़ सकता है, दूसरी party के बिल से कभी नहीं।
+model voucher_allocation {
+  id               String   @id @default(uuid())
+  company_id       String
+  voucher_id       String
+  party_id         String
+  reference_type   String   @db.VarChar(30)    // SALES_INVOICE | PURCHASE_INVOICE
+  reference_id     String
+  allocated_amount Decimal  @db.Decimal(15, 4)
+  created_at       DateTime @default(now())
+  created_by       String?
+
+  voucher voucher @relation(fields: [voucher_id], references: [id], onDelete: Cascade)
+
+  @@unique([voucher_id, reference_type, reference_id])
+  @@index([company_id, reference_type, reference_id])
+  @@index([company_id, party_id])
+  @@map("voucher_allocation")
 }
 
 model voucher_item {

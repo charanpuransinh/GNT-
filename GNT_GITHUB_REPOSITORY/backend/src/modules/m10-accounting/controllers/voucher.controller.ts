@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '@/common/config/env-config';
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { AppError } from '@/common/errors/error-classes';
+import { VoucherService, VoucherServiceError, type ReferenceType } from '../services/voucher.service';
+
+// 2026-09-05 — मालिक का फ़ैसला: VoucherService रहेगी। पहले उसे कोई बुलाता ही नहीं था
+// (controller अपना अलग हिसाब रखता था), इसलिए उसकी tests हरी होकर भी कुछ साबित नहीं
+// करती थीं। अब payment/receipt और बकाया का सारा काम इसी service से जाता है।
+const voucherService = new VoucherService(prisma);
 
 /**
  * M10 — Voucher controller
@@ -156,6 +162,66 @@ export const VoucherController = {
       });
       if (done.count === 0) throw new AppError('GNT-ERR-1003', 'Voucher not found', 404);
       res.json({ message: 'Voucher cancelled' });
+    } catch (err) { next(err); }
+  },
+
+  // ── मालिक का design (2026-09-05) ────────────────────────────────────────
+  // "हर payment(full/partial) = अलग voucher, party ledger+bill से linked।
+  //  Partial payments allowed।"
+
+  async createPaymentVoucher(req: Request, res: Response, next: NextFunction) {
+    try {
+      const companyId = requireTenant(req).companyId;
+      const b = req.body ?? {};
+      const voucher = await voucherService.createPaymentVoucher({
+        companyId,
+        partyId: String(b.party_id ?? ''),
+        voucherType: b.voucher_type === 'payment' ? 'payment' : 'receipt',
+        voucherDate: new Date(String(b.voucher_date ?? new Date().toISOString())),
+        bankOrCashAccountId: String(b.bank_account_id ?? ''),
+        partyAccountId: String(b.party_account_id ?? ''),
+        amount: Number(b.amount ?? 0),
+        allocations: Array.isArray(b.allocations) ? b.allocations : [],
+        narration: b.narration ? String(b.narration) : undefined,
+        branchId: b.branch_id ? String(b.branch_id) : undefined,
+        createdBy: req.user?.id,
+      });
+      res.status(201).json(voucher);
+    } catch (err) {
+      if (err instanceof VoucherServiceError) {
+        // BILL_NOT_FOUND पर 404, बाक़ी ग़लत माँग पर 400 — सब 500 नहीं
+        const status = err.code === 'BILL_NOT_FOUND' ? 404 : 400;
+        return next(new AppError(err.code, err.message, status));
+      }
+      next(err);
+    }
+  },
+
+  /** एक बिल का हिसाब — कुल, चुकाया, बकाया */
+  async getBillOutstanding(req: Request, res: Response, next: NextFunction) {
+    try {
+      const companyId = requireTenant(req).companyId;
+      const { reference_type, reference_id } = req.query;
+      if (!reference_type || !reference_id) {
+        throw new AppError('GNT-ERR-1007', 'reference_type और reference_id ज़रूरी हैं', 400);
+      }
+      const result = await voucherService.getBillOutstanding(
+        companyId, String(reference_type) as ReferenceType, String(reference_id),
+      );
+      res.json(result);
+    } catch (err) {
+      if (err instanceof VoucherServiceError) return next(new AppError(err.code, err.message, 404));
+      next(err);
+    }
+  },
+
+  /** एक party का पूरा बकाया — सिर्फ़ उसी party का (मालिक का isolation नियम) */
+  async getPartyOutstanding(req: Request, res: Response, next: NextFunction) {
+    try {
+      const companyId = requireTenant(req).companyId;
+      const { party_id } = req.query;
+      if (!party_id) throw new AppError('GNT-ERR-1008', 'party_id ज़रूरी है', 400);
+      res.json(await voucherService.getPartyOutstanding(companyId, String(party_id)));
     } catch (err) { next(err); }
   },
 };

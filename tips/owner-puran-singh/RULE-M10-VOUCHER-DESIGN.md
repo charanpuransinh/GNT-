@@ -61,7 +61,55 @@ code कभी नहीं बना पाएगी**। हर कंपन�
 यह `@@unique([company_id, code])` होना चाहिए। यह उसी chart-of-accounts वाले P0 का
 हिस्सा है (`P0-2-BILL-POST-NAHI-HOTA.md`) — वहीं ठीक होगा।
 
-## हालत
+---
 
-**दर्ज हुआ ✅ · अभी बनाया नहीं गया।** क़तार में मालिक के तीन फ़ैसले हैं; मैं क्रम से
-कर रहा हूँ (1. permission व्यवस्था — चालू, 2. party isolation की जाँच, 3. यह voucher design)।
+# ✅ बन गया — 2026-09-05
+
+## `voucher_allocation` तालिका बनी (migration `009_M10_voucher_allocation.sql`)
+असली database पर चल चुकी है। `allocated_amount > 0` की पक्की शर्त भी लगी है, और एक
+voucher एक ही बिल पर दो बार नहीं चढ़ सकती।
+
+## VoucherService अब सच में इस्तेमाल होती है
+पहले उसे कोई बुलाता ही नहीं था (controller अपना अलग हिसाब रखता था) — **यही वजह थी कि
+उसकी 3 tests हरी होकर भी कुछ साबित नहीं करती थीं।** अब payment/receipt और बकाया का
+सारा काम इसी service से जाता है। पुरानी mock tests हटाकर असली DB वाली 13 tests लिखी हैं।
+
+## नए रास्ते
+```
+POST /api/v1/accounting/vouchers/payment      ← भुगतान/प्राप्ति की voucher
+GET  /api/v1/accounting/vouchers/outstanding  ← एक बिल: कुल, चुकाया, बकाया
+GET  /api/v1/accounting/party-outstanding     ← एक party का पूरा बकाया
+```
+
+## मालिक की तीनों शर्तें — चलाकर साबित
+
+| शर्त | नतीजा |
+|---|---|
+| हर payment (पूरा/partial) की **अलग** voucher | ₹10,000 का बिल → ₹4,000 + ₹3,000 + ₹3,000 = **तीन अलग vouchers** ✅ |
+| voucher ↔ **party के ledger** से लिंक | तीनों भुगतान party के ledger में उसी party के नाम, हर एक अपनी voucher से जुड़ी ✅ |
+| voucher ↔ **उस बिल** से लिंक | `voucher_allocation` में एक बिल पर 2-3 पंक्तियाँ ✅ |
+| **partial payments चलें** | बकाया 10,000 → 6,000 → 3,000 → 0; बिल की हालत unpaid → partial → paid ✅ |
+| बकाया ट्रैक हो | `getBillOutstanding` और `getPartyOutstanding` ✅ |
+
+## साथ में हार्ड रूल (party isolation) यहीं लागू हुआ 🔒
+
+**party A का भुगतान party B के बिल पर चढ़ ही नहीं सकता** — service कुछ लिखने से पहले
+बिल की party मिलाती है, और मेल न खाने पर मना कर देती है। test में जाँचा: मना हुआ,
+और B का बिल छुआ तक नहीं गया।
+
+बाक़ी रोकें भी लगीं: बकाया से ज़्यादा नहीं चढ़ सकता · बिलों में बाँटी रकम कुल रकम से
+मेल खानी चाहिए · बिना बिल चुने भुगतान नहीं · रद्द voucher का पैसा बकाया गिनती से
+अपने आप बाहर।
+
+## नापा हुआ
+- 13/13 tests पास (असली DB, असली बिल बनाकर)
+- **सुधार हटाकर चलाया तो 4 फ़ेल** — यानी tests सच में पकड़ती हैं
+- पूरा suite: 88 files · 397 tests → 395 पास (दो फ़ेल वही पुरानी M11 वाली) · skip 0
+- tsc: M13 के बाहर 0
+
+## अब भी आपका फ़ैसला बाक़ी ⚠️
+1. **खातों की सूची (chart of accounts)** — बिक्री की रकम किस खाते में चढ़े। अभी
+   भुगतान की voucher बनाते वक़्त बैंक और party का खाता **बाहर से देना पड़ता है**;
+   सूची बनते ही यह अपने आप होगा। (`P0-2-BILL-POST-NAHI-HOTA.md`)
+2. **`account_master.code` का unique** — अभी पूरे DB पर है, कंपनी के हिसाब से होना
+   चाहिए। यह chart of accounts के साथ ही ठीक होगा।
