@@ -1,4 +1,5 @@
 import { inventoryService } from '@/modules/m06-inventory';
+import { prisma } from '@/common/config/prisma';
 import { IInventoryService } from '../report.internal';
 import { InventoryReportData, InventoryReportFilters, InventoryReportRow } from '../../types/report.types';
 
@@ -44,7 +45,8 @@ export class InventoryAdapter implements IInventoryService {
   }
 
   async getProductList(): Promise<{ id: string; name: string; sku: string }[]> {
-    // TODO(#016): M06 की facade में product list आने पर असली डेटा
-    return [];
+    // M06 product_master se असली list (facade की ज़रूरत नहीं)
+    const products = await prisma.product_master.findMany({ take: 500, orderBy: { name: 'asc' } });
+    return products.map((p) => ({ id: p.id, name: p.name, sku: p.code ?? '' }));
   }
 }
