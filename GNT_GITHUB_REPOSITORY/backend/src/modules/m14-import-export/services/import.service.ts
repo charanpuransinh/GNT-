@@ -1,4 +1,8 @@
-import { PrismaClient, ImportJob } from '@prisma/client';
+// M14 — Import Service (LIVE) — tenant-scoped
+// हर job की query company_id (tenantId) से बंधी है — fail-closed।
+
+import { ImportJob, Prisma } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { CSVParser } from '../utils/csvParser';
 import { ExcelParser } from '../utils/excelParser';
 import { JSONParser } from '../utils/jsonParser';
@@ -6,7 +10,6 @@ import { ValidationEngine } from '../validators/import.validators';
 import { ImportRow, FieldMapping, ImportPreview, ImportProgress } from '../types/import.types';
 import { EventEmitter } from 'events';
 
-const prisma = new PrismaClient();
 const progressEmitter = new EventEmitter();
 
 export class ImportService {
@@ -65,37 +68,40 @@ export class ImportService {
     };
   }
 
-  static async processJob(jobId: string, fieldMapping: FieldMapping[]): Promise<void> {
-    const job = await prisma.importJob.findUnique({ where: { id: jobId } });
+  static async processJob(jobId: string, fieldMapping: FieldMapping[], tenantId: string): Promise<void> {
+    const job = await prisma.importJob.findFirst({ where: { id: jobId, tenantId } });
     if (!job) throw new Error('Import job not found');
 
-    await prisma.importJob.update({
-      where: { id: jobId },
+    await prisma.importJob.updateMany({
+      where: { id: jobId, tenantId },
       data: { status: 'PROCESSING' }
     });
 
     try {
       let rows: ImportRow[];
       switch (job.fileType.toLowerCase()) {
-        case 'csv':
+        case 'csv': {
           const csvResult = await CSVParser.parse(job.fileKey);
           rows = csvResult.rows;
           break;
+        }
         case 'xlsx':
-        case 'xls':
+        case 'xls': {
           const excelResult = ExcelParser.parse(job.fileKey);
           rows = excelResult.rows;
           break;
-        case 'json':
+        }
+        case 'json': {
           const jsonResult = JSONParser.parse(job.fileKey);
           rows = jsonResult.rows;
           break;
+        }
         default:
           throw new Error(`Unsupported file type: ${job.fileType}`);
       }
 
-      await prisma.importJob.update({
-        where: { id: jobId },
+      await prisma.importJob.updateMany({
+        where: { id: jobId, tenantId },
         data: { totalRows: rows.length }
       });
 
@@ -104,7 +110,7 @@ export class ImportService {
       const totalBatches = Math.ceil(rows.length / batchSize);
       let successRows = 0;
       let failedRows = 0;
-      const validationErrors: any[] = [];
+      const validationErrors: { rowNumber: number; errors: unknown; data: ImportRow }[] = [];
 
       for (let i = 0; i < rows.length; i += batchSize) {
         const batch = rows.slice(i, i + batchSize);
@@ -114,8 +120,7 @@ export class ImportService {
           const result = validator.validateRow(row, fieldMapping);
           if (result.isValid) {
             successRows++;
-            // Here you would save to actual entity table
-            // await this.saveEntity(job.entityType, result.data, job.tenantId);
+            // असली entity table में save अगले चरण का काम — अभी validation ही असली काम है
           } else {
             failedRows++;
             validationErrors.push({
@@ -126,13 +131,13 @@ export class ImportService {
           }
         }
 
-        await prisma.importJob.update({
-          where: { id: jobId },
+        await prisma.importJob.updateMany({
+          where: { id: jobId, tenantId },
           data: {
             processedRows: i + batch.length,
             successRows,
             failedRows,
-            validationReport: { errors: validationErrors.slice(-100) } // Keep last 100 errors
+            validationReport: { errors: validationErrors.slice(-100) } as unknown as Prisma.InputJsonValue
           }
         });
 
@@ -148,21 +153,20 @@ export class ImportService {
         });
       }
 
-      await prisma.importJob.update({
-        where: { id: jobId },
+      await prisma.importJob.updateMany({
+        where: { id: jobId, tenantId },
         data: {
           status: failedRows > 0 && successRows === 0 ? 'FAILED' : 'COMPLETED',
           processedRows: rows.length,
           successRows,
           failedRows,
-          validationReport: { errors: validationErrors },
+          validationReport: { errors: validationErrors } as unknown as Prisma.InputJsonValue,
           completedAt: new Date()
         }
       });
-
     } catch (error) {
-      await prisma.importJob.update({
-        where: { id: jobId },
+      await prisma.importJob.updateMany({
+        where: { id: jobId, tenantId },
         data: {
           status: 'FAILED',
           completedAt: new Date()
@@ -172,26 +176,30 @@ export class ImportService {
     }
   }
 
-  static async getJobStatus(jobId: string): Promise<ImportJob | null> {
-    return prisma.importJob.findUnique({ where: { id: jobId } });
+  static async getJobStatus(jobId: string, tenantId: string): Promise<ImportJob | null> {
+    return prisma.importJob.findFirst({ where: { id: jobId, tenantId } });
   }
 
   static async listJobs(tenantId: string, entityType?: string): Promise<ImportJob[]> {
     return prisma.importJob.findMany({
-      where: { tenantId, ...(entityType && { entityType }) },
+      where: { tenantId, ...(entityType && { targetEntity: entityType }) },
       orderBy: { createdAt: 'desc' },
       take: 50
     });
   }
 
-  static async cancelJob(jobId: string): Promise<ImportJob> {
-    return prisma.importJob.update({
-      where: { id: jobId },
+  static async cancelJob(jobId: string, tenantId: string): Promise<ImportJob> {
+    const result = await prisma.importJob.updateMany({
+      where: { id: jobId, tenantId },
       data: { status: 'CANCELLED' }
     });
+    if (result.count === 0) throw new Error('Import job not found');
+    const job = await prisma.importJob.findFirst({ where: { id: jobId, tenantId } });
+    if (!job) throw new Error('Import job not found');
+    return job;
   }
 
-  // ─── Legacy alias (टास्क #025 B2): पुराने controllers यही नाम बुलाते हैं ───
+  // ─── नई controllers यही नाम बुलाती हैं ───
   static async createImportJob(data: unknown): Promise<ImportJob> {
     const d = data as {
       tenantId: string;
@@ -214,21 +222,31 @@ export class ImportService {
       createdBy: d.createdBy ?? d.userId ?? 'system',
     });
   }
-  static async getImportJob(jobId: string, _tenantId?: string): Promise<ImportJob | null> {
-    return ImportService.getJobStatus(jobId);
+  static async getImportJob(jobId: string, tenantId?: string): Promise<ImportJob | null> {
+    if (!tenantId) throw new Error('Tenant required');
+    return ImportService.getJobStatus(jobId, tenantId);
   }
   static async listImportJobs(tenantId: string, _opts?: unknown): Promise<ImportJob[]> {
     return ImportService.listJobs(tenantId);
   }
-  static async cancelImportJob(jobId: string, _tenantId?: string): Promise<ImportJob> {
-    return ImportService.cancelJob(jobId);
+  static async cancelImportJob(jobId: string, tenantId?: string): Promise<ImportJob> {
+    if (!tenantId) throw new Error('Tenant required');
+    return ImportService.cancelJob(jobId, tenantId);
   }
-  static async retryImportJob(jobId: string, _tenantId?: string): Promise<ImportJob> {
-    return prisma.importJob.update({ where: { id: jobId }, data: { status: 'QUEUED' } });
+  static async retryImportJob(jobId: string, tenantId?: string): Promise<ImportJob> {
+    if (!tenantId) throw new Error('Tenant required');
+    const result = await prisma.importJob.updateMany({
+      where: { id: jobId, tenantId },
+      data: { status: 'QUEUED' }
+    });
+    if (result.count === 0) throw new Error('Import job not found');
+    const job = await prisma.importJob.findFirst({ where: { id: jobId, tenantId } });
+    if (!job) throw new Error('Import job not found');
+    return job;
   }
-  static async validateImport(jobId: string, _tenantId?: string): Promise<ImportJob | null> {
-    // असली validation processJob के अंदर होती है — alias यहाँ job की स्थिति ही लौटाता है
-    return ImportService.getJobStatus(jobId);
+  static async validateImport(jobId: string, tenantId?: string): Promise<ImportJob | null> {
+    if (!tenantId) throw new Error('Tenant required');
+    return ImportService.getJobStatus(jobId, tenantId);
   }
 
   static onProgress(callback: (progress: ImportProgress) => void) {

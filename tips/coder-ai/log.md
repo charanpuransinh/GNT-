@@ -503,3 +503,74 @@ NODE_OPTIONS="--max-old-space-size=3072" npx tsc -p tsconfig.frontend.json --noE
 tests वाले आँकड़े (296/296 आदि) इससे प्रभावित नहीं — वे vitest से आए हैं, असली हैं।
 
 ---
+
+## ✅ कोडर AI (DeepSeek) — टास्क #030: M11 tenant-isolation + M13 पूरा (2026-09-05)
+
+### M11 — 2 फ़ेल tests ठीक (जड़: सादा object, AppError नहीं)
+- जड़: M11 की 5 services (payment/refund/paymentMethod/reconciliation/bankAccount)
+  `{ code:'NOT_FOUND' }` जैसा सादा object फेंकती थीं; app का global error-handler सिर्फ़
+  `AppError` पहचानता है → सही काम करने वाला tenant-check भी 500 देता था।
+- fix: हर service अब `new AppError(code, msg, status)` फेंकती है (404/400)।
+- सबूत (सुधार उलटकर): उलटा → 2 tests 500 से फ़ेल; सुधार के साथ → 10/10 पास (skip 0)।
+- `TEST_DB=1 npx vitest run src/modules/m11-payment` → 2 files, 10 tests pass.
+- commit `68a2a04`।
+
+### M13 — पूरा rebuild (blueprint §7.13 के 3 tables पर)
+**पहले की हालत:** 75 tsc errors + 8 files tsconfig से exclude होकर छिपी थीं;
+module किसी और प्रोजेक्ट का BullMQ-आधारित टूटा ढाँचा था, mount गिरता था।
+
+**blueprint का फ़ैसला (मालिक का नियम: blueprint authority):** M13 = 3 tables —
+`automation_rule` · `scheduled_job` · `job_execution_log` (हर एक tenant_id से बंधी)।
+
+**किया:**
+- `prisma/schema.prisma` में 3 models जोड़े (AutomationRule, ScheduledJob, JobExecutionLog),
+  migration `011_M13_automation_tables.sql` बनाकर **live DB पर चलाई** (columns quoted-camelCase)।
+- M13 module नए सिरे से: types · zod validators · tenant-scoped repository ·
+  automation.service (rules CRUD + manual trigger) · automation.internal (action executor:
+  NOTIFY/WEBHOOK/LOG) · scheduler.service (30s poll, unref'd) · cron.ts (बिना library,
+  5-field + timezone Intl) · controllers · routes · events handler (shared bus subscribeAll)।
+- NOTIFY action M16 के public `notificationService` से (M16 के NotificationEntityType में
+  `'automation'` जोड़ा) — सीधे tables नहीं।
+- `common/events/event-bus.ts` में `subscribeAll()` जोड़ा (backward-compatible)।
+- पुरानी ~45 टूटी files git rm; `tsconfig.backend.json` से M13 के 8 excludes हटाए।
+- api-contracts/v1/M13-automation.contract.yaml असली OpenAPI में लिखा (पहले 1 byte खाली)।
+
+**नाप (exact):**
+- `tsc -p tsconfig.backend.json` → **0** (पहले 75) · `tsc -p tsconfig.frontend.json` → 0
+- `prisma validate` → valid 🚀
+- server (tsx --tsconfig): **21 modules चढ़े, 0 गिरे**
+- `TEST_DB=1 npx vitest run src/modules/m13-automation` → 2 files, **17 tests pass, skip 0**
+- पूरी backend suite `TEST_DB=1 npx vitest run` → **84 files / 420 tests, 0 fail, 0 skip**
+- tenant-scope सबूत: repository से tenantId हटाकर चलाया → isolation tests फ़ेल (test असली)।
+
+**सफ़ाई:** M13 में 0 `as any` / `@ts-ignore` / `TODO` (cron.ts का `return false`
+isValidTimezone का असली जवाब है, कोई skip नहीं)।
+
+**बाक़ी (M14 → M22):** M14 Import/Export, M15 Sync, M16 Notification, M17 Reporting,
+M18 Integration, M19 Monitoring, M20 Trade, M21 Data Sense, M22 — क्रम से।
+
+## ✅ कोडर AI (DeepSeek) — tenant-safety sweep M14/M15/M20 (2026-09-05)
+
+### जड़ (एक ही पैटर्न, कई जगह):
+service/repository method `tenantId`/`companyId` लेकर भी query सिर्फ़ `where: { id }` करता था
+→ दूसरी कंपनी दूसरी की row देख/बदल/मिटा सकती थी।
+
+### ठीक किया (findFirst/updateMany/deleteMany + scope):
+- **M14 import.service / export.service**: getJobStatus/cancelJob/processJob/retry/download
+  अब `{ id, tenantId }` से; `new PrismaClient()` → shared `@/common/config/prisma`; controllers
+  के `as unknown as never`/`as any` हटाए। + नया `tenant-isolation.db.test.ts` (4 tests)।
+- **M15 sync.service**: updateConfig/deleteConfig (updateMany/deleteMany + scope), getJobProgress
+  (tenantId param + controller से भेजा), cancelJob (updateMany+scope)।
+- **M15 integration.service**: updateIntegration/deleteIntegration (updateMany/deleteMany + scope)।
+- **M20 trade.repository**: update/updateStatus/delete (updateMany/deleteMany + company_id scope)।
+- **M16/M17/M18/M19 जाँचे — साफ़**: M16 fail-closed companyId, M17 ownership-check, M18
+  check-then-write, M19 fail-closed + append-only (deleteAuditLog throws ILLEGAL)।
+- **M20 fx_rate / customs_tariff**: जान-बूझकर company-scope नहीं — राष्ट्रीय reference data
+  (FX दर, 8-अंकीय tariff), blueprint §7.20 के हिसाब से global।
+
+### Verify (TEST_DB=1):
+- पूरी backend suite: **85 files / 424 tests, 0 fail, 0 skip**
+- `tsc` backend 0 · frontend 0 · `prisma validate` valid
+- commits: 228e34a (m14) · f0d6bea (m15) · c1373c9 (m20) — सब push
+
+### बाक़ी: M20 SPEC-A export hub · M21 Data Sense build · M22 subscription

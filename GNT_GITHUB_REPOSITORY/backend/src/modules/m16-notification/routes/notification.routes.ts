@@ -5,6 +5,7 @@
 
 import { Router } from 'express';
 import { notificationController } from '../controllers/notification.controller';
+import { campaignController } from '../controllers/campaign.controller';
 
 const router = Router();
 
@@ -25,5 +26,15 @@ router.get('/delivery-log/:id', notificationController.getDeliveryLog);
 
 // POST /api/v1/notifications/batch/read
 router.post('/batch/read', notificationController.markAllAsRead);
+
+// ─── Campaign (SPEC-B) ───
+router.post('/campaigns', campaignController.create);
+router.get('/campaigns', campaignController.list);
+router.get('/campaigns/:id', campaignController.get);
+router.patch('/campaigns/:id', campaignController.update);
+router.delete('/campaigns/:id', campaignController.delete);
+router.post('/campaigns/:id/order-link', campaignController.generateOrderLink);
+router.post('/campaigns/:id/send', campaignController.send);
+router.get('/order-link/:token', campaignController.resolveOrderLink);
 
 export default router;

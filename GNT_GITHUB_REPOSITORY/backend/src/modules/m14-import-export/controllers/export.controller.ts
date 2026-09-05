@@ -41,7 +41,7 @@ export class ExportController {
       const jobs = await exportService.listExportJobs(tenantId, {
         ...(module && { module: String(module) }),
         ...(entityType && { entityType: String(entityType) }),
-        ...(status && { status: status as any }),
+        ...(status && { status: String(status) }),
       });
       res.json(jobs);
     } catch (err: any) {

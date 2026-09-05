@@ -7,7 +7,8 @@ import { RefundRepository } from '../repositories/refund.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
 import { EventBus } from '../events/event.bus';
-import { RefundFilter, CreateRefundDto, UpdateRefundDto, ApiError } from '../types';
+import { RefundFilter, CreateRefundDto, UpdateRefundDto } from '../types';
+import { AppError } from '@/common/errors/error-classes';
 
 export class RefundService {
   private refundRepo: RefundRepository;
@@ -136,11 +137,11 @@ export class RefundService {
   }
 
   // ==================== ERROR HELPERS ====================
-  private notFound(message: string): ApiError {
-    return { code: 'NOT_FOUND', message };
+  private notFound(message: string): AppError {
+    return new AppError('NOT_FOUND', message, 404);
   }
 
-  private badRequest(message: string): ApiError {
-    return { code: 'BAD_REQUEST', message };
+  private badRequest(message: string): AppError {
+    return new AppError('BAD_REQUEST', message, 400);
   }
 }

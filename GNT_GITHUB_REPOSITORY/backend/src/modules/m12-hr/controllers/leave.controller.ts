@@ -1,5 +1,6 @@
-// [LOCK-4] Leave Controller
+// [LOCK-4] Leave Controller — tenant-scoped
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { LeaveService } from '../services/leave.service';
 import { HrEventPublisher } from '../events/hr.events';
 
@@ -9,8 +10,8 @@ export class LeaveController {
 
   async apply(req: Request, res: Response) {
     try {
-      // accept sensitive filters in POST body only
-      const leave = await this.service.apply(req.body);
+      const tenantId = requireTenant(req).companyId;
+      const leave = await this.service.apply(tenantId, req.body);
       await this.events.publish('LEAVE_APPLIED', { leaveId: leave.id, employeeId: leave.employeeId, days: leave.daysRequested });
       res.status(201).json({ success: true, data: leave });
     } catch (error: any) {
@@ -20,9 +21,10 @@ export class LeaveController {
 
   async approve(req: Request, res: Response) {
     try {
+      const tenantId = requireTenant(req).companyId;
       const id = String(req.params.id);
-      const { approvedById, rejectionReason } = req.body; // moved from query to body
-      const leave = await this.service.approve(id, approvedById, rejectionReason);
+      const { approvedById, rejectionReason } = req.body;
+      const leave = await this.service.approve(tenantId, id, approvedById);
       await this.events.publish('LEAVE_APPROVED', { leaveId: leave.id, employeeId: leave.employeeId });
       res.json({ success: true, data: leave });
     } catch (error: any) {
@@ -32,9 +34,10 @@ export class LeaveController {
 
   async reject(req: Request, res: Response) {
     try {
+      const tenantId = requireTenant(req).companyId;
       const id = String(req.params.id);
-      const { approvedById, rejectionReason } = req.body; // moved from query to body
-      const leave = await this.service.reject(id, approvedById, rejectionReason);
+      const { approvedById, rejectionReason } = req.body;
+      const leave = await this.service.reject(tenantId, id, approvedById, rejectionReason);
       await this.events.publish('LEAVE_REJECTED', { leaveId: leave.id, employeeId: leave.employeeId, reason: rejectionReason });
       res.json({ success: true, data: leave });
     } catch (error: any) {
@@ -44,7 +47,8 @@ export class LeaveController {
 
   async getByEmployee(req: Request, res: Response) {
     try {
-      const leaves = await this.service.getByEmployee(String(req.params.employeeId));
+      const tenantId = requireTenant(req).companyId;
+      const leaves = await this.service.getByEmployee(tenantId, String(req.params.employeeId));
       res.json({ success: true, data: leaves });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -53,7 +57,8 @@ export class LeaveController {
 
   async getBalance(req: Request, res: Response) {
     try {
-      const balance = await this.service.getBalance(String(req.params.employeeId));
+      const tenantId = requireTenant(req).companyId;
+      const balance = await this.service.getBalance(tenantId, String(req.params.employeeId));
       res.json({ success: true, data: balance });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -62,7 +67,8 @@ export class LeaveController {
 
   async getPendingApprovals(req: Request, res: Response) {
     try {
-      const leaves = await this.service.getPendingApprovals(req.body.approverId as string); // moved to body
+      const tenantId = requireTenant(req).companyId;
+      const leaves = await this.service.getPendingApprovals(tenantId, req.body.approverId as string);
       res.json({ success: true, data: leaves });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });

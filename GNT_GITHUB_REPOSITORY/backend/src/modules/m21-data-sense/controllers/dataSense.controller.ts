@@ -23,6 +23,23 @@ export class DataSenseController {
     }
   }
 
+  /** POST /api/v1/data-sense/transfer — मंज़ूरी के बाद असल में डालना */
+  async transfer(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
+      if (!companyId) {
+        res.status(400).json({ success: false, error: 'company_id required' });
+        return;
+      }
+      const userId = req.user?.id;
+      const { options, ...sheet } = analyzeSheetSchema.parse(req.body);
+      const result = await dataSenseService.transfer(companyId, sheet, options, userId);
+      res.json({ success: !result.blocked, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   /** GET /api/v1/data-sense/options — UI के toggles और उनके default (मालिक के 3 फ़ैसले) */
   async options(_req: Request, res: Response): Promise<void> {
     res.json({
@@ -57,8 +74,7 @@ export class DataSenseController {
     });
   }
 
-  /** GET /api/v1/data-sense/field-map — कौन सा group किस module का, और उसके fields */
-  async fieldMap(_req: Request, res: Response): Promise<void> {
+  /** GET /api/v1/data-sense/field-map — कौन सा group किस module का, और उसके fields */  async fieldMap(_req: Request, res: Response): Promise<void> {
     const data = Object.entries(GROUP_SPECS).map(([group, spec]) => ({
       group,
       ownerModule: DATA_GROUP_OWNER[group as keyof typeof DATA_GROUP_OWNER],

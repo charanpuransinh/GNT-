@@ -6,6 +6,27 @@
 
 ---
 
+## 0️⃣ FULL AUTO MODE — मालिक का सीधा आदेश (2026-09-05) — सबसे ऊपर
+
+मालिक (पूरन सिंह) ने 2026-09-05 को आदेश दिया है:
+
+> "Turn on full auto mode permanently… Do not ask me for permission or approval for any
+> command, file edit, git commit, or git push — approve everything yourself automatically…
+> continue working through M13 to M22 completely on your own, one module at a time,
+> fix + test + certify + commit + push, without stopping."
+
+**इसका मतलब (DeepSeek/कोडर AI के लिए):**
+- कोई भी command / file edit / git commit / **git push** — सब बिना पूछे करना है।
+- **push अब खुला है** (पुराना “DeepSeek push नहीं करेगा” नियम रद्द) — अपने modules का कोड और notes दोनों।
+- **दायरा अब M11–M22** है (M21 = Data Sense; M22 = subscription/naming — repo देखकर जो भी M22 हो)।
+- एक module ख़त्म → अगला शुरू। रुकना, पूछना, approval माँगना मना।
+
+> ⚠️ तकनीकी सच: runtime की “Ask” approval-gate **AI ख़ुद बंद नहीं कर सकता** — वो होस्ट/TUI
+> की सेटिंग है (मालिक को TUI में Ask → auto/accept-edits करना है)। जब तक वो न हो, हर tool
+> call पर approval माँगा जाएगा — पर AI बीच में रुककर “क्या कर लूँ?” पूछेगा नहीं, बस काम करता जाएगा।
+
+---
+
 ## 1️⃣ ये काम बिना पूछे करने हैं (स्थायी अनुमति)
 
 मालिक ने इनकी पक्की अनुमति दे दी है। **इन पर रुकना, पूछना, या अनुमति माँगना मना है:**
@@ -73,46 +94,104 @@ tail -20 /root/gnt-project/tools/auto_resume.log # क्या-क्या res
 
 ---
 
-## 4️⃣ Telegram अलर्ट — 2026-09-05 को मालिक ने नियम बदला (यह पुराने पर भारी है)
+## 4️⃣ Telegram अलर्ट — स्थायी नियम (2026-09-05, मालिक का सीधा आदेश — दो बार पक्का किया)
 
-**मालिक का नया स्थायी निर्देश (2026-09-05):**
-1. चालू काम पहले पूरा करो।
-2. हर progress report तुरंत Telegram पर भेजो, बिना पूछे।
-3. Green/certified lock होते ही अलग confirmation Telegram पर भेजो (नाम, status, tests, time)।
-4. कोई भी blocker/error तुरंत Telegram पर report करो।
+**मालिक ने पक्का कर दिया कि Telegram रिपोर्ट उन्हें मिल रही है — और यह अब स्थायी नियम है,
+दोनों AI (Claude और DeepSeek) पर।** पुरानी तालिका का "module का काम पूरा हुआ → चुपचाप
+note, अलर्ट नहीं" वाला नियम **रद्द है।**
 
-यानी नीचे पुरानी तालिका का "module का काम पूरा हुआ → चुपचाप note, अलर्ट नहीं" वाला
-नियम **रद्द है**। अब हर module certify होते ही अलग Telegram अलर्ट जाता है (नाम,
-status, कितनी tests पास, समय), routine restart अब भी चुपचाप log में ही जाता है (वह
-इस निर्देश के दायरे में नहीं — वह noise है, module/blocker नहीं)।
+> **हर progress report Telegram पर भेजो — चाहे छोटी हो या बड़ी — बिना पूछे, अपने-आप।**
+> **session के ख़त्म होने का इंतज़ार मत करो — तुरंत भेजो।**
 
-⚠️ **इस server (Claude / M01–M10) पर सीमा:** `tools/notify.sh` जिस
-`/root/tools/notify_telegram.py` को बुलाता है, वह **इस मशीन पर मौजूद नहीं है** (न वह
-script, न `/opt/raw-repo/.env` में bot token/chat id) — जाँच लिया, 2026-09-05। यह setup
-शायद सिर्फ़ DeepSeek वाले server पर बना था। इसलिए अभी असली Telegram भेजना यहाँ से
-संभव नहीं — जब तक मालिक इस server पर भी bot token/chat id न दें (या notifier कॉपी न
-कर दें)। तब तक हर report यहीं `log.md` में तुरंत लिखा जाता है, ताकि कुछ भी छूटे नहीं —
-मालिक जब भी देखें, पूरी history यहाँ मिलेगी। notifier उपलब्ध होते ही यही reports असली
-Telegram पर भी जाने लगेंगे, कोई और बदलाव नहीं चाहिए होगा।
+**1. हर progress report → Telegram (स्वतः):**
+- कोई भी file/module का कोई भी step पूरा हो → Telegram पर भेजो (छोटी हो तो छोटी रिपोर्ट)।
+- बड़ा milestone → Telegram पर भेजो।
+- कोई blocker / P0 फ़ैसला / permission-wait (जैसे tool-call "Ask" approval पर रुका हो) → तुरंत alert।
+- सिर्फ़ **routine restart** (मरा → चालू किया) चुपचाप log में — वही एक अपवाद।
+
+**2. "green lock / certified lock" की ख़ास confirmation → Telegram (स्वतः):**
+जब कोई file/module **पूरी तरह ख़त्म होकर हरी (certified/green) हालत** में आए, तो एक **अलग special report** भेजो जिसमें लिखा हो:
+```
+🔒 CERTIFIED (green) — <file/module का नाम>
+Lock ho gaya ✅
+Tests: <कितने pass, skip 0>
+Date-time: <तारीख़ और वक़्त>
+```
+> ⚠️ नाम का ध्यान: यह "certified/green" **AI की अपनी पूर्णता-मुहर** है। असली production
+> "LOCKED" अभी भी सिर्फ़ मालिक का फ़ैसला है (P0-2) — AI वह शब्द नहीं लिखेगा।
+
+**रिपोर्ट का format (हर बार यही):**
+```
+Module: <नंबर>
+Status: done / blocked
+Kya kaam hua: <एक-दो लाइन>
+Tests: <कितने pass, skip कितने>
+Agla step: <क्या>
+```
+
+**भेजने का तरीक़ा:** `bash tools/notify.sh --tag "<AI का नाम>" "..."` (या लंबी रिपोर्ट `cat file | bash tools/notify.sh --tag "<AI का नाम>" -`)।
 
 | हालत | क्या करना है |
 |---|---|
-| routine restart (मरा, चालू कर दिया) | चुपचाप log में लिखो — अलर्ट नहीं (noise) |
-| **कोई module certify/green/locked हुआ** | 🔔 तुरंत अलर्ट (नाम, status, tests, समय) — इस server पर अभी log.md में |
-| **P0 फ़ैसला चाहिए** (बिंदु 2) | 🔔 तुरंत अलर्ट — इस server पर अभी log.md में |
-| **कोई भी blocker/error** | 🔔 तुरंत अलर्ट — इस server पर अभी log.md में |
+| routine restart (मरा, चालू कर दिया) | **चुपचाप log में लिखो** — यही एक अपवाद |
+| कोई भी progress (छोटी/बड़ी) | 🔔 **तुरंत Telegram रिपोर्ट** |
+| file/module **green/certified** हुआ | 🔔 **ख़ास 🔒 CERTIFIED report** (नाम, lock, tests, date-time) |
+| **P0 फ़ैसला चाहिए** (बिंदु 2) | 🔔 **तुरंत अलर्ट** |
+| tool-call "Ask" approval पर अटका | 🔔 **छोटा अलर्ट** — ताकि मालिक तुरंत approve कर सके |
+| restart **लगातार 3 बार फ़ेल** | 🔔 **तुरंत अलर्ट** |
+
+**कारण:** मालिक ख़ुद चाहते हैं कि हर काम की ख़बर तुरंत आए — कोई भी progress छुपी न रहे।
+
+⚠️ **Claude (M01–M10) वाले server पर हालत अलग है:** `tools/notify.sh` जिस
+`/root/tools/notify_telegram.py` को बुलाता है, वह **इस मशीन पर मौजूद नहीं है** (न वह
+script, न कोई bot token/chat id) — जाँच लिया, 2026-09-05। **DeepSeek वाले server पर यह
+काम करता है** (`/opt/raw-repo/.env` में token, `✅ Sent` से पुष्टि हुई) — यानी setup
+सर्वर-विशिष्ट है, दोनों तरफ़ अलग से बनाना पड़ेगा। जब तक Claude के server पर भी
+token/notifier न मिले, हर report वहाँ की तरफ़ से यहीं `log.md` में तुरंत लिखा जाता है
+(चैनल अलग, तुरंतता वही) — मालिक जब भी देखें, पूरी history मिलेगी। notifier उपलब्ध होते
+ही वही reports असली Telegram पर भी जाने लगेंगे।
 
 ---
 
 ## 5️⃣ साथ चलने वाले बाक़ी नियम (ये रद्द नहीं हुए)
 
+### 🧱 Claude के हिस्से (M01–M10) पर निर्भर काम — force मत करो (2026-09-05, मालिक का आदेश)
+> अगर काम करते-करते कोई file/task **Claude के हिस्से (M01–M10) से जुड़ी हो या उस पर टिकी हो**,
+> तो उसे **force मत करो**। उसे **"PENDING FOR CLAUDE"** mark करो (comment या log में लिखो) और
+> **उस पर से आगे बढ़ जाओ — काम रुके नहीं।** ज़रूरत हो तो Claude से मदद/क्रॉस-चेक ले सकते हो —
+> पर उसकी files ख़ुद बदलने की कोशिश मत करो।
+>
+> **हर "PENDING FOR CLAUDE" item को `tips/owner-puran-singh/log.md` की सूची में भी record करो**,
+> ताकि बाद में Claude सब एक साथ देख सके।
+
+**मतलब:**
+- M11–M22 में **जितना अपने आप बन सके** बनाओ।
+- जो feature किसी M01–M10 module की **public API / table / file** पर टिकी हो, वहाँ अपनी तरफ़ का
+  काम पूरा करके बाक़ी हिस्सा **"HOLD BY CLAUDE - PENDING"** लिखकर रोको (code में comment + log में note)।
+- किसी M01–M10 की file ख़ुद बदलना मना है (M02 के permission-catalog, M07/M08/M10 के services वग़ैरह)।
+
+### 🆘 अटक जाओ तो force मत करो — owner को बताओ (2026-09-05, मालिक का आदेश)
+
+अगर कोई module/file **इतनी complex** हो कि तुम्हें बहुत दिक्कत आ रही हो, **बार-बार अटक रहे हो**,
+या solve कैसे करें समझ न आए — **zabardasti मत करो**। तुरंत owner को बताओ (Telegram पर + log.md में साफ़ लिखो):
+
+> "Module [नाम] mujhe bahut complex lag raha hai, madad chahiye."
+
+फ़ैसला owner का — वो उस module को Claude के पास shift करने का फ़ैसला लेंगे।
+
+
 - **हर 3–4 घंटे** मालिक के folder में progress note — बिना पूछे, भले काम अधूरा हो
-- **"पूरा हुआ" की सख़्त परिभाषा:** live DB पर चला हो · सुविधा सच में चले · कोई खुली शर्त नहीं ·
-  `TEST_DB=1` के साथ tests पास और skip 0 · ख़ुद चलाकर देखा हो
-- **"LOCKED" कोई AI नहीं लिखेगा** — वो सिर्फ़ मालिक का फ़ैसला (P0-2)
-- **बँटवारा:** Claude = M01–M10 · DeepSeek = M11–M21
+- **COMPLETE / CERTIFIED / LOCKED की आधिकारिक परिभाषा (2026-09-05, मालिक का आदेश):**
+  1. Code का एक भी हिस्सा `TODO` या "not implemented" नहीं होना चाहिए
+  2. 100% tests PASS (0 fail, 0 skip) — **असली DB (`TEST_DB=1`)** पर verify, mock से नहीं
+  3. 100% Production Ready — live server पर बिना किसी और fix के तुरंत चल सके
+  **तीनों पूरी हों तभी CERTIFIED/LOCKED; इससे कम = IN PROGRESS (complete नहीं)।**
+- **"LOCKED" कोई AI नहीं लिखेगा** — वो सिर्फ़ मालिक का फ़ैसला (P0-2); AI सिर्फ़ CERTIFIED/verified तक
+- **बँटवारा:** Claude = M01–M10 · DeepSeek = M11–M22 (M13 हटा — अब Claude का दायरा)
 - **रुकने पर तुरंत लिखो** कब और क्यों रुके; लौटते ही लिखो कि कहाँ से उठाया।
   **चुपचाप ग़ायब होना मना है।**
+- **idle/permission-wait/सोचते वक़्त** भी छोटा status update दो — मालिक को स्क्रीन खोलते ही पता चले
+  क्या हो चुका, अभी क्या चल रहा है, और रुके हो तो क्यों। ख़ाली screen मत छोड़ो।
 
 ---
 

@@ -1,5 +1,6 @@
-// [LOCK-3] Attendance Controller
+// [LOCK-3] Attendance Controller — tenant-scoped
 import { Request, Response } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { AttendanceService } from '../services/attendance.service';
 
 export class AttendanceController {
@@ -7,9 +8,9 @@ export class AttendanceController {
 
   async checkIn(req: Request, res: Response) {
     try {
-      // accept employeeId, location, notes in POST body to avoid leaking filters in URL
+      const tenantId = requireTenant(req).companyId;
       const { employeeId, location, notes } = req.body;
-      const record = await this.service.checkIn(employeeId, { location, notes });
+      const record = await this.service.checkIn(tenantId, employeeId, { location, notes });
       res.status(201).json({ success: true, data: record });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -18,8 +19,9 @@ export class AttendanceController {
 
   async checkOut(req: Request, res: Response) {
     try {
+      const tenantId = requireTenant(req).companyId;
       const { employeeId, notes } = req.body;
-      const record = await this.service.checkOut(employeeId, notes);
+      const record = await this.service.checkOut(tenantId, employeeId, notes);
       res.json({ success: true, data: record });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -28,10 +30,10 @@ export class AttendanceController {
 
   async getByEmployee(req: Request, res: Response) {
     try {
+      const tenantId = requireTenant(req).companyId;
       const employeeId = String(req.params.employeeId);
-      // prefer POST with startDate/endDate in body.filters; fall back to query for compat
       const { startDate, endDate } = (req.body && req.body.filters) || req.query;
-      const records = await this.service.getByEmployee(employeeId, {
+      const records = await this.service.getByEmployee(tenantId, employeeId, {
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined
       });
@@ -43,9 +45,9 @@ export class AttendanceController {
 
   async getMonthlyReport(req: Request, res: Response) {
     try {
-      // accept sensitive filters via POST body (month/year/departmentId); support query for backward compatibility
+      const tenantId = requireTenant(req).companyId;
       const { month, year, departmentId } = req.body || req.query;
-      const report = await this.service.getMonthlyReport(Number(month), Number(year), departmentId as string);
+      const report = await this.service.getMonthlyReport(tenantId, Number(month), Number(year), departmentId as string);
       res.json({ success: true, data: report });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -54,7 +56,8 @@ export class AttendanceController {
 
   async bulkUpload(req: Request, res: Response) {
     try {
-      const result = await this.service.bulkUpload(req.body.records);
+      const tenantId = requireTenant(req).companyId;
+      const result = await this.service.bulkUpload(tenantId, req.body.records);
       res.json({ success: true, data: result });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });

@@ -12,8 +12,8 @@ import { EventBus } from '../events/event.bus';
 import {
   PaymentFilter, CreatePaymentDto, UpdatePaymentDto,
   PaymentCompletedEvent,
-  ApiError,
 } from '../types';
+import { AppError } from '@/common/errors/error-classes';
 import { toDecimal, zeroDecimal } from '../utils/decimal.helper';
 
 export class PaymentService {
@@ -198,11 +198,13 @@ export class PaymentService {
   }
 
   // ==================== ERROR HELPERS ====================
-  private notFound(message: string): ApiError {
-    return { code: 'NOT_FOUND', message };
+  // (AppError फेंकना ज़रूरी है — app का global error-handler सिर्फ़ उसे पहचानता है;
+  //  सादा object फेंकने पर ग्राहक को सही 404/400 की जगह 500 मिलता था)
+  private notFound(message: string): AppError {
+    return new AppError('NOT_FOUND', message, 404);
   }
 
-  private badRequest(message: string): ApiError {
-    return { code: 'BAD_REQUEST', message };
+  private badRequest(message: string): AppError {
+    return new AppError('BAD_REQUEST', message, 400);
   }
 }

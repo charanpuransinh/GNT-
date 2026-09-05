@@ -3,7 +3,8 @@
 import { PrismaClient } from '@prisma/client';
 import { BankAccountRepository } from '../repositories/bankAccount.repository';
 import { EventBus } from '../events/event.bus';
-import { CreateBankAccountDto, UpdateBankAccountDto, ApiError } from '../types';
+import { CreateBankAccountDto, UpdateBankAccountDto } from '../types';
+import { AppError } from '@/common/errors/error-classes';
 
 export class BankAccountService {
   private repo: BankAccountRepository;
@@ -64,11 +65,11 @@ export class BankAccountService {
   }
 
   // ==================== ERROR HELPERS ====================
-  private notFound(message: string): ApiError {
-    return { code: 'NOT_FOUND', message };
+  private notFound(message: string): AppError {
+    return new AppError('NOT_FOUND', message, 404);
   }
 
-  private badRequest(message: string): ApiError {
-    return { code: 'BAD_REQUEST', message };
+  private badRequest(message: string): AppError {
+    return new AppError('BAD_REQUEST', message, 400);
   }
 }

@@ -3,7 +3,8 @@
 import { PrismaClient } from '@prisma/client';
 import { PaymentMethodRepository } from '../repositories/paymentMethod.repository';
 import { EventBus } from '../events/event.bus';
-import { CreatePaymentMethodDto, UpdatePaymentMethodDto, ApiError } from '../types';
+import { CreatePaymentMethodDto, UpdatePaymentMethodDto } from '../types';
+import { AppError } from '@/common/errors/error-classes';
 
 export class PaymentMethodService {
   private repo: PaymentMethodRepository;
@@ -58,11 +59,11 @@ export class PaymentMethodService {
   }
 
   // ==================== ERROR HELPERS ====================
-  private notFound(message: string): ApiError {
-    return { code: 'NOT_FOUND', message };
+  private notFound(message: string): AppError {
+    return new AppError('NOT_FOUND', message, 404);
   }
 
-  private badRequest(message: string): ApiError {
-    return { code: 'BAD_REQUEST', message };
+  private badRequest(message: string): AppError {
+    return new AppError('BAD_REQUEST', message, 400);
   }
 }

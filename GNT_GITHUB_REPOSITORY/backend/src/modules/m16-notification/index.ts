@@ -7,6 +7,7 @@
 
 // PUBLIC API — Safe for external consumption
 export { notificationService } from './services/notification.service';
+export { campaignService } from './services/campaign.service';
 export type {
   SendNotificationPayload,
   NotificationFilter,

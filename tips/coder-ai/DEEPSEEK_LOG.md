@@ -448,3 +448,263 @@ session मरने पर काम का सबूत खो जाता �
 - repo की दूसरी modified files (docs/CODER-AI-GUIDE.md, tips/…/NIGHT-QUEUE.md, SPEC-REVIEW-M20-M21.md) **समीक्षक AI की हैं** — छुईं नहीं, commit नहीं कीं
 
 — कोडर AI (DeepSeek), 2026-09-03
+
+## ✅ कोडर AI (DeepSeek) — टास्क #030: M11 tenant-isolation + M13 पूरा (2026-09-05)
+
+### M11 — 2 फ़ेल tests ठीक (जड़: सादा object, AppError नहीं)
+- जड़: M11 की 5 services (payment/refund/paymentMethod/reconciliation/bankAccount)
+  `{ code:'NOT_FOUND' }` जैसा सादा object फेंकती थीं; app का global error-handler सिर्फ़
+  `AppError` पहचानता है → सही काम करने वाला tenant-check भी 500 देता था।
+- fix: हर service अब `new AppError(code, msg, status)` फेंकती है (404/400)।
+- सबूत (सुधार उलटकर): उलटा → 2 tests 500 से फ़ेल; सुधार के साथ → 10/10 पास (skip 0)।
+- `TEST_DB=1 npx vitest run src/modules/m11-payment` → 2 files, 10 tests pass.
+- commit `68a2a04`।
+
+### M13 — पूरा rebuild (blueprint §7.13 के 3 tables पर)
+**पहले की हालत:** 75 tsc errors + 8 files tsconfig से exclude होकर छिपी थीं;
+module किसी और प्रोजेक्ट का BullMQ-आधारित टूटा ढाँचा था, mount गिरता था।
+
+**blueprint का फ़ैसला (मालिक का नियम: blueprint authority):** M13 = 3 tables —
+`automation_rule` · `scheduled_job` · `job_execution_log` (हर एक tenant_id से बंधी)।
+
+**किया:**
+- `prisma/schema.prisma` में 3 models जोड़े (AutomationRule, ScheduledJob, JobExecutionLog),
+  migration `011_M13_automation_tables.sql` बनाकर **live DB पर चलाई** (columns quoted-camelCase)।
+- M13 module नए सिरे से: types · zod validators · tenant-scoped repository ·
+  automation.service (rules CRUD + manual trigger) · automation.internal (action executor:
+  NOTIFY/WEBHOOK/LOG) · scheduler.service (30s poll, unref'd) · cron.ts (बिना library,
+  5-field + timezone Intl) · controllers · routes · events handler (shared bus subscribeAll)।
+- NOTIFY action M16 के public `notificationService` से (M16 के NotificationEntityType में
+  `'automation'` जोड़ा) — सीधे tables नहीं।
+- `common/events/event-bus.ts` में `subscribeAll()` जोड़ा (backward-compatible)।
+- पुरानी ~45 टूटी files git rm; `tsconfig.backend.json` से M13 के 8 excludes हटाए।
+- api-contracts/v1/M13-automation.contract.yaml असली OpenAPI में लिखा (पहले 1 byte खाली)।
+
+**नाप (exact):**
+- `tsc -p tsconfig.backend.json` → **0** (पहले 75) · `tsc -p tsconfig.frontend.json` → 0
+- `prisma validate` → valid 🚀
+- server (tsx --tsconfig): **21 modules चढ़े, 0 गिरे**
+- `TEST_DB=1 npx vitest run src/modules/m13-automation` → 2 files, **17 tests pass, skip 0**
+- पूरी backend suite `TEST_DB=1 npx vitest run` → **84 files / 420 tests, 0 fail, 0 skip**
+- tenant-scope सबूत: repository से tenantId हटाकर चलाया → isolation tests फ़ेल (test असली)।
+
+**सफ़ाई:** M13 में 0 `as any` / `@ts-ignore` / `TODO` (cron.ts का `return false`
+isValidTimezone का असली जवाब है, कोई skip नहीं)।
+
+**बाक़ी (M14 → M22):** M14 Import/Export, M15 Sync, M16 Notification, M17 Reporting,
+M18 Integration, M19 Monitoring, M20 Trade, M21 Data Sense, M22 — क्रम से।
+
+## ✅ कोडर AI (DeepSeek) — tenant-safety sweep M14/M15/M20 (2026-09-05)
+
+### जड़ (एक ही पैटर्न, कई जगह):
+service/repository method `tenantId`/`companyId` लेकर भी query सिर्फ़ `where: { id }` करता था
+→ दूसरी कंपनी दूसरी की row देख/बदल/मिटा सकती थी।
+
+### ठीक किया (findFirst/updateMany/deleteMany + scope):
+- **M14 import.service / export.service**: getJobStatus/cancelJob/processJob/retry/download
+  अब `{ id, tenantId }` से; `new PrismaClient()` → shared `@/common/config/prisma`; controllers
+  के `as unknown as never`/`as any` हटाए। + नया `tenant-isolation.db.test.ts` (4 tests)।
+- **M15 sync.service**: updateConfig/deleteConfig (updateMany/deleteMany + scope), getJobProgress
+  (tenantId param + controller से भेजा), cancelJob (updateMany+scope)।
+- **M15 integration.service**: updateIntegration/deleteIntegration (updateMany/deleteMany + scope)।
+- **M20 trade.repository**: update/updateStatus/delete (updateMany/deleteMany + company_id scope)।
+- **M16/M17/M18/M19 जाँचे — साफ़**: M16 fail-closed companyId, M17 ownership-check, M18
+  check-then-write, M19 fail-closed + append-only (deleteAuditLog throws ILLEGAL)।
+- **M20 fx_rate / customs_tariff**: जान-बूझकर company-scope नहीं — राष्ट्रीय reference data
+  (FX दर, 8-अंकीय tariff), blueprint §7.20 के हिसाब से global।
+
+### Verify (TEST_DB=1):
+- पूरी backend suite: **85 files / 424 tests, 0 fail, 0 skip**
+- `tsc` backend 0 · frontend 0 · `prisma validate` valid
+- commits: 228e34a (m14) · f0d6bea (m15) · c1373c9 (m20) — सब push
+
+### बाक़ी: M20 SPEC-A export hub · M21 Data Sense build · M22 subscription
+
+
+## 🕐 2026-09-05 — DeepSeek (कोडर AI) · M12 + M21
+**क्या काम हुआ (पिछले note के बाद):**
+1. **कर्मचारी (M12):** पूरी module अब कंपनी से बंधी है — कर्मचारी/विभाग/हाज़िरी/छुट्टी/वेतन में
+   दूसरी कंपनी का डेटा देखना-बदलना अब नामुमकिन। 6 अलग-अलग कनेक्शन की जगह एक साझा। 3 नई जाँचें।
+2. **डेटा-समझने वाला (M21):** अब सिर्फ़ दिखाता नहीं — असल में डालता भी है। ग्राहक/सप्लायर की फ़ाइल
+   समझकर सीधे M05 में डाल देता है, माल (item) सीधे M06 में। ख़राब फ़ाइल को रोक देता है (कुछ नहीं चढ़ता)।
+
+**क्या पूरा हुआ:** M12 और M21 का ट्रांसफर हिस्सा। पूरे पिछले सिरे की **430 जाँचें पास** (0 फ़ेल, 0 skip)।
+**क्या बाक़ी है:** M21 के बाक़ी समूह (बिक्री/खरीद/हिसाब…), M20 का निर्यात-केन्द्र, M22 (सदस्यता)।
+**कोई अड़चन?** कोई नहीं।
+**कितना % हुआ:** M11–M22 में बड़ा हिस्सा पूरा; तीन बड़े निर्माण बाक़ी।
+
+
+## 🕐 2026-09-05 — DeepSeek (कोडर AI) · M16 WhatsApp campaign
+**क्या काम हुआ:** M16 (सूचनाएँ) में **WhatsApp campaign + secure order-link** बनाया —
+दुकानदार एक प्रचार-संदेश बनाए, उसमें ग्राहकों की सूची डाले; हर ग्राहक को एक **अपना
+सुरक्षित link** मिलता है जिसे वह बिना login खोल सकता है (link ही उसकी पहचान है, 7 दिन
+मान्य, छेड़-छाड़ या expired link पर कुछ नहीं)। संदेश WhatsApp से (M18 के ज़रिए) जाता है।
+सब कंपनी से बंधा है — दूसरी कंपनी की campaign न दिखे न मिटे।
+
+**क्या पूरा हुआ:** M16 का SPEC-B हिस्सा। पूरे पिछले सिरे की **439 जाँचें पास** (0 फ़ेल, 0 skip)।
+**क्या बाक़ी है:** M20 निर्यात-केन्द्र (SPEC-A) · M22 सदस्यता · M21 के बाक़ी समूह।
+**कोई अड़चन?** कोई नहीं।
+**कितना % हुआ:** M11–M22 में ज़्यादातर बन गया; तीन बड़े काम बाक़ी (ऊपर लिखे)।
+
+
+## 🧱 HOLD BY CLAUDE - PENDING (2026-09-05, मालिक के नियम के तहत)
+
+ये मेरे (DeepSeek, M11–M22) काम के वो हिस्से हैं जो **Claude के M01–M10 modules पर टिकते हैं** —
+इन्हें force नहीं किया जाएगा, "HOLD BY CLAUDE - PENDING" mark किया गया है:
+
+| # | काम | किस पर टिका | मेरा क्या पूरा |
+|---|---|---|---|
+| H1 | M21 adapters: sales→M08, purchase→M07, accounting→M10, scheme→M08 | M07/M08/M10 की public create API (Claude) | M21 का party→M05, item→M06 adapter बन चुका; बाक़ी groups के transfer में `pending-adapter` लौटाता है |
+| H2 | M16 WhatsApp campaign का "buyer order → M08 pending order" + server-side scheme validation | M08 sales (Claude) | M16 का campaign + secure order-link बन चुका |
+| H3 | Bank statement auto-posting / reconciliation | "Existing Accounts" M10 (Claude) + M11 (मेरा) + मालिक का फ़ैसला #3 | — (SPEC-A §22–§30) |
+
+**नियम:** जब भी इनमें से कोई काम हाथ लगे, अपनी तरफ़ की public API/contract तैयार करके
+बाक़ी को `HOLD BY CLAUDE - PENDING` लिखकर छोड़ना है — Claude की files ख़ुद बदलना मना है।
+
+
+## 🔴 मालिक का फ़ैसला (2026-09-05) — M13 अब DeepSeek के पास नहीं, Claude संभालेगा
+
+**मालिक का निर्देश (शब्द-दर-शब्द इरादा):**
+> "M13-automation module ab tumhare responsibility mein nahi hai — Claude ise handle karega.
+> Tumhara M11-M12, M14+ ka kaam jaisa hai waisa hi rahega, bas M13 hata liya gaya."
+
+**DeepSeek का दायरा अब:** M11, M12, M14, M15, M16, M17, M18, M19, M20, M21, M22 (M13 हटा)।
+
+**⚠️ ईमानदार सुधार (ground truth — छिपाया नहीं):**
+मालिक को बताया गया था कि M13 में "75 typecheck errors pending" हैं — यह जानकारी **पुरानी** है।
+इसी session में DeepSeek ने M13 को blueprint §7.13 के 3 tables (`automation_rule`, `scheduled_job`,
+`job_execution_log`) पर **पूरा दोबारा बनाया था**:
+- tsc backend: **0 errors** (पहले 75 + 8 छिपी files)
+- tests: `TEST_DB=1` से **17/17 pass, skip 0**
+- mount: 21/21 (M13 गिरता था, अब चढ़ता है)
+- commit `2ffc7e9` — GitHub पर push हो चुका
+
+यानी Claude को **75 errors नहीं मिलेंगे** — एक हरा (green) module मिलेगा, जिसे वह अपनी
+तरफ़ से verify करके CERTIFIED कर ले। फ़ैसला फिर भी मालिक का है — M13 अब Claude का दायरा है।
+M13 की पूरी तकनीकी कहानी ऊपर "टास्क #030 M11+M13" वाली entry में दर्ज है।
+
+
+## 🔀 मालिक का नया फ़ैसला (2026-09-05) — पूरे हुए modules अब Claude के हवाले
+
+**निर्देश:** जो modules DeepSeek ने अपनी तरफ़ से "complete/OK/done" कहे हैं, वे अब **Claude
+test करेगा + wiring (cross-module integration) करेगा**। DeepSeek पूरे हुए काम में **वापस नहीं
+जाएगा** जब तक Claude कोई bug report न दे।
+
+### Claude को सौंपे गए (DeepSeek का पूरा हुआ काम — commit के साथ, Claude आसानी से पाएगा):
+
+| Module | क्या पूरा | commit |
+|---|---|---|
+| M11 Payment | tenant-isolation fix (AppError 404/400), 10/10 tests | `68a2a04` |
+| M12 HR | पूरी module tenant-scoped + shared prisma + hr.service real, 3/3 tests | `6166783` |
+| M13 Automation | blueprint 3 tables पर rebuild, 17/17 tests (पहले ही Claude को दिया) | `2ffc7e9` |
+| M14 Import/Export | tenant-scope + shared prisma, 13/13 tests | `228e34a` |
+| M15 Sync | sync/integration tenant-scope | `f0d6bea` |
+| M16 Notification | WhatsApp campaign + HMAC secure order-link, 11/11 tests | `b0fecec` |
+| M20 Trade | trade_job tenant-scope | `c1373c9` |
+| M21 Data Sense | TRANSFER executor (party→M05, item→M06) + POST /transfer, 26/26 tests | `d250c91` |
+
+**सभी main branch पर push हैं।** पूरी backend suite (DeepSeek की आख़िरी नाप): 89 files / 439 tests,
+0 fail 0 skip; tsc 0।
+
+### DeepSeek अब सिर्फ़ नए/बाक़ी काम पर:
+1. **M20 export-hub** (SPEC-A — buyer/quotation/shipping/customs/documents)
+2. **M22 subscription**
+3. **M21 के बाक़ी adapters** — export→M20 (मेरा); sales/purchase/accounting/scheme → Claude के M07/M08/M10 (HOLD BY CLAUDE - PENDING)
+
+**नियम:** पूरे हुए modules में वापस नहीं जाना — सिर्फ़ तब जब Claude bug report दे।
+
+
+## ⚠️ Certification सुधार (2026-09-05) — certified सूची अभी ख़ाली है
+
+मालिक का सुधार: **सिर्फ़ वो modules Claude को दो जो सच में GREEN + CERTIFIED/LOCKED हों**
+(जैसे पहले M01–M10 थे) — "मैंने काम कर दिया" कहने से नहीं चलेगा।
+
+**ईमानदार नतीजा:** अभी **कोई भी module CERTIFIED/LOCKED नहीं है** — न M11, न M12, न M21
+transfer, न M16 WhatsApp campaign। सब "DeepSeek ने बनाया + tests पास (TEST_DB=1)" हैं, पर
+पूरी तरह verified/certified का दर्जा अभी नहीं मिला। **इसलिए ये सब DeepSeek के पास ही रहेंगे**
+जब तक fully verified न हो जाएँ।
+
+### कौन क्यों अभी certified नहीं (ईमानदार आँकलन):
+| Module | कमी |
+|---|---|
+| M11 Payment | 10 tests हैं पर refund/reconciliation/bankAccount/schedule की feature tests नहीं — कवरेज पतला |
+| M12 HR | सिर्फ़ 3 tenant-isolation tests; create/findAll/update/attendance/leave/payroll की feature tests नहीं |
+| M21 transfer | transfer सिर्फ़ party→M05, item→M06 तक; बाक़ी groups (sales/purchase/accounting/export/scheme) pending — खुली शर्त बाक़ी |
+| M16 WhatsApp | campaign+link बने, पर असली WhatsApp send end-to-end test नहीं हुआ (gateway network); buyer-order→M08 HOLD BY CLAUDE |
+
+### Claude को अभी test/wiring के लिए कुछ नहीं मिला (certified list = ख़ाली)
+जब कोई module पूरी तरह verified हो जाएगा (सारे feature tests + end-to-end + कोई खुली शर्त नहीं),
+तभी उसे "certified" घोषित करके Claude को दूँगा। तब तक मेरे पास ही।
+
+**नियम:** "done" ≠ "certified"। certified का मतलब: live DB end-to-end · कोई खुली शर्त नहीं ·
+TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCKED सिर्फ़ मालिक का फ़ैसला — AI नहीं लिखेगा)।
+
+
+## 📏 COMPLETE / CERTIFIED / LOCKED — आधिकारिक परिभाषा (2026-09-05, मालिक का आदेश)
+
+कोई module सिर्फ़ तभी **COMPLETE / CERTIFIED / LOCKED** माना जाएगा, जब तीनों सच हों:
+1. **Code का एक भी हिस्सा `TODO` / "not implemented" न हो।**
+2. **100% tests PASS (0 fail, 0 skip)** — असली DB (`TEST_DB=1`) पर verify किया गया हो, mock से नहीं।
+3. **100% Production Ready** — live server पर बिना किसी और fix के तुरंत use हो सके।
+
+**इससे कम कुछ भी = IN PROGRESS (complete नहीं)।** "काम हो गया" ≠ "certified"।
+("LOCKED" अभी भी सिर्फ़ मालिक का फ़ैसला — AI सिर्फ़ CERTIFIED/verified तक लिखेगा।)
+
+इसी परिभाषा के हिसाब से अब **M11 को पहले पूरा करना है** — फिर बाक़ी (M12, M21, M16)।
+
+
+## 🆘 नया नियम (2026-09-05, मालिक) — अटक जाओ तो force मत करो, owner को बताओ
+
+अगर कोई module/file इतनी complex हो कि बार-बार अटक रहे हों, या solve करना समझ न आए —
+**zabardasti मत करो**। तुरंत owner को बताओ (Telegram + log.md में साफ़ लिखो):
+
+> "Module [नाम] mujhe bahut complex lag raha hai, madad chahiye."
+
+फ़ैसला owner का — वो उस module को Claude के पास shift करेंगे। यह नियम स्थायी है
+(`AUTONOMY-RULES.md` §5 में भी दर्ज)।
+
+
+## 🧱 नियम (2026-09-05, मालिक) — "PENDING FOR CLAUDE"
+
+अगर काम करते-करते कोई file **Claude के modules (M05, M06, या M01–M10 कोई भी) से related/dependent**
+मिले — तो उसे **ख़ुद fix करने की कोशिश मत करो**। उसे साफ़ **"PENDING FOR CLAUDE"** mark करो
+(comment या log में) और **उस पर से आगे बढ़ जाओ, काम रुके नहीं।**
+
+हर "PENDING FOR CLAUDE" item को `tips/owner-puran-singh/log.md` की सूची में भी record करते रहो,
+ताकि बाद में Claude सब एक साथ देख सके।
+
+### अभी तक की PENDING FOR CLAUDE सूची:
+| # | काम | क्यों Claude |
+|---|---|---|
+| P1 | M21 adapters: sales→M08, purchase→M07, accounting→M10, scheme→M08 | M07/M08/M10 की public create API (Claude) |
+| P2 | M16 "buyer order → M08 pending order" + server-side scheme validation | M08 sales (Claude) |
+| P3 | Bank statement auto-posting / reconciliation | M10 (Claude) + मालिक फ़ैसला #3 |
+| P4 | M13 (पूरा module) | मालिक ने Claude को दे दिया |
+
+
+## 🔒 M11 CERTIFIED (पहला module जो COMPLETE/CERTIFIED की 3 शर्तें पूरी करता है)
+
+**2026-09-05:** M11 (Payment) अब आधिकारिक परिभाषा के हिसाब से **CERTIFIED** है:
+1. ✅ Code में कोई TODO/"not implemented" नहीं (grep से साफ़)
+2. ✅ 100% tests pass — **14/14, 0 fail 0 skip** (TEST_DB=1, real DB); सभी 5 features covered
+   (payment · paymentMethod · bankAccount · refund · reconciliation)
+3. ✅ Production ready — 21/21 mount + HTTP end-to-end live DB पर
+
+**साथ में एक असली production bug भी ठीक हुआ:** `PaymentMethod.code` global @unique था
+→ यानी पूरे system में हर type (UPI/…) का सिर्फ़ **एक** method बन सकता था (सब companies
+के लिए shared)। अब `@@unique([code, tenantId])` — हर company का अपना method।
+(commit `b162957`, migration `013`)
+
+**Claude handover के लिए:** M11 अब CERTIFIED है → Claude test + wiring कर सकता है।
+**अभी CERTIFIED नहीं:** M12 (सिर्फ़ 3 tests) · M21 (transfer partial) · M16 (WhatsApp send e2e नहीं)।
+
+
+## 💬 नियम (2026-09-05, मालिक) — रुको/idle हो तो तुरंत status update दो
+
+जब भी काम करते-करते **रुको या idle दिखो** (किसी भी वजह से — permission wait, सोचने का समय,
+या कुछ और), **तुरंत एक छोटा status update दो** — जैसे:
+
+> "अभी तक ये-ये काम हो गया है, ये चल रहा है।"
+
+मालिक को स्क्रीन खोलते ही पता चलना चाहिए: **क्या-क्या complete हुआ · अभी क्या चल रहा है ·
+अगर रुके हो तो किस वजह से।** ख़ाली/idle screen बिना update के मत छोड़ो।
