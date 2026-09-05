@@ -1710,3 +1710,32 @@ tests से साबित: body में जान-बूझकर ग़ल
 
 असली DB पर नए test से साबित: approve पर जान-बूझकर ग़लत `x-user-id` भेजने पर भी
 DB में हमेशा token वाला असली user ही दर्ज होता है।
+
+---
+
+# 🔔 CERTIFIED — M09 GST — 2026-09-05, दोपहर 1:21
+
+**status:** ✅ CERTIFIED - PRODUCTION READY
+**tests:** 18/18 (real DB, TEST_DB=1), typecheck साफ़
+**समय:** 2026-09-05 दोपहर 1:21
+
+🛑 **तीन P0 मिले और ठीक किए:**
+
+1. **पूरा E-Invoice/E-Way Bill feature किसी request तक पहुँचता ही नहीं था** —
+   controller पूरा लिखा और unit-tested था, पर कभी किसी route से जुड़ा ही नहीं
+   था। frontend फिर भी `/api/v1/gst/einvoice/generate` को बुलाता था — production
+   में यह हमेशा 404 देता। चार routes जोड़े (frontend से confirmed पथ से मिलान
+   करके)।
+
+2. **company_id की जाँच के बिना दूसरी company का असली सरकारी e-invoice/
+   e-way-bill बन सकता था** — invoice_id/irn सिर्फ़ पता होने भर से कोई भी company
+   दूसरी company के sales invoice पर IRN बनवा सकती थी। यह सिर्फ़ डेटा-लीक नहीं —
+   IRP (सरकारी पोर्टल) को ग़लत company के नाम पर असली submission जाती। सभी
+   चार जगह company_id अब अनिवार्य है।
+
+3. **POST /gst/calculate में company_id body से आता था** — इसी फ़ाइल की बाक़ी
+   पाँचों जगह यह पहले ही ठीक हो चुका था, सिर्फ़ यह method छूट गया था। अब token से।
+
+असली DB पर नए tests से साबित: e-invoice route अब 404 नहीं देता; दूसरी company
+के invoice पर generate करने की कोशिश "not found" पर रुकती है, कोई record नहीं
+बनता; calculate में body की company_id/HSN का असर नहीं पड़ता।
