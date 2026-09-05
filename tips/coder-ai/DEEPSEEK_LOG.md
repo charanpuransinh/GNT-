@@ -638,3 +638,16 @@ transfer, न M16 WhatsApp campaign। सब "DeepSeek ने बनाया +
 
 **नियम:** "done" ≠ "certified"। certified का मतलब: live DB end-to-end · कोई खुली शर्त नहीं ·
 TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCKED सिर्फ़ मालिक का फ़ैसला — AI नहीं लिखेगा)।
+
+
+## 📏 COMPLETE / CERTIFIED / LOCKED — आधिकारिक परिभाषा (2026-09-05, मालिक का आदेश)
+
+कोई module सिर्फ़ तभी **COMPLETE / CERTIFIED / LOCKED** माना जाएगा, जब तीनों सच हों:
+1. **Code का एक भी हिस्सा `TODO` / "not implemented" न हो।**
+2. **100% tests PASS (0 fail, 0 skip)** — असली DB (`TEST_DB=1`) पर verify किया गया हो, mock से नहीं।
+3. **100% Production Ready** — live server पर बिना किसी और fix के तुरंत use हो सके।
+
+**इससे कम कुछ भी = IN PROGRESS (complete नहीं)।** "काम हो गया" ≠ "certified"।
+("LOCKED" अभी भी सिर्फ़ मालिक का फ़ैसला — AI सिर्फ़ CERTIFIED/verified तक लिखेगा।)
+
+इसी परिभाषा के हिसाब से अब **M11 को पहले पूरा करना है** — फिर बाक़ी (M12, M21, M16)।

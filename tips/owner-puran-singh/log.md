@@ -1721,3 +1721,15 @@ verified न हो जाएँ (मोटी feature tests + end-to-end + क�
 **नियम:** "काम हो गया" और "certified" अलग हैं। certified तभी, जब live DB पर end-to-end चले,
 कोई खुली शर्त न हो, TEST_DB=1 से सब tests pass (skip 0) हों और कवरेज मोटा हो। LOCKED सिर्फ़
 मालिक का फ़ैसला है।
+
+
+## 📏 2026-09-05 — "COMPLETE" की आधिकारिक परिभाषा (मालिक का आदेश)
+
+**COMPLETE / CERTIFIED / LOCKED = तीनों सच हों:**
+1. Code में एक भी `TODO` / "not implemented" नहीं।
+2. 100% tests PASS (0 fail, 0 skip) — असली DB (`TEST_DB=1`) पर, mock नहीं।
+3. 100% Production Ready — live server पर बिना और fix के तुरंत चले।
+
+**इससे कम = IN PROGRESS।** ("LOCKED" सिर्फ़ मालिक का फ़ैसला।)
+
+इसी के हिसाब से अब **M11 को पहले पूरा किया जाएगा**, फिर बाक़ी।
