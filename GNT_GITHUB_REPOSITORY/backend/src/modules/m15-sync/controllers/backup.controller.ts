@@ -2,6 +2,7 @@
 // GNT Team C | Modular Monolith Architecture
 
 import { Request, Response, NextFunction } from 'express';
+import { requireTenant } from '@/common/middleware/require-tenant';
 import { BackupService } from '../services/backup.service';
 import { AppError } from '../utils/sync.errors';
 
@@ -10,7 +11,7 @@ export class BackupController {
 
   async getAllBackups(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tenantId = req.headers['x-tenant-id'] as string;
+      const tenantId = requireTenant(req).companyId;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
       const result = await this.backupService.getAllBackups(tenantId, { page, limit });
@@ -20,7 +21,7 @@ export class BackupController {
 
   async getBackupById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tenantId = req.headers['x-tenant-id'] as string;
+      const tenantId = requireTenant(req).companyId;
       const backup = await this.backupService.getBackupById(tenantId, String(req.params.id));
       if (!backup) throw new AppError('BACKUP_NOT_FOUND', 'Backup not found', 404);
       res.json({ success: true, data: backup });
@@ -29,7 +30,7 @@ export class BackupController {
 
   async createBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tenantId = req.headers['x-tenant-id'] as string;
+      const tenantId = requireTenant(req).companyId;
       const backup = await this.backupService.createBackup(tenantId, req.body);
       res.status(202).json({ success: true, data: backup });
     } catch (err) { next(err); }
@@ -37,7 +38,7 @@ export class BackupController {
 
   async deleteBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tenantId = req.headers['x-tenant-id'] as string;
+      const tenantId = requireTenant(req).companyId;
       await this.backupService.deleteBackup(tenantId, String(req.params.id));
       res.json({ success: true, data: null });
     } catch (err) { next(err); }
@@ -45,7 +46,7 @@ export class BackupController {
 
   async restoreBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tenantId = req.headers['x-tenant-id'] as string;
+      const tenantId = requireTenant(req).companyId;
       const restoreJob = await this.backupService.restoreBackup(tenantId, String(req.params.id));
       res.status(202).json({ success: true, data: restoreJob });
     } catch (err) { next(err); }
@@ -53,7 +54,7 @@ export class BackupController {
 
   async getRestoreJobs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tenantId = req.headers['x-tenant-id'] as string;
+      const tenantId = requireTenant(req).companyId;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
       const result = await this.backupService.getRestoreJobs(tenantId, { page, limit });
@@ -63,7 +64,7 @@ export class BackupController {
 
   async rollbackRestore(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tenantId = req.headers['x-tenant-id'] as string;
+      const tenantId = requireTenant(req).companyId;
       const job = await this.backupService.rollbackRestore(tenantId, String(req.params.id), req.body.reason);
       res.json({ success: true, data: job });
     } catch (err) { next(err); }
