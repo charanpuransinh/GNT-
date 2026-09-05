@@ -1,6 +1,6 @@
 // [LOCK-4] Leave Controller — tenant-scoped
 import { Request, Response } from 'express';
-import { requireTenant } from '@/common/middleware/require-tenant';
+import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
 import { LeaveService } from '../services/leave.service';
 import { HrEventPublisher } from '../events/hr.events';
 
@@ -23,7 +23,8 @@ export class LeaveController {
     try {
       const tenantId = requireTenant(req).companyId;
       const id = String(req.params.id);
-      const { approvedById, rejectionReason } = req.body;
+      // approver की पहचान auth token से — body से कभी नहीं (किसी और के नाम से approve रोकने के लिए)
+      const approvedById = requireUser(req).id;
       const leave = await this.service.approve(tenantId, id, approvedById);
       await this.events.publish('LEAVE_APPROVED', { leaveId: leave.id, employeeId: leave.employeeId });
       res.json({ success: true, data: leave });
@@ -36,8 +37,9 @@ export class LeaveController {
     try {
       const tenantId = requireTenant(req).companyId;
       const id = String(req.params.id);
-      const { approvedById, rejectionReason } = req.body;
-      const leave = await this.service.reject(tenantId, id, approvedById, rejectionReason);
+      const approvedById = requireUser(req).id;
+      const rejectionReason = req.body?.rejectionReason as string | undefined;
+      const leave = await this.service.reject(tenantId, id, approvedById, rejectionReason ?? 'Rejected');
       await this.events.publish('LEAVE_REJECTED', { leaveId: leave.id, employeeId: leave.employeeId, reason: rejectionReason });
       res.json({ success: true, data: leave });
     } catch (error: any) {

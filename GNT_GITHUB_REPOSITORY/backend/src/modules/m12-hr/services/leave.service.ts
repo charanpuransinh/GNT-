@@ -13,7 +13,7 @@ export class LeaveService {
     if (!leaveType) throw new Error('Leave type not found');
     if (!data.reason) throw new Error('Reason required');
     const days = this.calculateDays(data.startDate, data.endDate);
-    const leaveNumber = await this.generateLeaveNumber();
+    const leaveNumber = await this.generateLeaveNumber(tenantId);
     return prisma.leave.create({
       data: {
         employeeId: data.employeeId,
@@ -37,7 +37,9 @@ export class LeaveService {
     if (result.count === 0) throw new Error('Leave not found');
     const leave = await prisma.leave.findFirst({ where: { id, tenantId } });
     if (!leave) throw new Error('Leave not found');
-    await prisma.leaveBalance.updateMany({ where: { employeeId: leave.employeeId }, data: { used: { increment: Number(leave.daysRequested) } } });
+    // सिर्फ़ उसी साल का balance घटाओ — बिना year filter के दूसरे साल का balance ख़राब हो जाता था
+    const year = leave.startDate.getFullYear();
+    await prisma.leaveBalance.updateMany({ where: { employeeId: leave.employeeId, year }, data: { used: { increment: Number(leave.daysRequested) } } });
     await prisma.employee.updateMany({ where: { id: leave.employeeId, tenantId }, data: { employmentStatus: 'ON_LEAVE' } });
     return leave;
   }
@@ -82,8 +84,9 @@ export class LeaveService {
     return Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   }
 
-  private async generateLeaveNumber(): Promise<string> {
-    const count = await prisma.leave.count();
+  private async generateLeaveNumber(tenantId: string): Promise<string> {
+    // सिर्फ़ इसी tenant की count — बिना filter के companies के बीच numbering मिल जाती थी
+    const count = await prisma.leave.count({ where: { tenantId } });
     const year = new Date().getFullYear();
     return `LEV-${year}-${String(count + 1).padStart(4, '0')}`;
   }

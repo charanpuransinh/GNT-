@@ -7,6 +7,9 @@ import { prisma } from '@/common/config/prisma';
 import { campaignService } from '../../services/campaign.service';
 import { TEST_COMPANY_ID, TEST_USER_ID } from '@/tests/helpers/auth';
 
+// order-link HMAC secret — sign/verify fail-closed के लिए test में साफ़ सेट करो
+process.env.M16_ORDER_LINK_SECRET = 'test-order-link-secret';
+
 const OTHER_COMPANY_ID = '00000000-0000-4000-8000-000000000099';
 
 async function cleanup() {

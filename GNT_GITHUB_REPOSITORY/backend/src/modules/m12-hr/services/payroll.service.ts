@@ -1,15 +1,25 @@
 // [LOCK-11] Payroll Service — tenant-scoped (schema Payroll model के असली fields से)
 import { prisma } from '@/common/config/prisma';
+import { AttendanceService } from './attendance.service';
 
 export class PayrollService {
   async generate(tenantId: string, month: number, year: number, employeeIds?: string[]) {
     const where: Record<string, unknown> = { tenantId, employmentStatus: 'ACTIVE' };
     if (employeeIds?.length) where.id = { in: employeeIds };
     const employees = await prisma.employee.findMany({ where: where as never, include: { department: true } });
+    // असली attendance से दिन निकालो — hardcoded 0 नहीं
+    const attendanceService = new AttendanceService();
+    const reports = await attendanceService.getMonthlyReport(tenantId, month, year);
+    const attByEmployee = new Map(reports.map((r: any) => [r.employeeId, r]));
     const payrolls = [];
     for (const emp of employees) {
       const existing = await prisma.payroll.findUnique({ where: { employeeId_month_year: { employeeId: emp.id, month, year } } });
       if (existing) continue;
+      const att = attByEmployee.get(emp.id);
+      const daysWorked = att ? (att.present + att.halfDay + att.wfh) : 0;
+      const daysAbsent = att ? att.absent : 0;
+      const daysLeave = att ? att.onLeave : 0;
+      const daysHoliday = att ? (att.holiday + att.weeklyOff) : 0;
       const basicSalary = Number(emp.basicSalary);
       const hra = basicSalary * 0.1;
       const pfEmployee = basicSalary * 0.05;
@@ -25,10 +35,10 @@ export class PayrollService {
           year,
           periodStart: new Date(year, month - 1, 1),
           periodEnd: new Date(year, month, 0),
-          daysWorked: 0,
-          daysLeave: 0,
-          daysAbsent: 0,
-          daysHoliday: 0,
+          daysWorked,
+          daysLeave,
+          daysAbsent,
+          daysHoliday,
           basicSalary,
           hra,
           totalEarnings,
@@ -80,6 +90,8 @@ export class PayrollService {
   }
 
   private calculateTax(salary: number): number {
+    // ⚠️ PENDING OWNER/ACCOUNTANT: ये slabs (₹50k/₹1L/₹2L) placeholder हैं — असली
+    // भारतीय TDS slabs नहीं। पैसे/tax का फ़ैसला मालिक/accountant का (P0-3), ख़ुद नहीं बदला।
     const annual = salary * 12;
     if (annual <= 50000) return salary * 0.05;
     if (annual <= 100000) return salary * 0.1;

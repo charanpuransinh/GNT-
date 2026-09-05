@@ -9,7 +9,13 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
 function secret(): string {
-  return process.env.M16_ORDER_LINK_SECRET ?? 'gnt-dev-order-link-secret';
+  const s = process.env.M16_ORDER_LINK_SECRET;
+  if (!s) {
+    // fail-closed: link का signature ही बिना-login पहचान है — बिना secret के
+    // चुपचाप कोई सार्वजनिक/dev key नहीं बनेगी (M02 वाली गलती नहीं दोहराई)।
+    throw new Error('M16_ORDER_LINK_SECRET not configured — refusing to sign/verify order links');
+  }
+  return s;
 }
 
 function b64url(data: string): string {

@@ -61,10 +61,26 @@ export class AttendanceService {
     });
     const summary = records.reduce((acc: any, r) => {
       const key = r.employeeId;
-      if (!acc[key]) acc[key] = { employee: r.employee, present: 0, absent: 0, late: 0, halfDay: 0, totalHours: 0, overtime: 0 };
-      acc[key][r.status.toLowerCase()]++;
-      acc[key].totalHours += r.workingHours || 0;
-      acc[key].overtime += r.overtimeHours || 0;
+      if (!acc[key]) acc[key] = {
+        employeeId: r.employeeId,
+        employee: r.employee,
+        present: 0, absent: 0, late: 0, halfDay: 0, onLeave: 0, wfh: 0, holiday: 0, weeklyOff: 0,
+        totalHours: 0, overtime: 0,
+      };
+      const row = acc[key];
+      switch (String(r.status).toUpperCase()) {
+        case 'PRESENT': row.present++; break;
+        case 'ABSENT': row.absent++; break;
+        case 'LATE': row.late++; break;
+        case 'HALF_DAY': row.halfDay++; break;
+        case 'ON_LEAVE': row.onLeave++; break;
+        case 'WFH': row.wfh++; break;
+        case 'HOLIDAY': row.holiday++; break;
+        case 'WEEKLY_OFF': row.weeklyOff++; break;
+        default: break;
+      }
+      row.totalHours += Number(r.workingHours) || 0;
+      row.overtime += Number(r.overtimeHours) || 0;
       return acc;
     }, {});
     return Object.values(summary);
