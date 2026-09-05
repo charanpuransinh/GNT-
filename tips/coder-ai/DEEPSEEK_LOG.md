@@ -774,3 +774,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## ✅ 2026-09-06 — security audit pura: tenant-spoofing (header/body) + identity-from-body + cross-tenant bare-id sab check kiya. 2 aur P0 fix (M14 uploadMiddleware, M15 webhook.controller). Baaki sab safe (check-then-op pattern) ya dead code. M11-M22 ab security-clean.
+
+
+## ✅ 2026-09-06 — frontend build verified: vite build + tsc 0 (M22 SubscriptionPricingPage bundle me aa gaya, 5.04s). dist git-ignored. Full-stack build green.
