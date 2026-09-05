@@ -545,3 +545,18 @@ service/repository method `tenantId`/`companyId` लेकर भी query स�
 **क्या बाक़ी है:** M20 निर्यात-केन्द्र (SPEC-A) · M22 सदस्यता · M21 के बाक़ी समूह।
 **कोई अड़चन?** कोई नहीं।
 **कितना % हुआ:** M11–M22 में ज़्यादातर बन गया; तीन बड़े काम बाक़ी (ऊपर लिखे)।
+
+
+## 🧱 HOLD BY CLAUDE - PENDING (2026-09-05, मालिक के नियम के तहत)
+
+ये मेरे (DeepSeek, M11–M22) काम के वो हिस्से हैं जो **Claude के M01–M10 modules पर टिकते हैं** —
+इन्हें force नहीं किया जाएगा, "HOLD BY CLAUDE - PENDING" mark किया गया है:
+
+| # | काम | किस पर टिका | मेरा क्या पूरा |
+|---|---|---|---|
+| H1 | M21 adapters: sales→M08, purchase→M07, accounting→M10, scheme→M08 | M07/M08/M10 की public create API (Claude) | M21 का party→M05, item→M06 adapter बन चुका; बाक़ी groups के transfer में `pending-adapter` लौटाता है |
+| H2 | M16 WhatsApp campaign का "buyer order → M08 pending order" + server-side scheme validation | M08 sales (Claude) | M16 का campaign + secure order-link बन चुका |
+| H3 | Bank statement auto-posting / reconciliation | "Existing Accounts" M10 (Claude) + M11 (मेरा) + मालिक का फ़ैसला #3 | — (SPEC-A §22–§30) |
+
+**नियम:** जब भी इनमें से कोई काम हाथ लगे, अपनी तरफ़ की public API/contract तैयार करके
+बाक़ी को `HOLD BY CLAUDE - PENDING` लिखकर छोड़ना है — Claude की files ख़ुद बदलना मना है।
