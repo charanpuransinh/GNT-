@@ -1628,10 +1628,57 @@ DeepSeek वाले server पर बना था। इसलिए अभ�
 | M03 Device Platform | ✅ CERTIFIED | 23/23 | कोई असली बग नहीं मिली — mount/permission/tenant सब जाँचे, साफ़ थे |
 | M04 Company Management | ✅ CERTIFIED | 12/12 (TEST_DB=1) | 🛑 P0 मिला और ठीक किया: POST /company/users हमेशा फटता था (contract माँगता username+password+role_ids, code सिर्फ़ name+email+roleId लेता था और सीधे passwordHash की उम्मीद करता था) — कोई user कभी बन ही नहीं सकता था, role_ids कहीं इस्तेमाल ही नहीं होता था |
 | M05 Party Management | ✅ CERTIFIED | 23/23 (TEST_DB=1) | TODO(#016) बंद किया: party_ledger_view migration फ़ाइल थी, DB पर लगी कभी नहीं थी — getOutstanding हमेशा 0 लौटाता था। अब असली view से असली balance |
-| M06 Inventory | 🔄 चालू है | — | अभी शुरू किया — 3 `as any` मिले (stock repo/service), हटाए, दोबारा tsc+tests चलाकर देख रहा हूँ |
+| M06 Inventory | ✅ CERTIFIED | 42/42 (TEST_DB=1) | 🛑 P0 मिला और ठीक किया — नीचे अलग से |
 
 **कोई module ख़ुद "LOCKED" घोषित नहीं किया — सिर्फ़ CERTIFIED (यह certification log में
 पहले से तय शब्द है, `CERTIFICATION_LOG.md` देखें); "LOCKED" का फ़ैसला अब भी सिर्फ़
 मालिक का है (P0-2)।**
 
 आगे M07–M10 उसी क्रम में जारी हैं। हर module पर यही रिपोर्ट यहीं मिलेगी।
+
+---
+
+# 🔔 CERTIFIED — M06 Inventory — 2026-09-05, दोपहर 12:53
+
+**status:** ✅ CERTIFIED - PRODUCTION READY
+**tests:** 42/42 (real DB, TEST_DB=1), typecheck साफ़
+**समय:** 2026-09-05 दोपहर 12:53
+
+🛑 **P0 मिला और ठीक किया:** पूरे M06 में हर file अपना अलग `new PrismaClient()`
+बनाती थी, साझा singleton कभी इस्तेमाल नहीं होता था। सबसे गंभीर: `stock.internal.ts`
+के `getFIFOBatch`/`getLIFOBatch`/`getExpiringBatches` — तीनों हर call पर **नया**
+PrismaClient बनाते थे, कभी disconnect नहीं। ये तीनों हर असली sale/purchase पर
+stock deduction के वक़्त चलते हैं — यानी production में हर transaction एक नया DB
+connection pool खोलता और बंद कभी नहीं करता। थोड़े ही load में Postgres का
+`max_connections` ख़त्म हो जाता और पूरा database अटक जाता। कोई test इसे नहीं
+पकड़ सकता था — हर test अकेले चलकर पास होता है, यह सिर्फ़ सतत load पर टूटता।
+
+ठीक किया: सातों जगह साझा `@/common/config/prisma` singleton लगाया, मरी हुई
+`models/inventory.model.ts` (कहीं import ही नहीं होती थी, ख़ुद एक और
+PrismaClient instance बनाती थी) हटाई। रास्ते में मिली बाक़ी ढीली typing
+(`as any` × 3, `: any` × कई जगह) भी हटाई।
+
+---
+
+# 🔔 CERTIFIED — M07 Purchase — 2026-09-05, दोपहर 1:04
+
+**status:** ✅ CERTIFIED - PRODUCTION READY
+**tests:** 8/8 (real DB, TEST_DB=1) — 5 पुरानी tenant-isolation + 3 नई audit-identity
+**समय:** 2026-09-05 दोपहर 1:04
+
+🛑 **P0 मिला और ठीक किया:** पाँच जगह असली user की जगह request body से आया id चलता
+था — PO create (`body.created_by`), invoice create (`body.created_by`), invoice
+approve/post (`body.approved_by`/`body.posted_by`, token से **पहले** body देखता
+था), return post (वही), PO→invoice convert (`body.user_id`)। यानी कोई भी login
+किया हुआ user किसी और के नाम पर record बनवा/approve/post/convert करवा सकता था —
+audit trail (किसने क्या किया) पूरी तरह झूठा बनाया जा सकता था।
+
+साथ में एक असली crash भी मिला: return create schema `created_by` स्वीकार करती
+थी, पर `purchase_return` table में वह column है ही नहीं — भेजता तो Prisma के
+"Unknown argument" पर फटता।
+
+ठीक किया: पाँचों जगह असली पहचान अब सिर्फ़ token से (`requireUser(req).id`),
+body-fallback पूरी तरह हटाया; तीनों create schema से `created_by` हटाया — client
+अब भेज ही नहीं सकता, controller हमेशा authoritative भरता है। असली DB पर नए
+tests से साबित: body में जान-बूझकर ग़लत id भेजकर भी DB column में हमेशा token
+वाला असली user ही जाता है।
