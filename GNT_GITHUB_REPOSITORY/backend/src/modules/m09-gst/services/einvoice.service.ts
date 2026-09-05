@@ -1,4 +1,5 @@
 import { EInvoiceRepository } from '../repositories/einvoice.repository';
+import { GSTEventHandlers } from '../events/gst.handlers';
 
 export interface TransportDetails {
   distance_km: number;
@@ -48,7 +49,7 @@ export class EInvoiceService {
       throw new Error('IRP returned an incomplete E-Invoice response');
     }
 
-    return this.repo.createEInvoice({
+    const record = await this.repo.createEInvoice({
       company_id: invoice.company_id,
       sales_invoice_id: invoiceId,
       irn: result.irn,
@@ -58,6 +59,17 @@ export class EInvoiceService {
       qr_code: result.qr_code,
       status: 'generated',
     });
+
+    // blueprint §7.13: M13 USES M09 — compliance-alert rules इसी event से चल सकते हैं
+    GSTEventHandlers.emitEInvoiceGenerated({
+      company_id: invoice.company_id,
+      invoice_id: invoiceId,
+      irn: result.irn,
+      ack_no: result.ack_no,
+      qr_code: result.qr_code,
+    });
+
+    return record;
   }
 
   async cancelIRN(irn: string, reason: string, companyId: string): Promise<any> {
