@@ -2346,3 +2346,100 @@ M15 का असली sync engine (`sync.service.ts`) M14 जैसा **ध�
 tenant-spoofing वाला P0 (जो DeepSeek ने अभी हाल में ठीक किया — commit `500eac5`)
 जाँचा और सही मिला — सभी controllers अब असल में `requireTenant(req).companyId`
 इस्तेमाल करते हैं, कोई header-spoofable रास्ता बचा नहीं मिला।
+
+---
+
+# 📋 DeepSeek के लिए पूरी, point-wise TODO सूची — 2026-09-05, रात (Claude)
+
+**मालिक का आदेश:** M14/M15/M16 (और अन्य) की बची हुई हर कमी एक सटीक सूची में, ताकि
+DeepSeek को बिना confusion के दिया जा सके। **Telegram से नहीं भेज सका** (इस server
+पर notifier/token नहीं है — पहले भी दर्ज है) — यहाँ लिख रहा हूँ, और मालिक को सीधे
+chat में भी यही text दिया है।
+
+## 🛑 M14 — Import/Export — 4 बिंदु (सबसे ज़्यादा प्राथमिकता)
+
+1. **`backend/src/modules/m14-import-export/controllers/import.controller.ts` line
+   ~27-37 (`upload()`)** — `importService.createImportJob({ fileBuffer: file.buffer,
+   ... })` बुलाता है, पर `import.service.ts` की `createImportJob` (line ~203)
+   `fileBuffer` को कभी पढ़ती ही नहीं — सिर्फ़ `filePath` (जो हर बार hardcoded default
+   `'uploads/imports/upload'` बन जाता है)। **फ़िक्स:** अपलोड की गई फ़ाइल को असल में
+   डिस्क/storage पर लिखो (हर job के लिए अलग unique path से), वही path `filePath` में
+   भेजो — तभी बाद में file पढ़ी जा सकेगी।
+
+2. **`import.service.ts` की `processJob()` (line 71) किसी controller/route से कभी
+   बुलाई नहीं जाती** — पूरी तरह dead code। **फ़िक्स:** `upload()` के बाद (file save होते
+   ही) इसे बुलाओ — या तो सीधे await करके, या fire-and-forget async (M15 के
+   `sync.service.ts` का `processJobAsync(job.id).catch(console.error)` पैटर्न देखो,
+   वही तरीक़ा यहाँ भी ठीक रहेगा)।
+
+3. **`processJob()` के अंदर (line ~119-124) असल entity table में कभी कुछ save नहीं
+   होता** — कमेंट ख़ुद कहता है "अभी validation ही असली काम है"। **फ़िक्स:** हर valid
+   row को असल target table में लिखो (कौन सी table — `job.targetEntity`/`targetModule`
+   के हिसाब से M05/M06/M07/M08 की असली create API बुलाओ, सीधे table नहीं — public
+   service से)। जब तक यह न हो, status कभी `'COMPLETED'` मत लिखो — या साफ़ नाम दो जैसे
+   `'VALIDATED_ONLY'`, ताकि कोई ग़लती से "import हो गया" न समझे।
+
+4. **`export.controller.ts` का `create()` (line ~16) सिर्फ़ job-पंक्ति बनाता है** —
+   `export.service.ts` की `processJob()` (line 38, असल file बनाकर `fileUrl` भरने
+   वाली) कभी बुलाई नहीं जाती। **फ़िक्स:** वही पैटर्न — job बनते ही `processJob` को
+   ट्रिगर करो।
+
+**छोटा/वैकल्पिक:** `middleware/uploadMiddleware.ts`, `middleware/upload.middleware.ts`,
+`routes/importExport.routes.ts` — तीनों कहीं इस्तेमाल नहीं होतीं, हटाई जा सकती हैं
+(dead-file cleanup में छूट गईं)। `template.service.ts` और `job.service.ts` का अपना
+अलग `new PrismaClient()` — साझा singleton (`@/common/config/prisma`) पर लाना चाहिए।
+
+## M15 — Sync — 2 बिंदु (कम गंभीर, feature झूठ नहीं बोलता)
+
+1. **दस से ज़्यादा पूरी तरह dead फ़ाइलें** — `routes/hr.routes.ts`,
+   `routes/payment.routes.ts`, और उनके controllers/services/repositories
+   (attendance, employee, salary, receipt — पूरी सूची: `controllers/attendance.
+   controller.ts`, `controllers/employee.controller.ts`, `controllers/payment.
+   controller.ts`, `controllers/receipt.controller.ts`, `controllers/salary.
+   controller.ts`, `services/employee.service.ts`, `services/payment.internal.ts`,
+   `services/salary.service.ts`, `repositories/attendance.repository.ts`,
+   `repositories/employee.repository.ts`, `repositories/payment.repository.ts`,
+   `events/hr.events.ts`, `events/hr.handlers.ts`, `events/payment.events.ts`,
+   `events/payment.handlers.ts`)। `index.ts` सिर्फ़ `sync.routes.ts` mount करता है —
+   यह सब कहीं wire ही नहीं। **फ़िक्स:** M11/M12 का duplicate लगता है, या तो हटाओ या
+   बताओ यह किसलिए रखा है।
+2. तीन जगह अपना `new PrismaClient()` (`routes/sync.routes.ts`,
+   `services/sync.service.ts`, `services/integration.service.ts`) — साझा singleton
+   पर लाना चाहिए।
+
+**नोट (fix नहीं, सिर्फ़ जानकारी):** `sync.service.ts` का `fetchExternalEntities()`
+जान-बूझकर `[]` लौटाता है (कोई असली Tally/Zoho कनेक्शन repo में नहीं) — यह ईमानदार
+गैप है, बग नहीं। असली external connector बनाना एक बड़ा, अलग feature-काम है, "बग
+फ़िक्स" की सूची में नहीं।
+
+## M16 — Notification — कुछ बाक़ी नहीं (सब ठीक हो चुका)
+
+पहले दी गई सारी 6 गड़बड़ियाँ DeepSeek ने ठीक कर दीं (commit `04f94ce`) — जाँच लिया,
+सही हैं। **M16 में कोई नया बिंदु नहीं है।**
+
+## M12 — सिर्फ़ एक बाक़ी, पर यह DeepSeek के लिए कोड-fix नहीं है
+
+`payroll.service.ts` का `calculateTax()` — TDS slabs (₹50k/₹1L/₹2L) placeholder हैं,
+कोड में साफ़ लिखा `PENDING OWNER/ACCOUNTANT`। **यह मालिक/accountant का फ़ैसला है** —
+असली भारतीय tax slabs किसे मानें (old regime/new regime, कौन से साल के) — यह तय होते
+ही DeepSeek को सिर्फ़ नंबर बदलने हैं, कोड-logic पहले से सही है।
+
+## अन्य modules (M17-M22) — सरसरी जाँच, गहराई से नहीं (समय की कमी से)
+
+- **M17 (Reporting):** लगभग सारे adapters (sales/purchase/gst/hr/accounting/
+  inventory) ख़ाली हैं — पर यह पहले से **"PENDING FOR CLAUDE"** के तौर पर दर्ज है
+  (TODO(#016), समीक्षक AI यानी मेरा अपना rough काम) — **DeepSeek के लिए नहीं**, इसे
+  इस सूची में मत डालिए, यह मेरा बाक़ी काम है।
+- **M18/M19/M20/M22:** "create job, कभी process न हो" वाला M14 जैसा pattern कहीं और
+  नहीं मिला (खोजा) — पर इन चारों की गहराई से जाँच अभी नहीं की, सिर्फ़ यह एक पैटर्न
+  खोजा है। पूरी जाँच अगली बार।
+- **M21:** transfer executor का export-adapter हिस्सा अभी अधूरा दर्ज है (party/
+  product resolve design) — यह पहले से "owner फ़ैसला चाहिए" के तौर पर coder की अपनी
+  log में है, दोहरा नहीं रहा।
+
+**सार, DeepSeek के लिए सीधे actionable (प्राथमिकता क्रम में):**
+1. M14 point 1+2+4 (wiring जोड़ना — mechanical, कोई नया फ़ैसला नहीं चाहिए)
+2. M14 point 3 (असल entity में save — M05/M06/M07/M08 की सही public API चुननी होगी,
+   थोड़ा design-काम है)
+3. M15 dead files हटाना/स्पष्ट करना
+4. बाक़ी सब PrismaClient singleton जैसी छोटी सफ़ाई
