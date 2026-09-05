@@ -46,7 +46,7 @@ export class ImportController {
     try {
       const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
-      const result = await importService.validateImport(jobId, tenantId as unknown as never);
+      const result = await importService.validateImport(jobId, tenantId);
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -57,7 +57,7 @@ export class ImportController {
     try {
       const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
-      const job = await importService.getImportJob(jobId, tenantId as unknown as never);
+      const job = await importService.getImportJob(jobId, tenantId);
       res.json(job);
     } catch (err: any) {
       res.status(404).json({ error: err.message });
@@ -71,7 +71,7 @@ export class ImportController {
       const jobs = await importService.listImportJobs(tenantId, {
         ...(module && { module: String(module) }),
         ...(entityType && { entityType: String(entityType) }),
-        ...(status && { status: status as any }),
+        ...(status && { status: String(status) }),
       });
       res.json(jobs);
     } catch (err: any) {
@@ -83,7 +83,7 @@ export class ImportController {
     try {
       const jobId = String(req.params.jobId);
       const tenantId = requireTenant(req).companyId;
-      await importService.cancelImportJob(jobId, tenantId as unknown as never);
+      await importService.cancelImportJob(jobId, tenantId);
       res.json({ success: true, message: 'Job cancelled' });
     } catch (err: any) {
       res.status(400).json({ error: err.message });
