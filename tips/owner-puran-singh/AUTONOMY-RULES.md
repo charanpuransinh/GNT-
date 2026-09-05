@@ -146,7 +146,6 @@ Agla step: <क्या>
 ## 5️⃣ साथ चलने वाले बाक़ी नियम (ये रद्द नहीं हुए)
 
 ### 🧱 Claude के हिस्से (M01–M10) पर निर्भर काम — force मत करो (2026-09-05, मालिक का आदेश)
-
 > अगर काम करते-करते कोई file/task **Claude के हिस्से (M01–M10) से जुड़ी हो या उस पर टिकी हो**,
 > तो उसे **force मत करो**। उसे **"HOLD BY CLAUDE - PENDING"** mark करके छोड़ दो। ज़रूरत हो तो
 > Claude से मदद/क्रॉस-चेक ले सकते हो — पर उसकी files ख़ुद बदलने की कोशिश मत करो।
@@ -156,6 +155,15 @@ Agla step: <क्या>
 - जो feature किसी M01–M10 module की **public API / table / file** पर टिकी हो, वहाँ अपनी तरफ़ का
   काम पूरा करके बाक़ी हिस्सा **"HOLD BY CLAUDE - PENDING"** लिखकर रोको (code में comment + log में note)।
 - किसी M01–M10 की file ख़ुद बदलना मना है (M02 के permission-catalog, M07/M08/M10 के services वग़ैरह)।
+
+### 🆘 अटक जाओ तो force मत करो — owner को बताओ (2026-09-05, मालिक का आदेश)
+
+अगर कोई module/file **इतनी complex** हो कि तुम्हें बहुत दिक्कत आ रही हो, **बार-बार अटक रहे हो**,
+या solve कैसे करें समझ न आए — **zabardasti मत करो**। तुरंत owner को बताओ (Telegram पर + log.md में साफ़ लिखो):
+
+> "Module [नाम] mujhe bahut complex lag raha hai, madad chahiye."
+
+फ़ैसला owner का — वो उस module को Claude के पास shift करने का फ़ैसला लेंगे।
 
 
 - **हर 3–4 घंटे** मालिक के folder में progress note — बिना पूछे, भले काम अधूरा हो

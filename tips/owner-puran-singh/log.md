@@ -1733,3 +1733,12 @@ verified न हो जाएँ (मोटी feature tests + end-to-end + क�
 **इससे कम = IN PROGRESS।** ("LOCKED" सिर्फ़ मालिक का फ़ैसला।)
 
 इसी के हिसाब से अब **M11 को पहले पूरा किया जाएगा**, फिर बाक़ी।
+
+
+## 🆘 2026-09-05 — नया नियम: अटक जाओ तो force मत करो
+
+अगर किसी AI को कोई module/file बहुत complex लगे, बार-बार अटके, या solve समझ न आए —
+zabardasti नहीं करना। तुरंत मालिक को बताना है (Telegram + log): "Module [नाम] bahut complex
+lag raha hai, madad chahiye।" फ़ैसला मालिक का — वो module Claude के पास जाएगा।
+
+(नियम `AUTONOMY-RULES.md` §5 और दोनों logs में स्थायी।)

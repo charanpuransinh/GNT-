@@ -651,3 +651,14 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 ("LOCKED" अभी भी सिर्फ़ मालिक का फ़ैसला — AI सिर्फ़ CERTIFIED/verified तक लिखेगा।)
 
 इसी परिभाषा के हिसाब से अब **M11 को पहले पूरा करना है** — फिर बाक़ी (M12, M21, M16)।
+
+
+## 🆘 नया नियम (2026-09-05, मालिक) — अटक जाओ तो force मत करो, owner को बताओ
+
+अगर कोई module/file इतनी complex हो कि बार-बार अटक रहे हों, या solve करना समझ न आए —
+**zabardasti मत करो**। तुरंत owner को बताओ (Telegram + log.md में साफ़ लिखो):
+
+> "Module [नाम] mujhe bahut complex lag raha hai, madad chahiye."
+
+फ़ैसला owner का — वो उस module को Claude के पास shift करेंगे। यह नियम स्थायी है
+(`AUTONOMY-RULES.md` §5 में भी दर्ज)।
