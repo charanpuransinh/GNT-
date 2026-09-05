@@ -21,6 +21,7 @@ const prisma = new PrismaClient();
 const DUSRI_COMPANY_ID = '00000000-0000-4000-8000-0000000002d1';
 const stamp = Date.now();
 let dusriRoleId: string;
+let apniRoleId: string;
 
 describe.runIf(process.env.TEST_DB === '1')('M02 — भूमिका, असली DB पर', () => {
   beforeAll(async () => {
@@ -38,7 +39,12 @@ describe.runIf(process.env.TEST_DB === '1')('M02 — भूमिका, अस�
   });
 
   afterAll(async () => {
-    await prisma.role_master.deleteMany({ where: { company_id: { in: [TEST_COMPANY_ID, DUSRI_COMPANY_ID] } } });
+    // ⚠️ पहले यहाँ पूरी company के role_master rows मिटा देते थे (company_id से) —
+    // globalSetup वाली साझा "Owner" भूमिका भी उसी company_id के नीचे है, जिस पर
+    // हर test file mintBearer() से चलती है। यानी यह afterAll किसी भी दूसरी parallel
+    // चल रही test file की permission तोड़ सकता था (race — file order तय नहीं)।
+    // अब सिर्फ़ वही दो roles मिटती हैं जो इसी फ़ाइल ने बनाए।
+    await prisma.role_master.deleteMany({ where: { id: { in: [dusriRoleId, apniRoleId].filter(Boolean) } } });
     await prisma.$disconnect();
   });
 
@@ -47,6 +53,7 @@ describe.runIf(process.env.TEST_DB === '1')('M02 — भूमिका, अस�
       name: `APNI-ROLE-${stamp}`,
       description: 'अपनी company की',
     });
+    apniRoleId = role.id;
 
     expect(role.id).toBeTruthy();
     // सबसे ज़रूरी: database में सच में company_id भरा हो

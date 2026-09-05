@@ -80,7 +80,10 @@ describe.runIf(process.env.TEST_DB === '1')(
       await prisma.company_master.upsert({
         where: { id: otherCompanyId },
         update: {},
-        create: { id: otherCompanyId, name: 'Other Company', code: 'OTHERCO' },
+        // 'OTHERCO' कई modules (M04/M11/M12/M13/M14/M16/M21) की tests इस्तेमाल करती हैं —
+        // company_master.code पर global unique है, इसलिए पूरे suite को साथ चलाने पर
+        // टकराव होता था। M04 का अपना अलग code।
+        create: { id: otherCompanyId, name: 'Other Company (M04)', code: 'M04OTHER' },
       });
       const foreignRole = await prisma.role_master.create({
         data: { company_id: otherCompanyId, name: 'Foreign Role', is_system_role: false },
