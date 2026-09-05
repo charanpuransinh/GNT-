@@ -1757,3 +1757,14 @@ DeepSeek को जो file/task Claude के modules (M05, M06, या M01–M
 | P4 | M13 (पूरा module) | मालिक ने Claude को दिया |
 
 (नियम `AUTONOMY-RULES.md` §5 और `tips/coder-ai/DEEPSEEK_LOG.md` में स्थायी।)
+
+
+## 🔒 2026-09-05 — M11 (भुगतान) अब CERTIFIED — पहला पूरा module
+
+आधिकारिक "COMPLETE/CERTIFIED" परिभाषा (3 शर्तें) के हिसाब से **M11 पूरा हो गया**:
+- Code में कोई TODO नहीं · 14/14 जाँचें पास (skip 0, असली DB) · live पर चलता है।
+- साथ ही एक **असली bug** ठीक हुआ: पहले पूरे system में हर प्रकार का सिर्फ़ एक भुगतान-तरीका
+  बन सकता था (UPI एक ही, सब दुकानों के लिए) — अब हर दुकान का अपना।
+
+**M11 अब Claude को test/wiring के लिए दे सकते हैं।** बाक़ी (M12, M21, M16) अभी certified नहीं —
+उनकी कमी `DEEPSEEK_LOG.md` में दर्ज है।

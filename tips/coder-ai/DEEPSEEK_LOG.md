@@ -680,3 +680,20 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 | P2 | M16 "buyer order → M08 pending order" + server-side scheme validation | M08 sales (Claude) |
 | P3 | Bank statement auto-posting / reconciliation | M10 (Claude) + मालिक फ़ैसला #3 |
 | P4 | M13 (पूरा module) | मालिक ने Claude को दे दिया |
+
+
+## 🔒 M11 CERTIFIED (पहला module जो COMPLETE/CERTIFIED की 3 शर्तें पूरी करता है)
+
+**2026-09-05:** M11 (Payment) अब आधिकारिक परिभाषा के हिसाब से **CERTIFIED** है:
+1. ✅ Code में कोई TODO/"not implemented" नहीं (grep से साफ़)
+2. ✅ 100% tests pass — **14/14, 0 fail 0 skip** (TEST_DB=1, real DB); सभी 5 features covered
+   (payment · paymentMethod · bankAccount · refund · reconciliation)
+3. ✅ Production ready — 21/21 mount + HTTP end-to-end live DB पर
+
+**साथ में एक असली production bug भी ठीक हुआ:** `PaymentMethod.code` global @unique था
+→ यानी पूरे system में हर type (UPI/…) का सिर्फ़ **एक** method बन सकता था (सब companies
+के लिए shared)। अब `@@unique([code, tenantId])` — हर company का अपना method।
+(commit `b162957`, migration `013`)
+
+**Claude handover के लिए:** M11 अब CERTIFIED है → Claude test + wiring कर सकता है।
+**अभी CERTIFIED नहीं:** M12 (सिर्फ़ 3 tests) · M21 (transfer partial) · M16 (WhatsApp send e2e नहीं)।
