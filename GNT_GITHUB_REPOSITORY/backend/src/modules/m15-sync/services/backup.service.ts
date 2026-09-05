@@ -6,6 +6,15 @@ import { BackupJob, CreateBackupDTO, RestoreJob } from '../types/sync.types';
 import { AppError } from '../utils/sync.errors';
 import { EventEmitter } from '../events/sync.emitter';
 import { createHash } from 'crypto';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+// M15 के अपने metadata tables जिनका local backup/restore safe है (कोई financial master नहीं)।
+const BACKUP_TABLES = ['syncConfig', 'syncJob', 'syncEntityLog', 'syncConflict', 'syncState', 'syncQueueItem'] as const;
+
+function backupDir(): string {
+  return process.env.M15_BACKUP_DIR || path.join(process.cwd(), 'storage', 'backups');
+}
 
 export class BackupService {
   constructor(private prisma: PrismaClient, private eventEmitter: EventEmitter) {}
@@ -65,10 +74,29 @@ export class BackupService {
     this.eventEmitter.emit('backup.started', { tenantId, backupId });
 
     try {
-      // Simulate backup process
-      // Real implementation would dump tables and upload to storage
-      const fileSize = BigInt(1024 * 1024 * Math.floor(Math.random() * 100)); // Simulated
-      const checksum = createHash('sha256').update(backupId + Date.now().toString()).digest('hex');
+      // असली local-file backup: tenant की sync metadata tables dump करो, असली checksum + size
+      const tables: Record<string, unknown[]> = {};
+      for (const table of BACKUP_TABLES) {
+        const accessor = (this.prisma as unknown as Record<string, { findMany?: (a: unknown) => Promise<unknown[]> }>)[table];
+        if (accessor?.findMany) {
+          tables[table] = await accessor.findMany({ where: { tenantId } });
+        }
+      }
+
+      const payload = JSON.stringify({
+        version: 1,
+        tenantId,
+        createdAt: new Date().toISOString(),
+        tables,
+      });
+
+      const dir = path.join(backupDir(), tenantId);
+      await fs.mkdir(dir, { recursive: true });
+      const filePath = path.join(dir, `${backupId}.json`);
+      await fs.writeFile(filePath, payload, 'utf8');
+
+      const checksum = createHash('sha256').update(payload).digest('hex');
+      const fileSize = BigInt(Buffer.byteLength(payload, 'utf8'));
 
       await this.prisma.backupJob.update({
         where: { id: backupId },
@@ -76,7 +104,7 @@ export class BackupService {
           status: 'completed',
           fileSize,
           checksum,
-          storagePath: `backups/${tenantId}/${backupId}.sql.gz`,
+          storagePath: filePath,
           completedAt: new Date()
         }
       });
@@ -96,7 +124,10 @@ export class BackupService {
     const backup = await this.getBackupById(tenantId, id);
     if (!backup) throw new AppError('BACKUP_NOT_FOUND', 'Backup not found', 404);
 
-    // Delete from storage (simulated)
+    // असली file भी हटाओ (हो तो), फिर DB record
+    if (backup.storagePath) {
+      await fs.unlink(backup.storagePath).catch(() => {});
+    }
     await this.prisma.backupJob.delete({ where: { id } });
     this.eventEmitter.emit('backup.deleted', { tenantId, backupId: id });
   }
@@ -132,9 +163,33 @@ export class BackupService {
     this.eventEmitter.emit('restore.started', { tenantId, restoreJobId });
 
     try {
-      // Simulate restore process
-      const tablesRestored = ['invoices', 'payments', 'employees'];
-      const recordsRestored = 1500;
+      const restore = await this.prisma.restoreJob.findFirst({
+        where: { id: restoreJobId, tenantId },
+        include: { backupJob: true }
+      });
+      if (!restore?.backupJob?.storagePath) {
+        throw new Error('Backup file not found for restore');
+      }
+
+      const raw = await fs.readFile(restore.backupJob.storagePath, 'utf8');
+      const parsed = JSON.parse(raw) as { tables?: Record<string, unknown[]> };
+
+      let recordsRestored = 0;
+      const tablesRestored: string[] = [];
+
+      await this.prisma.$transaction(async (tx) => {
+        const txModels = tx as unknown as Record<string, { deleteMany: (a: unknown) => Promise<unknown>; createMany: (a: unknown) => Promise<unknown> }>;
+        for (const table of BACKUP_TABLES) {
+          const rows = parsed.tables?.[table];
+          if (!Array.isArray(rows) || rows.length === 0) continue;
+          const model = txModels[table];
+          if (!model?.deleteMany || !model?.createMany) continue;
+          await model.deleteMany({ where: { tenantId } });
+          await model.createMany({ data: rows.map((r: any) => ({ ...r, tenantId })) });
+          recordsRestored += rows.length;
+          tablesRestored.push(table);
+        }
+      });
 
       await this.prisma.restoreJob.update({
         where: { id: restoreJobId },
