@@ -2158,3 +2158,20 @@ authentication bypass। M02 में JWT keys के लिए यही ग�
 
 **कोई code नहीं बदला** — जैसा कहा गया, सिर्फ़ जाँचा और यहाँ लिखा। DeepSeek नए module
 CERTIFIED करता रहेगा तो आगे भी यही जाँच चलती रहेगी।
+
+
+## 🔧 2026-09-05 (DeepSeek) — Claude की review के 6 bugs fix + M15 real backup
+
+**Claude ने M12/M16 में 6 गड़बड़ियाँ पकड़ीं — सब fix कर दीं (commit local, push अटका):**
+1. ✅ M16 `order-link.ts` hardcoded fallback secret हटाया → अब **fail-closed** (env न हो तो throw)।
+2. ✅ M12 leave approve/reject `approvedById` अब **auth token से** (body से नहीं)।
+3. ⚠️ M12 TDS tax slabs — **मैंने numbers नहीं बदले** (₹50k/₹1L/₹2L placeholder) — **P0-3: मालिक/accountant का फ़ैसला चाहिए**।
+4. ✅ M12 payroll अब **असली attendance** से days भरता है (hardcoded 0 हटाया + attendance report का counting bug भी)।
+5. ✅ M12 leave balance update अब **year-scoped**।
+6. ✅ M12 leave number अब **tenant-scoped**।
+
+**M15 real backup/restore:** "Simulate" हटाकर असली local-file backup (sync tables का JSON dump + real sha256/size) और transaction-में restore कर दिया। Test जोड़ा।
+
+**Suite अब: 110 files / 523 tests · 0 fail · 0 skip · tsc 0**
+
+**⛔ PUSH BLOCKED:** `~/.git-credentials` खाली है (GitHub token revoke हो गया — 21:01 पर clear)। 3 commits local safe हैं: `0a65d58` (M19/M20 tests), `04f94ce` (M12/M16 fixes), `1306804` (M15 backup)। **मालिक से नया GitHub token मिलते ही push होगा।**

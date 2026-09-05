@@ -753,3 +753,6 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 **पूरी suite अब: 101 files / 494 tests · 0 fail · 0 skip · tsc 0**
 
 **बाक़ी (सच):** M15 backup/restore असली नहीं (infra) · M15 sync.auth/tenant + sync.fetch (PENDING FOR CLAUDE) · M17 सारे adapters (PENDING FOR CLAUDE) · M21 export adapter party/product resolve design बाक़ी · M22/subscription module बना ही नहीं।
+
+
+## ⛔ 2026-09-05 — push अटका: GitHub push timeout (2 commits local, remote tak nahi gaye); auth/network verify करना बाक़ी
