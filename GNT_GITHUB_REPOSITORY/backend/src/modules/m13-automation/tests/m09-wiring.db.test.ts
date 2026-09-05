@@ -54,9 +54,12 @@ describe.runIf(process.env.TEST_DB === '1')('M13 ↔ M09 — असली wiring
       qr_code: 'QR',
     });
 
-    await new Promise((r) => setTimeout(r, 300));
-
-    const log = await prisma.jobExecutionLog.findFirst({ where: { ruleId }, orderBy: { startedAt: 'desc' } });
+    let log: Awaited<ReturnType<typeof prisma.jobExecutionLog.findFirst>> = null;
+    for (let i = 0; i < 20; i++) {
+      log = await prisma.jobExecutionLog.findFirst({ where: { ruleId }, orderBy: { startedAt: 'desc' } });
+      if (log && log.status !== 'RUNNING') break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
     expect(log).not.toBeNull();
     expect(log!.status).toBe('SUCCESS');
     expect(log!.message).toContain('IRN-TEST-12345');

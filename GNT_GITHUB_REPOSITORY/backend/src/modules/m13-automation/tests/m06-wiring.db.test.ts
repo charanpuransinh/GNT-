@@ -80,10 +80,14 @@ describe.runIf(process.env.TEST_DB === '1')('M13 ↔ M06 — असली stock.
     // 10 - 8 = 2, reorder_level 5 से कम — low stock होना चाहिए
     await stockService.deductStock(productId, 8, TEST_COMPANY_ID, null, null, 'test', randomUUID());
 
-    // event async publish होता है — थोड़ा रुकना ज़रूरी
-    await new Promise((r) => setTimeout(r, 300));
-
-    const log = await prisma.jobExecutionLog.findFirst({ where: { ruleId }, orderBy: { startedAt: 'desc' } });
+    // event async publish होता है — fixed sleep की जगह poll करो (बड़े suite में
+    // 300ms कभी-कभी कम पड़ता, RUNNING पर ही जाँच हो जाती — flaky)
+    let log: Awaited<ReturnType<typeof prisma.jobExecutionLog.findFirst>> = null;
+    for (let i = 0; i < 20; i++) {
+      log = await prisma.jobExecutionLog.findFirst({ where: { ruleId }, orderBy: { startedAt: 'desc' } });
+      if (log && log.status !== 'RUNNING') break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
     expect(log).not.toBeNull();
     expect(log!.status).toBe('SUCCESS');
     expect(log!.message).toContain('कम स्टॉक');
