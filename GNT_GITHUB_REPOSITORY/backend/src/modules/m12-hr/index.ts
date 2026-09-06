@@ -7,3 +7,4 @@ router.use('/', hrRoutes);
 
 export default router;
 export { HRService, hrService } from './services/hr.service';
+export { TaxSlabService, taxSlabService } from './services/tax-slab.service';

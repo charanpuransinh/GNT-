@@ -3,9 +3,21 @@ import { PrismaClient } from '@prisma/client';
 export class GSTRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async getTaxSlabsAsMap(companyId: string): Promise<Record<string, any>> {
+  async getTaxSlabsAsMap(companyId: string, transactionDate?: Date): Promise<Record<string, any>> {
+    const date = transactionDate ?? new Date();
     const slabs = await this.prisma.tax_rate_master.findMany({
-      where: { company_id: companyId, is_active: true },
+      where: {
+        company_id: companyId,
+        is_active: true,
+        // effective-dated: transaction date ke hisaab se sahi slab (purani date par purana rate)
+        // null effective_from = shuruaat se effective; null effective_to = abhi tak effective
+        ...(date ? {
+          AND: [
+            { OR: [{ effective_from: null }, { effective_from: { lte: date } }] },
+            { OR: [{ effective_to: null }, { effective_to: { gte: date } }] },
+          ],
+        } : {}),
+      },
     });
     const map: Record<string, any> = {};
     for (const s of slabs) {

@@ -5,6 +5,7 @@ import { AttendanceController } from '../controllers/attendance.controller';
 import { LeaveController } from '../controllers/leave.controller';
 import { DepartmentController } from '../controllers/department.controller';
 import { PayrollController } from '../controllers/payroll.controller';
+import { TaxSlabController } from '../controllers/tax-slab.controller';
 
 const router = Router();
 const employee = new EmployeeController();
@@ -12,6 +13,7 @@ const attendance = new AttendanceController();
 const leave = new LeaveController();
 const department = new DepartmentController();
 const payroll = new PayrollController();
+const taxSlab = new TaxSlabController();
 
 router.post('/employees', employee.create.bind(employee));
 router.get('/employees', employee.findAll.bind(employee));
@@ -44,5 +46,9 @@ router.post('/payroll/generate', payroll.generate.bind(payroll));
 router.get('/payroll/employee/:employeeId', payroll.getByEmployee.bind(payroll));
 router.post('/payroll/:id/pay', payroll.processPayment.bind(payroll));
 router.get('/payroll/summary', payroll.getMonthlySummary.bind(payroll));
+
+// Tax slabs (admin: effective-dated, owner/accountant editable)
+router.get('/tax-slabs', taxSlab.list.bind(taxSlab));
+router.post('/tax-slabs', taxSlab.create.bind(taxSlab));
 
 export default router;

@@ -1,6 +1,7 @@
 // [LOCK-11] Payroll Service — tenant-scoped (schema Payroll model के असली fields से)
 import { prisma } from '@/common/config/prisma';
 import { AttendanceService } from './attendance.service';
+import { taxSlabService } from './tax-slab.service';
 
 export class PayrollService {
   async generate(tenantId: string, month: number, year: number, employeeIds?: string[]) {
@@ -23,7 +24,7 @@ export class PayrollService {
       const basicSalary = Number(emp.basicSalary);
       const hra = basicSalary * 0.1;
       const pfEmployee = basicSalary * 0.05;
-      const tds = this.calculateTax(basicSalary);
+      const tds = await taxSlabService.calculateMonthlyTDS(basicSalary, this.financialYearOf(year, month));
       const totalEarnings = basicSalary + hra;
       const totalDeductions = pfEmployee + tds;
       const netPay = totalEarnings - totalDeductions;
@@ -89,13 +90,9 @@ export class PayrollService {
     };
   }
 
-  private calculateTax(salary: number): number {
-    // ⚠️ PENDING OWNER/ACCOUNTANT: ये slabs (₹50k/₹1L/₹2L) placeholder हैं — असली
-    // भारतीय TDS slabs नहीं। पैसे/tax का फ़ैसला मालिक/accountant का (P0-3), ख़ुद नहीं बदला।
-    const annual = salary * 12;
-    if (annual <= 50000) return salary * 0.05;
-    if (annual <= 100000) return salary * 0.1;
-    if (annual <= 200000) return salary * 0.2;
-    return salary * 0.3;
+  /** payroll month/year → financial year (e.g. 2026 + month 5 → "2026-27") */
+  private financialYearOf(year: number, month: number): string {
+    const startYear = month >= 4 ? year : year - 1;
+    return `${startYear}-${String(startYear + 1).slice(-2)}`;
   }
 }

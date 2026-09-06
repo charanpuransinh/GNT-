@@ -3044,3 +3044,26 @@ model SubscriptionInvoice {
   @@map("m22_subscription_invoices")
 }
 
+// ============================================================================
+// M12 — INCOME TAX / TDS SLABS (effective-dated, admin-editable; कोई hardcode नहीं)
+// owner/accountant admin screen se add/edit; पुरानी date पर पुराना rate, नई पर नया।
+// ============================================================================
+
+model TaxSlabMaster {
+  id              String   @id @default(cuid())
+  financialYear   String   @map("financial_year") // "2026-27"
+  regime          String   @default("NEW") // OLD, NEW
+  incomeFrom      Decimal  @map("income_from") @db.Decimal(15, 2)
+  incomeTo        Decimal? @map("income_to") @db.Decimal(15, 2) // null = no upper limit
+  taxRatePercent  Decimal  @map("tax_rate_percent") @db.Decimal(5, 2)
+  cessPercent     Decimal  @default(0) @map("cess_percent") @db.Decimal(5, 2)
+  effectiveFrom   DateTime @default(now()) @map("effective_from") @db.Date
+  effectiveTo     DateTime? @map("effective_to") @db.Date
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([financialYear, regime, isActive])
+  @@map("m12_tax_slab_master")
+}
+
