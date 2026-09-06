@@ -1,0 +1,7 @@
+chore(m15/m14/m11): dead STRUCTURE_PLACEHOLDER scaffolding remove (24 files)
+
+- M15 sync ke 22 STRUCTURE_PLACEHOLDER files (payment/hr sub-modules: controllers/events/repositories/routes/services/types/validators) — kabhi implement nahi hue, main sync.service.ts + integration.service.ts ne replace kar diya
+- M14 importExport.schema.ts (placeholder) + M11 events/event.bus.ts (dead local EventBus, shared @/common/events/event-bus se superseded)
+- dependency-cruiser orphan files cleanup — 26 orphans me se placeholder/dead scaffolding remove, baaki .d.ts (ambient) + real files rehte hain
+
+Verify: tsc 0 · M15 12 files/31 tests pass
