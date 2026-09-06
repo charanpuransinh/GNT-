@@ -802,3 +802,5 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 ## 📌 2026-09-06 — TELEGRAM POLICY (owner ka नया नियम): जब भी कोई सवाल हो, तुरंत सीधा Telegram पर भेजो — रुकना नहीं, batch नहीं. (पहले batch वाला नियम रद्द). Full suite 138/606 0 fail. M15 connector + M14 duplicate-detect push (1f7027f).
 
 ## 📌 2026-09-06 — अटकाव: Telegram owner-sawaal user ने cancel किया (retry नहीं). M21 TRANSFER verify: 6 adapters (party/item/sales/purchase/accounting/export) sab REAL, 28/28 tests pass — सिर्फ़ 'scheme' pending (owner trade-scheme definition चाहिए).
+
+## 📌 2026-09-06 — M12/M16 flagged bugs सब VERIFY किए = पहले ही FIXED: leave approver (requireUser token se), payroll daysWorked (real attendance se), leave balance year-filter, leave number tenant-filter, tax slabs (table se), M16 order-link (fail-closed). कोई code-work नहीं बचा — सिर्फ़ owner decisions (M12 TDS numbers, M15 platform+creds, M21 scheme) + M13 (Claude).
