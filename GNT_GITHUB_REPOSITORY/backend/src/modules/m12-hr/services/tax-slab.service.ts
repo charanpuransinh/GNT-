@@ -73,8 +73,9 @@ export class TaxSlabService {
     for (const slab of slabs) {
       const lower = Number(slab.incomeFrom);
       const upper = slab.incomeTo ? Number(slab.incomeTo) : Infinity;
-      if (annualIncome > lower) {
-        const taxable = Math.min(annualIncome, upper) - lower;
+      if (annualIncome >= lower) {
+        // incomeFrom = slab ki pehli rupee (e.g. 400001) — taxable = min(annual, upper) - lower + 1
+        const taxable = Math.min(annualIncome, upper) - lower + 1;
         tax += taxable * Number(slab.taxRatePercent) / 100;
       }
     }

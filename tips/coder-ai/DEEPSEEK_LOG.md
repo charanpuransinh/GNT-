@@ -789,3 +789,8 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 
 
 ## 📌 2026-09-06 — M21 sales adapter done. Ab purchase->M07 + accounting->M10 adapters (sales jaisa). Baaki: M12 tax-slab owner, M16/M19/M20 re-verify, M22 depth.
+
+
+## 📌 2026-09-06 — Tax slabs (M09 fix + M12 build) done. Ab M16/M19/M20 e2e re-verify + M22 depth.
+
+## 📌 2026-09-06 (06:05) — Owner फ़ैसला: असली TDS numbers कोड/seed में नहीं, सिर्फ़ structure+validation. 018 seed (real numbers) हटाया गया. tax-slab boundary logic `>= lower` + `+1` (inclusive slabs) सही; test TEST-2099 FY पर shift (real FY न छुए) + scoped cleanup. Verify: tsc 0 · full suite 136 files/595 tests 0 fail (SEQUENTIAL `--no-file-parallelism`; parallel में DB-test collision से 2 flaky — isolation issue, not code bug). Push आगे.
