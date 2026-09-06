@@ -11,6 +11,10 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.test.ts'],
+    // DB-gated tests (TEST_DB=1) shared tables par likhte/delete karte hain — parallel file
+    // execution me M11/M13 जैसे tests आपस में टकराते हैं (flaky 400/balance mismatch)।
+    // इसलिए sequential: canonical run `npm test` bina flag ke reliable pass hota hai।
+    fileParallelism: false,
     // 2026-09-05: अनुमति की जाँच चालू है — test user को असली भूमिका यहीं मिलती है।
     // (जाँच बंद करके हरा दिखाना मंज़ूर नहीं; कारण setup फ़ाइल में लिखा है।)
     // globalSetup = पूरे रन में एक बार; setupFiles होता तो हर file में समानांतर चलकर
