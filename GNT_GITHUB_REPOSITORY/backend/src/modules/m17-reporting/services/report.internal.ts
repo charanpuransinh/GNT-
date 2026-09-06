@@ -41,9 +41,9 @@ export interface IGSTService {
 
 export interface IAccountingService {
   getLedgerEntries(filters: AccountingReportFilters): Promise<AccountingReportData>;
-  getTrialBalance(): Promise<{ ledgerName: string; debit: number; credit: number }[]>;
+  getTrialBalance(filters: AccountingReportFilters): Promise<{ ledgerName: string; debit: number; credit: number }[]>;
   getCashflow(filters: AccountingReportFilters): Promise<{ openingBalance: number; totalInflow: number; totalOutflow: number; netFlow: number; closingBalance: number }>;
-  getAgingReport(): Promise<{ partyName: string; totalOutstanding: number; days0_30: number; days31_60: number; days61_90: number; days91_plus: number }[]>;
+  getAgingReport(filters: AccountingReportFilters): Promise<{ partyName: string; totalOutstanding: number; days0_30: number; days31_60: number; days61_90: number; days91_plus: number }[]>;
 }
 
 export interface IHRService {
@@ -173,9 +173,10 @@ export class ReportQueryBuilder {
     // LEGAL: Call M10 accounting.service.getLedgerEntries() [READ ONLY]
     const data = await this.accountingService.getLedgerEntries(filters);
     const cashflow = await this.accountingService.getCashflow(filters);
-    const aging = await this.accountingService.getAgingReport();
+    const aging = await this.accountingService.getAgingReport(filters);
+    const trialBalance = await this.accountingService.getTrialBalance(filters);
 
-    return { ...data, cashflow, aging };
+    return { ...data, cashflow, aging, trialBalance };
   }
 
   private async buildHRReport(filters: HRReportFilters): Promise<HRReportData> {

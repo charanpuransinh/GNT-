@@ -39,9 +39,19 @@ export class AccountingAdapter implements IAccountingService {
     return { rows: mapped, cashflow: this.emptyCashflow(), aging: [] };
   }
 
-  async getTrialBalance(): Promise<{ ledgerName: string; debit: number; credit: number }[]> {
-    // TODO(#016): facade में trial balance आने पर
-    return [];
+  async getTrialBalance(filters: AccountingReportFilters): Promise<{ ledgerName: string; debit: number; credit: number }[]> {
+    if (!filters.companyId) return [];
+    // M10 ledger से असली trial balance (account_id पर debit/credit जोड़) — tenant-scoped
+    const groups = await prisma.ledger.groupBy({
+      by: ['account_id'],
+      where: { company_id: filters.companyId },
+      _sum: { debit_amount: true, credit_amount: true },
+    });
+    return groups.map((g) => ({
+      ledgerName: g.account_id,
+      debit: Number(g._sum.debit_amount ?? 0),
+      credit: Number(g._sum.credit_amount ?? 0),
+    }));
   }
 
   async getCashflow(filters: AccountingReportFilters): Promise<CashflowSummary> {
@@ -62,9 +72,38 @@ export class AccountingAdapter implements IAccountingService {
     };
   }
 
-  async getAgingReport(): Promise<AgingRow[]> {
-    // TODO(#016): facade का getAgingReport अभी खाली है
-    return [];
+  async getAgingReport(filters: AccountingReportFilters): Promise<AgingRow[]> {
+    if (!filters.companyId) return [];
+    // असली receivables aging: unpaid/partial sales invoices ka outstanding, dueDate से age bucket
+    const invoices = await prisma.salesInvoice.findMany({
+      where: { companyId: filters.companyId, paymentStatus: { in: ['unpaid', 'partial'] } },
+    });
+    if (invoices.length === 0) return [];
+
+    const customerIds = [...new Set(invoices.map((i) => i.customerId))];
+    const parties = await prisma.party_master.findMany({
+      where: { id: { in: customerIds } },
+      select: { id: true, name: true },
+    });
+    const nameById = new Map(parties.map((p) => [p.id, p.name]));
+
+    const now = Date.now();
+    const byCustomer = new Map<string, AgingRow>();
+    for (const inv of invoices) {
+      const outstanding = Number(inv.grandTotal) - Number(inv.amountPaid);
+      if (outstanding <= 0) continue;
+      const daysOverdue = Math.floor((now - inv.dueDate.getTime()) / 86400000);
+      const bucket: keyof Pick<AgingRow, 'days0_30' | 'days31_60' | 'days61_90' | 'days91_plus'> =
+        daysOverdue <= 30 ? 'days0_30' : daysOverdue <= 60 ? 'days31_60' : daysOverdue <= 90 ? 'days61_90' : 'days91_plus';
+      let row = byCustomer.get(inv.customerId);
+      if (!row) {
+        row = { partyName: nameById.get(inv.customerId) ?? inv.customerId, totalOutstanding: 0, days0_30: 0, days31_60: 0, days61_90: 0, days91_plus: 0 };
+        byCustomer.set(inv.customerId, row);
+      }
+      row[bucket] += outstanding;
+      row.totalOutstanding += outstanding;
+    }
+    return [...byCustomer.values()];
   }
 
   private emptyCashflow(): CashflowSummary {

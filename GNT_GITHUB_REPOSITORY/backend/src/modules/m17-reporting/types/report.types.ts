@@ -294,6 +294,7 @@ export interface AccountingReportData {
   rows: AccountingReportRow[];
   cashflow: CashflowSummary;
   aging: AgingRow[];
+  trialBalance?: { ledgerName: string; debit: number; credit: number }[];
 }
 
 // ─── HR Report ───
