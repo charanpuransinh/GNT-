@@ -128,8 +128,11 @@ class NotificationService {
   async handleEventNotification(eventPayload: EventNotificationPayload): Promise<void> {
     const { eventName, payload, targetUserIds, targetRoles, companyId } = eventPayload;
 
-    // Resolve target users (would integrate with M05 for user resolution)
-    const userIds = targetUserIds ?? [];
+    // target users: explicit list, warna company ke admin/owner users (default recipient)
+    let userIds = targetUserIds ?? [];
+    if (userIds.length === 0) {
+      userIds = await notificationRepository.resolveCompanyAdmins(companyId);
+    }
 
     for (const userId of userIds) {
       await this.sendNotification({

@@ -6,7 +6,6 @@
  *       Use notification.service.ts (PUBLIC) instead.
  */
 
-import { PrismaClient } from '@prisma/client';
 import {
   NotificationMaster,
   NotificationDeliveryLog,
@@ -14,8 +13,7 @@ import {
   SendNotificationPayload,
   NotificationListResponse,
 } from '../types/notification.types';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/common/config/prisma';
 
 export class NotificationRepository {
   private static instance: NotificationRepository;
@@ -252,6 +250,32 @@ export class NotificationRepository {
     });
 
     return notifications as NotificationMaster[];
+  }
+
+  /**
+   * Company ke admin/owner users resolve karo (M02 user_role/role_master se, READ ONLY)
+   * — jab event payload me targetUserIds nahi diye jate, tab ye default recipient hota hai।
+   */
+  async resolveCompanyAdmins(companyId: string): Promise<string[]> {
+    if (!companyId) return [];
+    const roles = await prisma.role_master.findMany({
+      where: {
+        company_id: companyId,
+        OR: [
+          { name: { contains: 'admin', mode: 'insensitive' } },
+          { name: { contains: 'owner', mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (roles.length === 0) return [];
+    const roleIds = roles.map((r) => r.id);
+    const userRoles = await prisma.user_role.findMany({
+      where: { role_id: { in: roleIds } },
+      select: { user_id: true },
+      distinct: ['user_id'],
+    });
+    return userRoles.map((ur) => ur.user_id);
   }
 }
 

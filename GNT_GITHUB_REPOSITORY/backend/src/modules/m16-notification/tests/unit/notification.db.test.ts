@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '@/common/config/prisma';
 import { notificationService } from '../../services/notification.service';
+import { notificationRepository } from '../../repositories/notification.repository';
 import { TEST_USER_ID } from '@/tests/helpers/auth';
 
 const COMPANY_ID = '00000000-0000-4000-8000-000000000030';
@@ -64,5 +65,26 @@ describe.runIf(process.env.TEST_DB === '1')('M16 notification service — live D
     await expect(
       notificationService.getNotifications({ userId: TEST_USER_ID }),
     ).rejects.toThrow();
+  });
+
+  it('resolveCompanyAdmins admin role wale users return karta hai (default recipient)', async () => {
+    const role = await prisma.role_master.create({ data: { company_id: COMPANY_ID, name: `ADMIN-${Date.now()}`, is_system_role: true } });
+    const user = await prisma.user_master.create({
+      data: {
+        company_id: COMPANY_ID,
+        name: 'M16 Admin',
+        email: `m16-admin-${Date.now()}@t.com`,
+        username: `m16admin-${Date.now()}`,
+        password_hash: 'x',
+      },
+    });
+    await prisma.user_role.create({ data: { user_id: user.id, role_id: role.id } });
+
+    const admins = await notificationRepository.resolveCompanyAdmins(COMPANY_ID);
+    expect(admins).toContain(user.id);
+
+    await prisma.user_role.deleteMany({ where: { user_id: user.id } });
+    await prisma.user_master.deleteMany({ where: { id: user.id } });
+    await prisma.role_master.deleteMany({ where: { id: role.id } });
   });
 });
