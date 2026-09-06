@@ -798,3 +798,7 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 ## 📌 2026-09-06 — अटकाव: Telegram bot ONE-WAY hai (sirf sendMessage, reply nahi padhta — /root/tools/notify_telegram.py). PENDING-QUESTIONS.md write user ने cancel कर दिया (retry नहीं). M17 trial-balance+aging REAL push (fad4901). Ab M14 dead-file cleanup.
 
 ## 📌 2026-09-06 — अटकाव: M12 (TDS numbers) + M15 (Tally/Zoho + creds) owner के फ़ैसले पर अटके — इसलिए मैं वही part बनाता हूँ जो बिना creds बन सकता है: M15 external connector structure (Tally+Zoho, fail-closed empty config). M14 dead-files removed (4c49c26), M22/M18/M20/M16/M19 sab audit pass, full 137/598 0 fail.
+
+## 📌 2026-09-06 — TELEGRAM POLICY (owner ka नया नियम): जब भी कोई सवाल हो, तुरंत सीधा Telegram पर भेजो — रुकना नहीं, batch नहीं. (पहले batch वाला नियम रद्द). Full suite 138/606 0 fail. M15 connector + M14 duplicate-detect push (1f7027f).
+
+## 📌 2026-09-06 — अटकाव: Telegram owner-sawaal user ने cancel किया (retry नहीं). M21 TRANSFER verify: 6 adapters (party/item/sales/purchase/accounting/export) sab REAL, 28/28 tests pass — सिर्फ़ 'scheme' pending (owner trade-scheme definition चाहिए).
