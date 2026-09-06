@@ -30,7 +30,8 @@ jobs:
         run: |
           if [ -f "${{ matrix.team_path }}/backend/package.json" ]; then
             cd "${{ matrix.team_path }}/backend"
-            npm install
+            # locked, reproducible install with lifecycle scripts disabled (supply-chain safety)
+            npm ci --ignore-scripts || npm install --ignore-scripts --no-audit --no-fund
             npm run lint --if-present
             npm run build --if-present
             npm test --if-present
@@ -42,7 +43,8 @@ jobs:
         run: |
           if [ -f "${{ matrix.team_path }}/frontend/package.json" ]; then
             cd "${{ matrix.team_path }}/frontend"
-            npm install
+            # locked, reproducible install with lifecycle scripts disabled (supply-chain safety)
+            npm ci --ignore-scripts || npm install --ignore-scripts --no-audit --no-fund
             npm run lint --if-present
             npm run build --if-present
             npm test --if-present

@@ -25,7 +25,8 @@ jobs:
           python-version: '3.11'
 
       - name: Install Aider
-        run: pip install aider-chat
+        # pinned version + wheels-only (no source builds => no arbitrary code during install)
+        run: 'python -m pip install --only-binary=:all: aider-chat==0.86.2'
 
       - name: Configure git identity
         run: |
