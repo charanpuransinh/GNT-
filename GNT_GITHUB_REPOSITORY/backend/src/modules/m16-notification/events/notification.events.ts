@@ -11,12 +11,12 @@ export const NotificationEvents = {
   READ: 'notification.read',
 
   // Incoming events (M16 subscribes)
-  SALES_INVOICE_CREATED: 'sales.invoice.created',
-  PURCHASE_INVOICE_APPROVED: 'purchase.invoice.approved',
-  PAYMENT_RECEIVED: 'payment.received',
+  SALES_INVOICE_CREATED: 'invoice.created',
+  PURCHASE_INVOICE_APPROVED: 'po.approved',
+  PAYMENT_RECEIVED: 'payment.completed',
   STOCK_LOW: 'stock.low',
   GST_RETURN_DUE: 'gst.return.due',
-  EMPLOYEE_SALARY_PROCESSED: 'employee.salary.processed',
+  EMPLOYEE_SALARY_PROCESSED: 'payroll.paid',
 } as const;
 
 export type NotificationEventType = typeof NotificationEvents[keyof typeof NotificationEvents];

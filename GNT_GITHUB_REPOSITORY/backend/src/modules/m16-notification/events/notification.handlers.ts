@@ -37,7 +37,7 @@ class NotificationEventHandlers {
         eventName: NotificationEvents.SALES_INVOICE_CREATED,
         payload,
         targetUserIds: payload.customerUserIds ?? [],
-        companyId: payload.companyId,
+        companyId: payload.companyId ?? payload.tenantId ?? payload.company_id,
       });
     });
 
@@ -48,7 +48,7 @@ class NotificationEventHandlers {
         eventName: NotificationEvents.PURCHASE_INVOICE_APPROVED,
         payload,
         targetUserIds: payload.adminUserIds ?? [],
-        companyId: payload.companyId,
+        companyId: payload.companyId ?? payload.tenantId ?? payload.company_id,
       });
     });
 
@@ -59,7 +59,7 @@ class NotificationEventHandlers {
         eventName: NotificationEvents.PAYMENT_RECEIVED,
         payload,
         targetUserIds: payload.partyUserIds ?? [],
-        companyId: payload.companyId,
+        companyId: payload.companyId ?? payload.tenantId ?? payload.company_id,
       });
     });
 
@@ -70,7 +70,7 @@ class NotificationEventHandlers {
         eventName: NotificationEvents.STOCK_LOW,
         payload,
         targetUserIds: payload.managerUserIds ?? [],
-        companyId: payload.companyId,
+        companyId: payload.companyId ?? payload.tenantId ?? payload.company_id,
       });
     });
 
@@ -81,7 +81,7 @@ class NotificationEventHandlers {
         eventName: NotificationEvents.GST_RETURN_DUE,
         payload,
         targetUserIds: payload.accountantUserIds ?? [],
-        companyId: payload.companyId,
+        companyId: payload.companyId ?? payload.tenantId ?? payload.company_id,
       });
     });
 
@@ -92,7 +92,7 @@ class NotificationEventHandlers {
         eventName: NotificationEvents.EMPLOYEE_SALARY_PROCESSED,
         payload,
         targetUserIds: payload.employeeUserIds ?? [],
-        companyId: payload.companyId,
+        companyId: payload.companyId ?? payload.tenantId ?? payload.company_id,
       });
     });
 
