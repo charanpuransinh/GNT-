@@ -12,8 +12,8 @@ class EmailService {
   /**
    * Send notification via Email
    *
-   * नोट: M18 GatewayService में अभी सिर्फ sendWhatsApp/sendSMS हैं — email adapter नहीं है।
-   * इसलिए email fail-closed रहता है (चुपचाप नहीं गिरता, delivery log में दर्ज होता है)।
+   * M18 GatewayService.sendEmail (real SendGrid API) se jata hai —
+   * active email gateway config na ho toh fail-closed (delivery log mein failed दर्ज)।
    */
   async send(notificationId: string, payload: SendNotificationPayload): Promise<void> {
     try {
