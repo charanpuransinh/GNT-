@@ -14,6 +14,9 @@
 import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
 import { IntegrationService } from './integration.service';
+import { CSVParser } from '@/modules/m14-import-export/utils/csvParser';
+import { ExcelParser } from '@/modules/m14-import-export/utils/excelParser';
+import { JSONParser } from '@/modules/m14-import-export/utils/jsonParser';
 
 // ─── Pure helpers (unit-testable — no network) ─────────────────────────────
 
@@ -132,6 +135,22 @@ async function fetchZoho(integration: any, entity: string): Promise<Record<strin
   return Array.isArray(list) ? list : [];
 }
 
+/** FILE source: external data ek uploaded Excel/CSV/JSON se (koi API/integration nahi) */
+async function fetchFileExternal(cc: Record<string, unknown>): Promise<Record<string, unknown>[]> {
+  const fileKey = cc.fileKey as string | undefined;
+  if (!fileKey) return []; // fail-closed: koi file nahi
+  const ft = String(cc.fileType ?? 'csv').toLowerCase();
+  try {
+    const parsed =
+      ft === 'csv' ? await CSVParser.parse(fileKey)
+      : ft === 'json' ? await JSONParser.parse(fileKey)
+      : await ExcelParser.parse(fileKey); // xlsx / xls
+    return (parsed.rows ?? []) as Record<string, unknown>[];
+  } catch (err) {
+    throw new Error(`File external fetch failed (${ft}): ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 // ─── Public orchestrator ────────────────────────────────────────────────────
 
 export async function fetchExternalEntities(
@@ -143,6 +162,11 @@ export async function fetchExternalEntities(
   const cc = (config.connectionConfig ?? {}) as Record<string, unknown>;
   const entity = entityConfig.externalEntity ?? entityConfig.internalEntity ?? '';
   if (!entity) return [];
+
+  // FILE source: external data uploaded Excel/CSV se (owner का "कोई API नहीं" फ़ैसला)
+  if (src === 'FILE' || src === 'CSV' || src === 'EXCEL' || src === 'XLSX' || src === 'XLS') {
+    return await fetchFileExternal(cc);
+  }
 
   // integration resolve: connectionConfig.integrationCode | integrationId
   let integration: any = null;

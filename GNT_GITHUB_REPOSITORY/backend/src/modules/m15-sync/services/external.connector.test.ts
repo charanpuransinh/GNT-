@@ -1,5 +1,8 @@
-// M15 — external connector (Tally/Zoho) — pure unit tests (no network)
-import { describe, it, expect } from 'vitest';
+// M15 — external connector (Tally/Zoho/File) — pure unit tests (no network)
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { mkdtemp, writeFile, rm } from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import {
   buildTallyRequest,
   parseTallyResponse,
@@ -72,5 +75,42 @@ describe('M15 external connector (pure)', () => {
       'tenant-1'
     );
     expect(out).toEqual([]);
+  });
+});
+
+describe('M15 external connector — FILE source (koi API nahi)', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(path.join(os.tmpdir(), 'm15-file-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('uploaded CSV ke rows external data ban jate hain', async () => {
+    const file = path.join(tmpDir, 'ext.csv');
+    await writeFile(file, 'name,gstin\nAcme,27ABCDE1234F1Z5\nBeta,27BCDEF5678G2Z6\n');
+
+    const rows = await fetchExternalEntities(
+      { sourceSystem: 'FILE', connectionConfig: { fileKey: file, fileType: 'csv' } },
+      { externalEntity: 'Ledger' },
+      'tenant-1'
+    );
+
+    expect(rows.length).toBe(2);
+    expect(rows[0].name).toBe('Acme');
+    expect(rows[0].gstin).toBe('27ABCDE1234F1Z5');
+    expect(rows[1].name).toBe('Beta');
+  });
+
+  it('fileKey na ho toh honest [] (koi crash nahi)', async () => {
+    const rows = await fetchExternalEntities(
+      { sourceSystem: 'FILE', connectionConfig: {} },
+      { externalEntity: 'Ledger' },
+      'tenant-1'
+    );
+    expect(rows).toEqual([]);
   });
 });
