@@ -49,4 +49,26 @@ describe.runIf(process.env.TEST_DB === '1')('M14 import end-to-end — live DB',
     expect(party).toBeTruthy();
     expect(party!.email).toBe('acme@test.com');
   });
+
+  it('duplicate CSV dobara upload → skip (nayi row nahi, skippedRows badhta hai)', async () => {
+    const csvFile = path.join(tmpDir, 'parties-dup.csv');
+    await writeFile(csvFile, 'name,email,phone\nAcme Import,acme@test.com,9876543210\n');
+
+    const before = await prisma.party_master.count({ where: { company_id: COMPANY_ID, name: 'Acme Import' } });
+
+    const res = await request(app)
+      .post('/api/v1/imports/imports/upload')
+      .set('Authorization', auth())
+      .field('entityType', 'customer')
+      .attach('file', csvFile);
+    expect(res.status).toBe(202);
+
+    await new Promise((r) => setTimeout(r, 800));
+
+    const after = await prisma.party_master.count({ where: { company_id: COMPANY_ID, name: 'Acme Import' } });
+    expect(after).toBe(before); // duplicate skip — naya insert nahi hua
+
+    const jobs = await prisma.importJob.findMany({ where: { tenantId: COMPANY_ID }, orderBy: { createdAt: 'desc' }, take: 1 });
+    expect(jobs[0].skippedRows).toBeGreaterThanOrEqual(1);
+  });
 });

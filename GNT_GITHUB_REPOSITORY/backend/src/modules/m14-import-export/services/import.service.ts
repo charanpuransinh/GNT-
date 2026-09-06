@@ -115,7 +115,9 @@ export class ImportService {
       const totalBatches = Math.ceil(rows.length / batchSize);
       let successRows = 0;
       let failedRows = 0;
+      let skippedRows = 0;
       const validationErrors: { rowNumber: number; errors: unknown; data: ImportRow }[] = [];
+      const warnings: { rowNumber: number; warning: string; data: ImportRow }[] = [];
 
       for (let i = 0; i < rows.length; i += batchSize) {
         const batch = rows.slice(i, i + batchSize);
@@ -124,6 +126,17 @@ export class ImportService {
         for (const row of batch) {
           const result = validator.validateRow(row, fieldMapping);
           if (result.isValid) {
+            // Duplicate detect (skip/warn) — generic column-mapping se aaya data, unique key se check
+            const dupKey = await ImportService.findExisting(job.targetEntity, tenantId, result.data);
+            if (dupKey) {
+              skippedRows++;
+              warnings.push({
+                rowNumber: row._rowNumber,
+                warning: `Duplicate ${dupKey} — skipped (duplicateHandling=${job.duplicateHandling})`,
+                data: row
+              });
+              continue;
+            }
             try {
               // असली insert — सिर्फ़ गिनती नहीं (पहले "successfully imported" झूठ था)
               await ImportService.insertRow(job.targetEntity, tenantId, result.data);
@@ -152,7 +165,8 @@ export class ImportService {
             processedRows: i + batch.length,
             successRows,
             failedRows,
-            validationReport: { errors: validationErrors.slice(-100) } as unknown as Prisma.InputJsonValue
+            skippedRows,
+            validationReport: { errors: validationErrors.slice(-100), warnings: warnings.slice(-100) } as unknown as Prisma.InputJsonValue
           }
         });
 
@@ -175,7 +189,8 @@ export class ImportService {
           processedRows: rows.length,
           successRows,
           failedRows,
-          validationReport: { errors: validationErrors } as unknown as Prisma.InputJsonValue,
+          skippedRows,
+          validationReport: { errors: validationErrors, warnings } as unknown as Prisma.InputJsonValue,
           completedAt: new Date()
         }
       });
@@ -225,6 +240,33 @@ export class ImportService {
       return { id: product.id };
     }
     throw new Error(`Import target '${entityType}' अभी wired नहीं — सिर्फ़ customer/supplier/product समर्थित (fail-closed, झूठा success नहीं)`);
+  }
+
+  /** Duplicate detect — generic column-mapping data, unique key se (koi hardcoding nahi) */
+  private static async findExisting(entityType: string, tenantId: string, data: Record<string, unknown>): Promise<string | null> {
+    const t = (entityType ?? '').toLowerCase();
+    if (t === 'customer' || t === 'supplier' || t === 'party') {
+      const partyType = t === 'supplier' ? 'supplier' : 'customer';
+      const gstin = data.gstin as string | undefined;
+      const name = String(data.name ?? data.customerName ?? data.full_name ?? '');
+      const or: Record<string, unknown>[] = [];
+      if (gstin) or.push({ gstin });
+      if (name) or.push({ name });
+      if (or.length === 0) return null;
+      const existing = await prisma.party_master.findFirst({ where: { company_id: tenantId, party_type: partyType, OR: or as never } });
+      return existing ? 'party' : null;
+    }
+    if (t === 'product' || t === 'item' || t === 'inventory') {
+      const code = (data.sku as string) ?? null;
+      const name = String(data.name ?? data.productName ?? data.itemName ?? '');
+      const or: Record<string, unknown>[] = [];
+      if (code) or.push({ code });
+      if (name) or.push({ name });
+      if (or.length === 0) return null;
+      const existing = await prisma.product_master.findFirst({ where: { company_id: tenantId, OR: or as never } });
+      return existing ? 'product' : null;
+    }
+    return null;
   }
 
   static async listJobs(tenantId: string, entityType?: string): Promise<ImportJob[]> {

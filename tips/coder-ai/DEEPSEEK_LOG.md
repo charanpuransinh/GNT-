@@ -796,3 +796,5 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 ## 📌 2026-09-06 (06:05) — Owner फ़ैसला: असली TDS numbers कोड/seed में नहीं, सिर्फ़ structure+validation. 018 seed (real numbers) हटाया गया. tax-slab boundary logic `>= lower` + `+1` (inclusive slabs) सही; test TEST-2099 FY पर shift (real FY न छुए) + scoped cleanup. Verify: tsc 0 · full suite 136 files/595 tests 0 fail (SEQUENTIAL `--no-file-parallelism`; parallel में DB-test collision से 2 flaky — isolation issue, not code bug). Push आगे.
 
 ## 📌 2026-09-06 — अटकाव: Telegram bot ONE-WAY hai (sirf sendMessage, reply nahi padhta — /root/tools/notify_telegram.py). PENDING-QUESTIONS.md write user ने cancel कर दिया (retry नहीं). M17 trial-balance+aging REAL push (fad4901). Ab M14 dead-file cleanup.
+
+## 📌 2026-09-06 — अटकाव: M12 (TDS numbers) + M15 (Tally/Zoho + creds) owner के फ़ैसले पर अटके — इसलिए मैं वही part बनाता हूँ जो बिना creds बन सकता है: M15 external connector structure (Tally+Zoho, fail-closed empty config). M14 dead-files removed (4c49c26), M22/M18/M20/M16/M19 sab audit pass, full 137/598 0 fail.

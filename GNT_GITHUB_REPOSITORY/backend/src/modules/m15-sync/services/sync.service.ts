@@ -9,6 +9,7 @@ import {
   SyncPreviewResponse,
   SyncProgress
 } from '../types/sync.types';
+import { fetchExternalEntities as fetchExternalFromProvider } from './external.connector';
 
 const prisma = new PrismaClient();
 const progressEmitter = new EventEmitter();
@@ -169,9 +170,9 @@ export class SyncService {
       for (const entityConfig of entityConfigs) {
         if (!entityConfig.isActive) continue;
 
-        // Fetch internal and external data (mock implementation)
+        // Fetch internal and external data (REAL — provider connector, fail-closed)
         const internalData = await this.fetchInternalEntities(entityConfig.internalEntity, job.tenantId);
-        const externalData = await this.fetchExternalEntities(config, entityConfig);
+        const externalData = await this.fetchExternalEntities(config, entityConfig, job.tenantId);
 
         totalEntities += Math.max(internalData.length, externalData.length);
 
@@ -374,10 +375,10 @@ export class SyncService {
     return [];
   }
 
-  private static async fetchExternalEntities(config: SyncConfig, entityConfig: any): Promise<any[]> {
-    // External system (Tally/Zoho/etc.) से असली fetch — external boundary है, repo में कोई
-    // real external system नहीं। fake data नहीं — connectionConfig होने पर यहाँ real call जोड़ेंगे।
-    return [];
+  private static async fetchExternalEntities(config: SyncConfig, entityConfig: any, tenantId: string): Promise<any[]> {
+    // External system (Tally/Zoho) se asli fetch — provider-driven, fail-closed.
+    // koi ACTIVE integration na ho toh honest [] (koi fake data nahi); real API error throw hota hai.
+    return fetchExternalFromProvider(config, entityConfig, tenantId);
   }
 
   private static async updateSyncState(syncConfigId: string, entityType: string, jobId: string, tenantId: string): Promise<void> {
@@ -499,7 +500,7 @@ export class SyncService {
 
     for (const ec of config.entityConfigs.filter(e => e.isActive)) {
       const internal = await this.fetchInternalEntities(ec.internalEntity, tenantId);
-      const external = await this.fetchExternalEntities(config, ec);
+      const external = await this.fetchExternalEntities(config, ec, tenantId);
       totalEstimated += Math.max(internal.length, external.length);
 
       const changes = [];
