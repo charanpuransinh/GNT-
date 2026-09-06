@@ -8,9 +8,13 @@ import { ReportService } from '../services/report.service';
 import { reportCache } from '../services/report.cache';
 
 export class ReportEventHandlers {
+  private registered = false;
+
   constructor(private readonly reportService: ReportService) {}
 
   register(): void {
+    if (this.registered) return; // दोबारा mount पर दोहरा subscribe नहीं
+    this.registered = true;
     // Subscribe to cross-module events to update report caches
     eventBus.subscribe(
       REPORT_EVENTS.SUBSCRIPTIONS.SALES_INVOICE_CREATED,

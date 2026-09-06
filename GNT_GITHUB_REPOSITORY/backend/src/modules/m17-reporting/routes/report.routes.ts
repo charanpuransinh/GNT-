@@ -16,6 +16,7 @@ import { SalesAdapter } from '../services/adapters/sales.adapter';
 import { GSTAdapter } from '../services/adapters/gst.adapter';
 import { AccountingAdapter } from '../services/adapters/accounting.adapter';
 import { HRAdapter } from '../services/adapters/hr.adapter';
+import { ReportEventHandlers } from '../events/report.handlers';
 
 const router = Router();
 
@@ -34,6 +35,10 @@ const reportService = new ReportService(
 );
 
 const controller = new ReportController(reportService);
+
+// event-based cache invalidation — cross-module events (payment.completed, payroll.paid, stock.low...)
+// pehle ye handler kabhi register nahi hota tha (dead), isliye report cache stale rehta tha
+new ReportEventHandlers(reportService).register();
 
 // ─── Report Generation Routes ───
 router.post('/generate', controller.generateReport);

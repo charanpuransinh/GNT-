@@ -4,13 +4,13 @@
  */
 
 export const REPORT_EVENTS = {
-  // Events that M17 subscribes to
+  // Events that M17 subscribes to (event-registry.json के canonical names से align)
   SUBSCRIPTIONS: {
-    SALES_INVOICE_CREATED: 'sales.invoice.created',
-    PURCHASE_INVOICE_APPROVED: 'purchase.invoice.approved',
-    STOCK_UPDATED: 'stock.updated',
-    PAYMENT_RECEIVED: 'payment.received',
-    EMPLOYEE_SALARY_PROCESSED: 'employee.salary.processed',
+    SALES_INVOICE_CREATED: 'invoice.created',
+    PURCHASE_INVOICE_APPROVED: 'po.approved',
+    STOCK_UPDATED: 'stock.low',
+    PAYMENT_RECEIVED: 'payment.completed',
+    EMPLOYEE_SALARY_PROCESSED: 'payroll.paid',
   },
 
   // Events that M17 publishes
