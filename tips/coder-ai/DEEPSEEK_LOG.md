@@ -806,3 +806,5 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 ## 📌 2026-09-06 — M12/M16 flagged bugs सब VERIFY किए = पहले ही FIXED: leave approver (requireUser token se), payroll daysWorked (real attendance se), leave balance year-filter, leave number tenant-filter, tax slabs (table se), M16 order-link (fail-closed). कोई code-work नहीं बचा — सिर्फ़ owner decisions (M12 TDS numbers, M15 platform+creds, M21 scheme) + M13 (Claude).
 
 ## 📌 2026-09-06 — FINAL verify: backend tsc 0 + 138/606 tests 0 fail; frontend tsc 0 + vite build ✅ (production-buildable). task-003-baseline errors सब stale/पुराने हैं, resolve हो चुके। पूरा repo clean — आगे सिर्फ़ owner ke 3 decisions + M13 (Claude).
+
+## 📌 2026-09-06 — अटकाव (FINAL): backend M11-M22 सब done (vitest fileParallelism:false → 139/609 reliable, push 9cf7bea). Frontend investigation user ने cancel किया → frontend merे scope से बाहर। आगे सिर्फ़ 3 owner decisions (M12 TDS numbers, M15 platform+creds, M21 scheme) + M13 certify (Claude).
