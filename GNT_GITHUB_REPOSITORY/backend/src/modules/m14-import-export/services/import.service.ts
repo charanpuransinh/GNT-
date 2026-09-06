@@ -3,6 +3,7 @@
 
 import { ImportJob, Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { eventBus } from '@/common/events/event-bus';
 import { CSVParser } from '../utils/csvParser';
 import { ExcelParser } from '../utils/excelParser';
 import { JSONParser } from '../utils/jsonParser';
@@ -223,6 +224,13 @@ export class ImportService {
           completedAt: new Date()
         }
       });
+
+      // साझा bus पर relay — M13 automation / M17 cache-invalidate (fire-and-forget)
+      const finalStatus = failedRows > 0 && successRows === 0 ? 'FAILED' : 'COMPLETED';
+      void eventBus.publish('import.completed', {
+        tenantId, jobId, entityType: job.targetEntity, status: finalStatus,
+        totalRows: rows.length, successRows, failedRows, skippedRows,
+      }).catch((e) => console.error('[M14→bus] import.completed handler failed:', e));
     } catch (error) {
       await prisma.importJob.updateMany({
         where: { id: jobId, tenantId },

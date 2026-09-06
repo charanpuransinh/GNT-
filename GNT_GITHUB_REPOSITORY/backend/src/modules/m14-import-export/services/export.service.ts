@@ -3,6 +3,7 @@
 
 import { ExportJob, Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { eventBus } from '@/common/events/event-bus';
 import { createObjectCsvWriter } from 'csv-writer';
 import * as XLSX from 'xlsx';
 import { writeFileSync, mkdirSync } from 'fs';
@@ -61,6 +62,12 @@ export class ExportService {
           expiresAt
         }
       });
+
+      // साझा bus पर relay — M13 automation / M17 cache-invalidate (fire-and-forget)
+      void eventBus.publish('export.completed', {
+        tenantId, jobId, entityType: job.sourceEntity, format: job.format,
+        totalRecords: mockData.length, status: 'COMPLETED',
+      }).catch((e) => console.error('[M14→bus] export.completed handler failed:', e));
     } catch (error) {
       await prisma.exportJob.updateMany({
         where: { id: jobId, tenantId },
