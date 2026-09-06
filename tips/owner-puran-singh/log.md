@@ -2483,3 +2483,62 @@ tests हरे**। सब push हो चुका है।
 **बचा हुआ (अगली बार जाँचूँगा जब update आए):** M14 की dead middleware/routes files
 अभी नहीं हटीं, M15 का dead-code audit शुरू हुआ है (commit `ed7a4fd` का जिक्र) पर
 पूरा नहीं। M17-M22 की गहरी जाँच अभी बाक़ी।
+
+---
+
+## 2026-09-06 — M11–M22 wiring pass + full verify (Claude)
+
+**काम:** DeepSeek की नई files pull कीं, पूरे repo के साथ wire करके M11–M22 का
+cross-module wiring असली DB पर जाँचा।
+
+### 1. Sync + baseline (असली, चलाकर नापा)
+- local `main` का एक अलग commit `22303ef` (मेरा पुराना M09 effective-dating काम)
+  था — origin पर DeepSeek/Trishul का समांतर `45003b5` + `1c1dad7` उसी feature को
+  ज़्यादा पूरा (M09 + M12 दोनों) कर चुका था। इसलिए local को `origin/main` (`1b3fa7b`)
+  पर reset किया; पुराना commit `backup-local-22303ef` branch में सुरक्षित।
+- **migration `017_M12_tax_slab_master.sql` असली DB पर लगी नहीं थी** — `m12_tax_slab_master`
+  table मौजूद ही नहीं था, जबकि `tax-slab.service.ts` उसे बुलाता है → `tsc` में 5
+  errors। SQL लगाई, `prisma generate` किया।
+- **verify:** `tsc` 0; पूरा backend `TEST_DB=1` → **138 files / 607 tests, 0 fail 0 skip**.
+
+### 2. मिला टूटा wiring — M12 → M13 (ठीक किया)
+`HrEventPublisher` सिर्फ़ `m12_hr_event_log` में row लिखता था; उसे कोई पढ़ता ही
+नहीं था (`getUnprocessedEvents`/`markProcessed` सिर्फ़ tests में)। यानी हर M12
+event (`PAYROLL_GENERATED`, `PAYROLL_PAID`, `LEAVE_*`, `EMPLOYEE_*`) एक dead
+outbox table में गिरता था — M13 automation / M11 / M16 तक कभी नहीं।
+
+**Fix (`fix/m12-m13-event-wiring`, commit `577b21b`):**
+- `hr.events.ts`: persist के साथ ही वही event साझा in-process `eventBus` पर भी
+  publish (dot-case: `payroll.generated`) — वही fire-and-forget pattern जो M11
+  `payment.service` उपयोग करता है, वही जो `gst.einvoice.generated` M13 तक ले जाता है।
+- stray `new PrismaClient()` हटाया → shared singleton (project की अपनी P0
+  connection-leak नियम)।
+- तीनों HR controllers अब हर event में `tenantId` भेजते हैं — बिना इसके M13 का
+  rule-match हर company पर चल जाता (`automation.handlers.ts` का दर्ज बग)।
+- नई `m13-wiring.db.test.ts` (असली DB): `PAYROLL_GENERATED` publish → M13 rule
+  चलता है (`job_execution_log` SUCCESS) + audit row बनती है + **दूसरी company का
+  same-event rule नहीं चलता** (tenant-safe)।
+- **verify:** `tsc` 0; पूरा backend **139 files / 609 tests, 0 fail 0 skip**।
+
+### 3. अभी भी टूटा/अधूरा (owner/architecture फ़ैसला चाहिए — चुपचाप guess नहीं किया)
+इनका code मौजूद है पर publisher/subscriber अलग-अलग नाम-payload मानते हैं, और
+handler mount पर register ही नहीं होते:
+
+| Link | हालत | क्यों नहीं छुआ |
+|---|---|---|
+| **M11 → M16** payment→notification | M16 `payment.received` पर subscribe; M11 `payment.completed`/`invoice.payment_received` publish करता है। Payload भी अलग (`tenantId`+`payerId` बनाम `companyId`+`partyUserIds`)। M16 handlers mount पर register होते हैं (index re-export से) पर event-नाम कभी मेल नहीं खाता। | party→user mapping + canonical payload schema owner/architecture फ़ैसला |
+| **M12 → M16** salary→notification | M16 `employee.salary.processed` की राह देखता है; M12 अब `payroll.paid`/`payroll.generated` भेजता है | ऊपर जैसा नाम/payload फ़ैसला |
+| **M12 → M11** payroll→payment | `event-registry.json` कहता है `payroll.generated`→M11, पर M11 में कोई subscriber नहीं | क्या salary auto-payment बने? owner फ़ैसला |
+| **M14 → M13** import/export completed | `event-registry` में है; M14 सिर्फ़ internal SSE `progressEmitter` उपयोग करता है, साझा bus पर `import.completed`/`export.completed` कभी publish नहीं | event नाम/payload तय करना |
+| **M15 sync subscriber** | `SyncEventSubscriber` एक BullMQ `Worker('gnt-events')` है जिस Redis queue को कोई feed नहीं करता; `payment.handlers.ts`/`hr.handlers.ts` आदि `STRUCTURE_PLACEHOLDER` | transport फ़ैसला: in-process bus या Redis/BullMQ? Redis prod में है? |
+| **M17 → sources** report cache invalidation | `ReportEventHandlers.register()` असली है (cache invalidate करता है) पर कहीं call नहीं; events भी `payment.received`/`stock.updated` मानता है (मेल नहीं) | register call + नाम align |
+| **M19 ← events** event→audit trail | `SecurityEventHandlers.handleEvent` असली audit लिखता है पर subscribe कहीं नहीं; एक specific envelope `EventBusMessage` चाहिए | envelope + subscribe design |
+| **M20 handlers** | `registerTradeEventHandlers` का हर body सिर्फ़ `console.log` + commented `// await M10…` — असल integration लिखा ही नहीं | पूरा feature, wiring नहीं |
+| **M21 transfer.executor** | party→M05 / item→M06 PUBLIC API से (असली); पर sales/purchase/accounting सीधे `prisma.*.create` से — अपने ही header comment ("सीधी tables नहीं") के ख़िलाफ़, M08/M07/M10 service layer (validation/GST/double-entry/events) bypass | M08/M07/M10 को suitable public method चाहिए |
+
+**निष्कर्ष:** M11–M22 हर module अकेले हरा (609/609 real DB) और app में चढ़ा हुआ है।
+**Verified cross-module links:** M18→M11 (webhook→payment, `webhook.e2e`), M11→M10/M05
+(`m10-m05-wiring`), M13→M06/M09 (`m06-wiring`/`m09-wiring`), और अब **M12→M13** (नया)।
+बाक़ी event-आधारित links (ऊपर तालिका) **अभी असल में जुड़े नहीं** — इन्हें
+"certified/OK" कहना उस झूठे-हरे जैसा होगा जिससे यह log बार-बार मना करता है।
+इनके लिए एक canonical event-नाम + payload registry और transport का फ़ैसला चाहिए।
