@@ -8,7 +8,7 @@
  * तरीक़ा: हर group के लिए known field + उनके प्रचलित नाम (Tally/Vyapar/Marg/Excel
  * में लोग जो लिखते हैं)। सबसे ज़्यादा मेल खाने वाला group जीतता है।
  */
-import { DATA_GROUP_OWNER, type DataGroup } from '../index';
+import { DATA_GROUP_OWNER, type DataGroup } from '../types/dataGroup';
 import type { ColumnMapping, IntakeSheet, SenseResult } from '../types/dataSense.types';
 
 /** GNT field → उस field के प्रचलित नाम (सब lowercase, बिना space/underscore) */

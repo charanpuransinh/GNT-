@@ -1,87 +1,40 @@
 // ============================================================
-// M15 Sync Module — Event Subscribers / Handlers
-// Lock Artifact: M15-L05
+// M15 Sync Module — Event Subscriber (in-process shared bus)
+//
+// पहले यह BullMQ Worker('gnt-events') था जो Redis par sunta tha — par us
+// Redis queue ko koi feed nahi karta tha (dead), aur event names UPPER_CASE
+// (PAYMENT_CREATED) the jo shared bus ke dot-case (payment.completed) se mel
+// nahi khate the। अब M11 ke असली 'payment.completed' event par (shared
+// in-process bus) real-time sync trigger hota hai — tenant-scoped।
 // ============================================================
 
-import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
-import { SyncEventPublisher } from './sync.events';
+import { eventBus } from '@/common/events/event-bus';
 import { SyncService } from '../services/sync.service';
 
-const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null
-});
-
-/**
- * Subscribe to cross-module events that M15 cares about.
- */
 export class SyncEventSubscriber {
+  private static registered = false;
+
   static initialize(): void {
-    // Listen for events from other modules
-    const worker = new Worker('gnt-events', async (job) => {
-      const event = job.data;
+    if (SyncEventSubscriber.registered) return; // दोबारा mount पर दोहरा subscribe नहीं
+    SyncEventSubscriber.registered = true;
 
-      switch (event.eventType) {
-        // ── M11 Payment Events ──────────────────────────────
-        case 'PAYMENT_CREATED':
-        case 'PAYMENT_UPDATED':
-          await this.handlePaymentChange(event);
-          break;
-
-        // ── M07 Invoice Events ──────────────────────────────
-        case 'INVOICE_CREATED':
-        case 'INVOICE_UPDATED':
-          await this.handleInvoiceChange(event);
-          break;
-
-        // ── M05 Inventory Events ────────────────────────────
-        case 'STOCK_UPDATED':
-          await this.handleStockChange(event);
-          break;
-
-        // ── M06 Customer Events ─────────────────────────────
-        case 'CUSTOMER_CREATED':
-        case 'CUSTOMER_UPDATED':
-          await this.handleCustomerChange(event);
-          break;
-
-        // ── M12 HR Events ───────────────────────────────────
-        case 'PAYROLL_PROCESSED':
-          await this.handlePayrollProcessed(event);
-          break;
-
-        // ── M13 Automation Events ───────────────────────────
-        case 'AUTOMATION_TRIGGERED':
-          await this.handleAutomationTriggered(event);
-          break;
-
-        // ── M14 Import/Export Events ──────────────────────────
-        case 'IMPORT_COMPLETED':
-          await this.handleImportCompleted(event);
-          break;
-
-        default:
-          // Unknown event — log and ignore
-          console.log(`[M15] Unhandled event type: ${event.eventType}`);
-      }
-    }, { connection: redis });
-
-    worker.on('failed', (job, err) => {
-      console.error(`[M15] Event handler failed for ${job?.name}:`, err.message);
+    // M11 payment.completed → active PAYMENT sync configs trigger (tenant-scoped)
+    eventBus.subscribe('payment.completed', (event: unknown) => {
+      void SyncEventSubscriber.handlePaymentChange(event).catch((e) =>
+        console.error('[M15] payment sync trigger failed:', e));
     });
 
-    console.log('[M15] Event subscriber initialized');
+    console.log('[M15] Event subscriber initialized (in-process bus)');
   }
 
-  private static async handlePaymentChange(event: any): Promise<void> {
-    // If there's a real-time sync config for payments, trigger it
-    console.log(`[M15] Payment change detected: ${event.payload?.paymentId}`);
-    const tenantId = event.tenantId;
+  private static async handlePaymentChange(event: unknown): Promise<void> {
+    const ev = (event ?? {}) as Record<string, unknown>;
+    const tenantId = (ev.tenantId ?? ev.companyId ?? ev.company_id) as string | undefined;
     if (!tenantId) return;
 
     const configs = await SyncService.listConfigs(tenantId, { status: 'ACTIVE' });
-    const paymentConfigs = configs.filter(c =>
-      (c.entityConfigs ?? []).some(ec => ec.isActive && ec.internalEntity === 'PAYMENT')
+    const paymentConfigs = configs.filter((c) =>
+      (c.entityConfigs ?? []).some((ec) => ec.isActive && ec.internalEntity === 'PAYMENT')
     );
 
     for (const config of paymentConfigs) {
@@ -90,38 +43,12 @@ export class SyncEventSubscriber {
           { syncConfigId: config.id, triggeredBy: 'EVENT', entityType: 'PAYMENT' },
           tenantId
         );
-      } catch (err: any) {
+      } catch (err) {
         console.error(
           `[M15] Failed to queue PAYMENT sync for config ${config.configCode}:`,
-          err.message
+          (err as Error).message
         );
       }
     }
-  }
-
-  private static async handleInvoiceChange(event: any): Promise<void> {
-    console.log(`[M15] Invoice change detected: ${event.payload.invoiceId}`);
-  }
-
-  private static async handleStockChange(event: any): Promise<void> {
-    console.log(`[M15] Stock change detected: ${event.payload.itemId}`);
-  }
-
-  private static async handleCustomerChange(event: any): Promise<void> {
-    console.log(`[M15] Customer change detected: ${event.payload.customerId}`);
-  }
-
-  private static async handlePayrollProcessed(event: any): Promise<void> {
-    console.log(`[M15] Payroll processed: ${event.payload.month}`);
-    // Could trigger sync to external accounting system
-  }
-
-  private static async handleAutomationTriggered(event: any): Promise<void> {
-    console.log(`[M15] Automation triggered: ${event.payload.ruleCode}`);
-  }
-
-  private static async handleImportCompleted(event: any): Promise<void> {
-    console.log(`[M15] Import completed: ${event.payload.jobId}`);
-    // Could trigger post-import sync to external systems
   }
 }

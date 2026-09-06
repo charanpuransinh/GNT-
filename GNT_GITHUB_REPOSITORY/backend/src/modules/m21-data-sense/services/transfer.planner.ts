@@ -10,7 +10,7 @@
  *   3. बैंक मिलान   → default: सीधे पार्टी खाते में जमा (M10);
  *                      toggle: पुराने बिल से क्रम में चुकता — FIFO (M11)
  */
-import { DATA_GROUP_OWNER, type DataGroup } from '../index';
+import { DATA_GROUP_OWNER, type DataGroup } from '../types/dataGroup';
 import type { DataSenseOptions, RowVerdict, TransferPlanItem } from '../types/dataSense.types';
 
 /** बैंक/भुगतान वाली पंक्ति है? (accounting sheet में जमा राशि) */

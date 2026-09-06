@@ -1,0 +1,31 @@
+
+  warn no-orphans: src/modules/m15-sync/validators/sync.schema.ts
+  warn no-orphans: src/modules/m15-sync/validators/payment.schema.ts
+  warn no-orphans: src/modules/m15-sync/validators/hr.schema.ts
+  warn no-orphans: src/modules/m15-sync/types/payment.types.ts
+  warn no-orphans: src/modules/m15-sync/types/hr.types.ts
+  warn no-orphans: src/modules/m15-sync/services/payment.service.ts
+  warn no-orphans: src/modules/m15-sync/services/payment.internal.ts
+  warn no-orphans: src/modules/m15-sync/services/hr.internal.ts
+  warn no-orphans: src/modules/m15-sync/routes/payment.routes.ts
+  warn no-orphans: src/modules/m15-sync/routes/hr.routes.ts
+  warn no-orphans: src/modules/m15-sync/repositories/payment.repository.ts
+  warn no-orphans: src/modules/m15-sync/repositories/employee.repository.ts
+  warn no-orphans: src/modules/m15-sync/repositories/attendance.repository.ts
+  warn no-orphans: src/modules/m15-sync/events/payment.handlers.ts
+  warn no-orphans: src/modules/m15-sync/events/payment.events.ts
+  warn no-orphans: src/modules/m15-sync/events/hr.handlers.ts
+  warn no-orphans: src/modules/m15-sync/events/hr.events.ts
+  warn no-orphans: src/modules/m15-sync/controllers/payment.controller.ts
+  warn no-orphans: src/modules/m15-sync/controllers/employee.controller.ts
+  warn no-orphans: src/modules/m15-sync/controllers/attendance.controller.ts
+  warn no-orphans: src/modules/m14-import-export/validators/importExport.schema.ts
+  warn no-orphans: src/modules/m14-import-export/types/express.d.ts
+  warn no-orphans: src/modules/m11-payment/events/event.bus.ts
+  warn no-orphans: src/common/types/supertest.d.ts
+  warn no-orphans: src/common/types/json2csv.d.ts
+  warn no-orphans: src/common/types/express.d.ts
+  error not-to-unresolvable: src/modules/m14-import-export/utils/excelHandler.ts → csv-stringify/sync
+
+x 27 dependency violations (1 errors, 26 warnings). 590 modules, 1842 dependencies cruised.
+

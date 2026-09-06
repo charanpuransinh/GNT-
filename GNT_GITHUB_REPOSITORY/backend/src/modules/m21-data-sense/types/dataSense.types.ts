@@ -7,7 +7,7 @@
  *
  * Yeh module kisi master ka malik nahi banta — sirf samajhta, jaanchta aur saunpta hai.
  */
-import type { DataGroup, DataSenseStatus } from '../index';
+import type { DataGroup, DataSenseStatus } from './dataGroup';
 
 /**
  * मालिक के 3 फ़ैसले (2026-09-03) — यही engine का बर्ताव तय करते हैं।

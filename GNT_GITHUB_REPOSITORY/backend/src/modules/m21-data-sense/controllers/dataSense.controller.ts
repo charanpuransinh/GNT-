@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { dataSenseService } from '../services/dataSense.service';
 import { analyzeSheetSchema } from '../validators/dataSense.schema';
 import { GROUP_SPECS } from '../services/sense.engine';
-import { DATA_GROUP_OWNER } from '../index';
+import { DATA_GROUP_OWNER } from '../types/dataGroup';
 import { DEFAULT_OPTIONS } from '../types/dataSense.types';
 
 export class DataSenseController {

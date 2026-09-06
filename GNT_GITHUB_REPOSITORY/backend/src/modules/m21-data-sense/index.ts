@@ -26,23 +26,9 @@
 /** इस module का API namespace (spec §32) */
 export const M21_API_BASE = '/api/v1/data-sense' as const;
 
-/** हर सेंसी हुई पंक्ति का नतीजा — GNT की audit परंपरा (spec §20) */
-export type DataSenseStatus = 'GREEN' | 'ORANGE' | 'RED';
-
-/** ग्राहक की फाइल से पहचाने जाने वाले समूह (spec §15) */
-export type DataGroup =
-  | 'party' | 'item' | 'sales' | 'purchase' | 'accounting' | 'export' | 'scheme';
-
-/** कौन सा समूह किस module का है — यही routing की तालिका है (spec §16) */
-export const DATA_GROUP_OWNER: Readonly<Record<DataGroup, string>> = {
-  party: 'm05-party-management',
-  item: 'm06-inventory',
-  purchase: 'm07-purchase',
-  sales: 'm08-sales',
-  accounting: 'm10-accounting',
-  export: 'm20-international-trade',
-  scheme: 'm08-sales',
-} as const;
+// DataGroup / DataSenseStatus / DATA_GROUP_OWNER — types/dataGroup.ts se
+// (index barrel से internal import circular dependency ban jata tha)
+export { DATA_GROUP_OWNER, type DataGroup, type DataSenseStatus } from './types/dataGroup';
 
 // ── PUBLIC सतह (दूसरे module सिर्फ़ यही इस्तेमाल करें) ──
 export { dataSenseRoutes, default as router } from './routes/dataSense.routes';

@@ -9,7 +9,7 @@
  * नियम भारत के हिसाब से: GSTIN 15 अंकों का ढाँचा, HSN 4/6/8 अंक, रक़म संख्या हो,
  * तारीख़ पढ़ी जा सके।
  */
-import type { DataGroup, DataSenseStatus } from '../index';
+import type { DataGroup, DataSenseStatus } from '../types/dataGroup';
 import { GROUP_SPECS } from './sense.engine';
 import { DEFAULT_OPTIONS, type DataSenseOptions, type RowVerdict } from '../types/dataSense.types';
 
