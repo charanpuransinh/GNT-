@@ -808,3 +808,5 @@ TEST_DB=1 सब tests pass skip 0 · मोटा test-कवरेज · (LOCK
 ## 📌 2026-09-06 — FINAL verify: backend tsc 0 + 138/606 tests 0 fail; frontend tsc 0 + vite build ✅ (production-buildable). task-003-baseline errors सब stale/पुराने हैं, resolve हो चुके। पूरा repo clean — आगे सिर्फ़ owner ke 3 decisions + M13 (Claude).
 
 ## 📌 2026-09-06 — अटकाव (FINAL): backend M11-M22 सब done (vitest fileParallelism:false → 139/609 reliable, push 9cf7bea). Frontend investigation user ने cancel किया → frontend merे scope से बाहर। आगे सिर्फ़ 3 owner decisions (M12 TDS numbers, M15 platform+creds, M21 scheme) + M13 certify (Claude).
+
+## 📌 2026-09-06 (CORRECTION) — मेरा "nothing left" claim GALAT tha। Claude ke M11-M22 wiring pass (log.md) ने 9 toote cross-module event links दिखाए — modules अकेले हरे हैं पर end-to-end connected नहीं। मैंने M14→M13 fix किया (import.completed/export.completed ab shared eventBus पर publish, push b33ed1a + wiring test)। बाक़ी broken links (M11→M16, M12→M16, M12→M11, M15 transport, M17 register, M19 envelope, M20 handlers, M21 public-methods) को canonical event-name/payload/transport का owner फ़ैसला चाहिए — Claude ने भी यही flag किया था।
