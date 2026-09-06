@@ -2,6 +2,8 @@
 // services/types/validators/routes ही — repositories कभी नहीं (blueprint rule)
 export { AccountingService, accountingService } from './services/accounting.service';
 export { LedgerService } from './services/ledger.service';
+export { VoucherService, VoucherServiceError } from './services/voucher.service';
+export { InvoiceLedgerService, type InvoiceLedgerResult } from './services/invoice-ledger.service';
 export { default as accountingRoutes } from './routes/accounting.routes';
 export * from './types/accounting.types';
 export * from './validators/accounting.schema';

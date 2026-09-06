@@ -23,6 +23,11 @@ import {
 } from './sales.internal';
 import { printService } from './print.service';
 import { eventBus } from '../../../core/event-bus';
+import { InvoiceLedgerService } from '@/modules/m10-accounting';
+
+// M10 accrual entry — invoice post होते ही double-entry ledger (मालिक P0, 2026-09-06).
+// DI (injectDependencies) कभी wire नहीं होती थी; यह direct है, हमेशा चलती है।
+const invoiceLedgerService = new InvoiceLedgerService(prisma);
 
 
 // ─── M05/M06/M09/M10/M11 PUBLIC CONTRACT INTERFACES (Design-Expansion stubs) ───
@@ -219,31 +224,29 @@ export class SalesService {
     return salesRepository.updateInvoiceStatus(id, companyId, 'approved', { approvedBy });
   }
 
-  // ─── POST INVOICE (ATOMIC — triggers stock+GST+ledger+payment due) ───
+  // ─── POST INVOICE — accrual ledger entry + status posted ───
+  //
+  // 2026-09-06 (मालिक P0): पहले यह पूरी method injectDependencies() पर टिकी थी जो
+  // production में कभी call नहीं होती → हर post "M08 posting dependencies are not
+  // fully wired" पर throw करता था, यानी कोई invoice कभी post हो ही नहीं सकता था।
+  // अब M10 का accrual voucher (Dr Debtors / Cr Sales / Cr GST Output) सीधे बनता है।
+  //
+  // credit-limit जाँच सिर्फ़ तब चलती है जब M05 adapter inject हुआ हो (अभी नहीं —
+  // future)। Stock deduction on-post अलग काम है (M06 adapter) — अगले sprint,
+  // owner ने अलग रखा; sale पर stock delivery-challan के रास्ते घटता है।
   async postInvoice(id: string, companyId: string, postedBy: string): Promise<SalesInvoice> {
     const invoice = await salesRepository.getInvoiceById(id, companyId);
     if (!invoice) throw new Error('Invoice not found');
     if (invoice.status !== 'approved') throw new Error('Invoice must be approved before posting');
 
-    if (!partyService || !companyService || !stockService || !gstService || !ledgerService || !paymentService) {
-      throw new Error('M08 posting dependencies are not fully wired');
-    }
-    const customer = await partyService.getCustomerById(invoice.customerId);
-    const company = await companyService.getProfile(invoice.companyId);
-    const customerState = customer?.state;
-    const companyState = company?.state;
-    if (!customerState || !companyState) throw new Error('Customer/company state is required for GST calculation');
-
-    // 1. Credit limit check (M05)
-    {
+    // optional — inject होने पर ही (अभी कहीं inject नहीं होता, इसलिए skip; blocking नहीं)
+    if (partyService) {
       const creditCheck = await partyService.checkCreditLimit(invoice.customerId, Number(invoice.grandTotal));
       if (!creditCheck.allowed) {
         throw new Error(`Credit limit exceeded. Limit: ${creditCheck.limit}, Used: ${creditCheck.used}`);
       }
     }
-
-    // 2. Stock availability check (M06)
-    {
+    if (stockService) {
       for (const item of invoice.items) {
         const stockCheck = await stockService.checkAvailability(item.productId, invoice.branchId, Number(item.quantity));
         if (!stockCheck.available) {
@@ -252,50 +255,15 @@ export class SalesService {
       }
     }
 
-    // 3. Execute atomic transaction via Central Transaction Engine
-    await prisma.$transaction(async (tx) => {
-      // a. Deduct stock (M06)
-      {
-        const stockItems = invoice.items.map((i) => ({
-          productId: i.productId,
-          batchId: i.batchId || undefined,
-          quantity: Number(i.quantity),
-        }));
-        await stockService.deductStock(stockItems, invoice.branchId);
-      }
+    // पहले M10 accrual entry, फिर status 'posted' — अगर ledger फटा तो invoice
+    // 'approved' ही रहता है (books के बिना कभी "posted" नहीं दिखता)। M10 खुद
+    // idempotent है इसलिए retry सुरक्षित।
+    const ledgerResult = await invoiceLedgerService.postSalesInvoice(companyId, id, postedBy);
+    if (!ledgerResult.posted && ledgerResult.reason !== 'already posted to ledger') {
+      throw new Error(`M08→M10 ledger posting failed: ${ledgerResult.reason}`);
+    }
 
-      // b. Calculate GST (M09)
-      {
-        const gstItems = invoice.items.map((i) => ({
-          hsnCode: i.hsnCode || '',
-          amount: Number(i.amount),
-          taxRate: Number(i.taxRate),
-        }));
-        await gstService.calculateTax(gstItems, customerState, companyState);
-      }
-
-      // c. Create ledger entry (M10)
-      {
-        await ledgerService.createEntry({
-          invoiceId: invoice.id,
-          customerId: invoice.customerId,
-          amount: Number(invoice.grandTotal),
-          type: 'SALES',
-          date: new Date(),
-        });
-      }
-
-      // d. Create payment due (M11)
-      {
-        await paymentService.createDue(invoice.id, Number(invoice.grandTotal), invoice.dueDate);
-      }
-
-      // e. Update invoice status to posted
-      await tx.salesInvoice.update({
-        where: { id },
-        data: { status: 'posted', postedBy },
-      });
-    });
+    await prisma.salesInvoice.update({ where: { id }, data: { status: 'posted', postedBy } });
 
     // 4. Publish event (M16, M17)
     const eventPayload: SalesInvoiceCreatedEvent = {

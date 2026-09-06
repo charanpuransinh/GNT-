@@ -2595,3 +2595,62 @@ M16 recipient default (`e97be76`) कर चुका — उन पर दो�
 - **M20 trade handlers**: हर body सिर्फ़ `console.log` — असल M10/M11/M16 calls लिखनी हैं।
 - **M21 transfer.executor**: sales/purchase/accounting adapters सीधे `prisma.create`
   से — M08/M07/M10 में suitable public method बने तब shift करना।
+
+---
+
+## 2026-09-06 (रात) — P0: Sales/Purchase → Accounting auto-ledger (Claude)
+
+**मालिक का फ़ैसला:** "invoice post होते ही double-entry ledger अपने आप बने। जब तक
+यह ना बने, GNT का accounting हिस्सा अधूरा माना जाएगा।" (P0)
+
+**पहले की हालत:** `sales.service.postInvoice` `injectDependencies()` पर टिका था जो
+production में कभी call नहीं होता → हर post **"M08 posting dependencies are not
+fully wired" पर throw** — यानी कोई invoice कभी post हो ही नहीं सकता था। M07 का
+ledger handler भी सीधे throw करता था।
+
+### नया — `m10-accounting/services/invoice-ledger.service.ts` (`InvoiceLedgerService`)
+Accrual double-entry (बिल उठते ही, payment से अलग/पहले):
+- **SALES post:** Dr Sundry Debtors `grand_total` / Cr Sales Revenue
+  `(grand_total − tax − round_off)` / Cr GST Output Tax `total_tax` / ±Round Off।
+- **PURCHASE post:** Dr Purchases / Dr GST Input Tax / ±Round Off / Cr Sundry Creditors।
+- Control accounts deterministic lookup-or-create (M11 `LedgerBridgeService` वाला
+  pattern — कोई नया chart-of-accounts फ़ैसला नहीं)। Debtors/Creditors वही
+  `M11-AR-<cid>` / `M11-AP-<cid>` code reuse — ताकि payment voucher उसी खाते पर
+  घटे और outstanding सही नेट हो। बाक़ी: `M10-SALES-`, `M10-PURCHASE-`,
+  `M10-GST-OUTPUT-`, `M10-GST-INPUT-`, `M10-ROUNDOFF-<cid>`।
+- एक `$transaction` में `voucher` + `voucher_item[]` + `ledger[]`। unbalanced होने
+  पर throw (आधा हिसाब कभी दर्ज नहीं)।
+- **Idempotent:** दोबारा post → `{ posted: false, reason: 'already posted' }`
+  (revenue/purchases खाते की उसी reference_id पर ledger पंक्ति देखकर — यह खाता
+  सिर्फ़ invoice-posting छूता है, payment नहीं)।
+
+### Wiring
+- **M08 `postInvoice`**: hard DI throw हटाया। अब `InvoiceLedgerService.postSalesInvoice`
+  सीधे (direct import, हमेशा चलता है)। credit-limit जाँच सिर्फ़ `if (partyService)`
+  (future adapter)। **Stock deduction on-post अलग काम** (M06 adapter) — owner ने
+  अगले sprint में रखा; sale पर stock delivery-challan से घटता है।
+- **M07** (module-registry): throwing ledger handler → असली
+  `InvoiceLedgerService.postPurchaseInvoice`। GST handler अब logged no-op (उसका
+  ITC ledger हिस्सा GST-Input पंक्ति में हो जाता है; GSTR-2 table update अलग,
+  अगले sprint)। purchase-**return** reversal अभी throw करता है (साफ़ message —
+  returns flow अलग, अगले sprint)।
+
+### verify (असली DB, `TEST_DB=1`)
+नई `m10-accounting/tests/invoice-ledger.db.test.ts` (5 tests):
+1. sales post → balanced Dr Debtors / Cr Sales / Cr GST, party_id सही
+2. idempotent — दोबारा post → नई entry नहीं
+3. trial balance संतुलित (Dr कुल == Cr कुल)
+4. purchase post → Dr Purchases + Dr GST Input == Cr Creditors
+5. **M08 का पूरा HTTP flow (create → approve → post) अब सच में 200 देता है**
+   (पहले कभी नहीं चलता था) + ledger पंक्तियाँ बनती हैं + `sales.invoice.created`
+   event → M16 notification (company admin) + M17 cache — सब जुड़ा हुआ।
+
+`tsc` 0; पूरा backend green (final count commit में)।
+
+### अगले sprint (owner ने क्रम दिया: M20 → M21 → M15)
+- M08 stock deduction on-post (M06 adapter)
+- M07 GST → M09 gst_transaction (GSTR-2) update
+- purchase-return + sales-return ledger reversal
+- M20 trade handlers (console.log → असली M10/M11/M16 calls)
+- M21 transfer.executor को M08/M07/M10 public method पर shift (direct prisma हटाना)
+- M15 sync BullMQ → in-process bus

@@ -52,10 +52,12 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   { code: 'M07', path: '/api/v1/purchase', mounted: true,
     load: async () => {
       // टास्क #016 — M07 की composition (M18 के load() वाला तरीक़ा)
-      // ✅ Stock wiring अब असली StockService से जुड़ी है (अनुवर्ती)।
-      // ⚠️ दर्ज: GST + ledger की असली wiring बाक़ी — वहाँ डिज़ाइन-फ़ैसले चाहिए
-      // (ledger की डबल-एंट्री रचना + purchase account का चुनाव + GST में state का स्रोत);
-      // तब तक वे ज़ोर से fail करते हैं — चुपचाप ग़लत डेटा कभी नहीं।
+      // ✅ Stock wiring असली StockService से।
+      // ✅ 2026-09-06 (मालिक P0): ledger अब असली M10 InvoiceLedgerService से —
+      //    purchase invoice post होते ही Dr Purchases / Dr GST Input / Cr Creditors।
+      // ⚠️ GST handler अब logged no-op: उसका ITC ledger हिस्सा InvoiceLedgerService
+      //    की GST-Input पंक्ति में हो जाता है; GSTR-2 table update (M09 gst_transaction)
+      //    अलग काम है (owner ने अगले sprint में रखा)।
       const [
         { PurchaseController },
         { PurchaseOrderController },
@@ -66,6 +68,7 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         { eventBus },
         { createPurchaseRouter },
         { StockService },
+        { InvoiceLedgerService },
       ] = await Promise.all([
         import('./modules/m07-purchase/controllers/purchase.controller'),
         import('./modules/m07-purchase/controllers/purchase-order.controller'),
@@ -76,9 +79,11 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         import('./common/events/event-bus'),
         import('./modules/m07-purchase/routes/purchase.routes'),
         import('./modules/m06-inventory/services/stock.service'),
+        import('./modules/m10-accounting'),
       ]);
 
       const stockSvc = new StockService();
+      const invoiceLedgerSvc = new InvoiceLedgerService(prisma);
       const stockServiceForHandlers = {
         async addStock(data: { product_id: string; quantity: number; rate: number; batch_id?: string; reference: string; company_id: string }): Promise<void> {
           await stockSvc.addStock(data.product_id, data.quantity, data.company_id, null, data.batch_id ?? null, data.rate ?? null, 'purchase', data.reference);
@@ -89,22 +94,26 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
       };
       const gstServiceForHandlers = {
         async calculateInputTax(data: { invoice_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }> }): Promise<void> {
-          void data;
-          throw new Error('M07→M09 GST wiring अभी बाक़ी है — डिज़ाइन फ़ैसले समीक्षक AI के (state का स्रोत: party.state_code/company GSTIN); notify किया गया है');
+          // ITC का ledger हिस्सा InvoiceLedgerService.postPurchaseInvoice की GST-Input
+          // पंक्ति में हो जाता है। M09 gst_transaction (GSTR-2) update अभी बाक़ी — owner
+          // ने अगले sprint में रखा। यहाँ throw नहीं (वरना पूरा post रुक जाता है)।
+          console.log(`[M07→M09] input tax credit noted for invoice ${data.invoice_id} (GSTR-2 table update pending)`);
         },
         async reverseInputTax(data: { return_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number }> }): Promise<void> {
-          void data;
-          throw new Error('M07→M09 GST wiring अभी बाक़ी है (ऊपर वाला नोट)');
+          console.log(`[M07→M09] input tax reversal noted for return ${data.return_id} (GSTR-2 table update pending)`);
         },
       };
       const ledgerServiceForHandlers = {
         async createPurchaseEntry(data: { invoice_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
-          void data;
-          throw new Error('M07→M10 ledger wiring अभी बाक़ी है — डिज़ाइन फ़ैसले समीक्षक AI के (डबल-एंट्री रचना + purchase account); notify किया गया है');
+          const res = await invoiceLedgerSvc.postPurchaseInvoice(data.company_id, data.invoice_id, 'system');
+          if (!res.posted && res.reason !== 'already posted to ledger') {
+            throw new Error(`M07→M10 purchase ledger posting failed: ${res.reason}`);
+          }
         },
         async createPurchaseReturnEntry(data: { return_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
-          void data;
-          throw new Error('M07→M10 ledger wiring अभी बाक़ी है (ऊपर वाला नोट)');
+          // purchase-return का reversal voucher अभी बाक़ी (owner ने अगले sprint में रखा —
+          // returns का flow अलग)। चुपचाप ग़लत नहीं — साफ़ बताता है।
+          throw new Error(`M07→M10 purchase-return ledger reversal not implemented yet (return ${data.return_id})`);
         },
       };
 
