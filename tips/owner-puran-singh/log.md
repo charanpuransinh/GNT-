@@ -2542,3 +2542,56 @@ handler mount पर register ही नहीं होते:
 बाक़ी event-आधारित links (ऊपर तालिका) **अभी असल में जुड़े नहीं** — इन्हें
 "certified/OK" कहना उस झूठे-हरे जैसा होगा जिससे यह log बार-बार मना करता है।
 इनके लिए एक canonical event-नाम + payload registry और transport का फ़ैसला चाहिए।
+
+---
+
+## 2026-09-06 (शाम) — Event bus फ़ैसला + canonical catalog + M17/M19 wired (Claude)
+
+**मालिक का फ़ैसला (chat):** (1) cross-module transport = **in-process `eventBus`**
+(Redis/BullMQ नहीं), (2) payload contract project के नियम से तय करके यहाँ दर्ज,
+(3) काम main में merge+push।
+
+DeepSeek समांतर में M14→M13 (`b33ed1a`), M16 name/companyId align (`70c7b20`),
+M16 recipient default (`e97be76`) कर चुका — उन पर दोबारा काम नहीं किया।
+
+**नया — `backend/src/common/events/event-catalog.ts` (canonical registry):**
+हर cross-module event का नाम `GNT_EVENTS.*` से — **वही जो publisher सच में emit
+करता है** (grep से verify: `sales.invoice.created`, `payment.completed`,
+`stock.low`, `import.completed`, `gst.einvoice.generated`, `payroll.paid`…)।
+`event-registry.json` के पुराने नाम (`invoice.created`, `po.approved`) **ग़लत हैं
+— कोई publish नहीं करता**। `eventCompanyId(payload)` helper — `tenantId` /
+`companyId` / `company_id` तीनों संभालता है (M16/M17 में inline `?? ?? ??` की जगह)।
+
+**इस pass में fix + tested (असली DB):**
+- `report.events.ts` + `notification.events.ts`: `invoice.created`→`sales.invoice.created`,
+  `po.approved`→`purchase.invoice.approved` (DeepSeek ने registry-नाम लिए थे जो
+  कोई emit नहीं करता)।
+- **M17 `ReportEventHandlers`**: companyId अब `eventCompanyId()` से — M11/M12
+  `tenantId` भेजते हैं, पहले `payload.companyId` undefined जाता और cache कभी
+  invalidate ही नहीं होता। नई `m17-reporting/tests/event-cache-wiring.db.test.ts`
+  (4, tenant-safe)।
+- **M19 audit trail — नया wiring**: `registerSecurityEventHandlers()` अब M19 mount
+  पर (module-registry) — हर business event (`payment.completed`,
+  `sales.invoice.created`, `payroll.*`, `import/export.completed`…) append-only
+  `audit_log` में (module-map सहित)। पहले `SecurityEventHandlers` कभी subscribe
+  ही नहीं होता था। नई `m19-.../tests/event-audit-wiring.db.test.ts` (3,
+  company-id न हो तो row नहीं)।
+
+**canonical event contract table:** `common/events/event-catalog.ts` देखो (GNT_EVENTS +
+हर के publisher/subscriber comment में)।
+
+**verify:** `tsc` 0; पूरा backend green (final count commit में)।
+
+### अब भी owner/design फ़ैसला चाहिए (छुआ नहीं)
+- **M11/M12 → M16**: M16 handler `targetUserIds` माँगता है — payment/salary पर
+  **किसे** notify करें? (party↔user link नहीं; DeepSeek ने `e97be76` में
+  "company admins" default रखा — owner confirm करे)।
+- **M08/M07 → M10** invoice→auto-ledger: `sales.service.postInvoice` DI
+  (`injectDependencies`) पर टिका है जो production में कभी call नहीं होता → mounted
+  app में हर invoice-post throw करता है। M10 में double-entry "post sales invoice"
+  public method भी नहीं। अलग बड़ा काम।
+- **M15 sync**: transport अब तय (in-process bus) — `SyncEventSubscriber` (BullMQ
+  Redis) को `eventBus.subscribe` पर लाना, placeholder handler files भरना/हटाना।
+- **M20 trade handlers**: हर body सिर्फ़ `console.log` — असल M10/M11/M16 calls लिखनी हैं।
+- **M21 transfer.executor**: sales/purchase/accounting adapters सीधे `prisma.create`
+  से — M08/M07/M10 में suitable public method बने तब shift करना।

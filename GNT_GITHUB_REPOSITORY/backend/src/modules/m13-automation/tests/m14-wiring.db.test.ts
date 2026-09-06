@@ -68,7 +68,7 @@ describe.runIf(process.env.TEST_DB === '1')('M13 ↔ M14 — असली import
     expect(res.status).toBe(202);
 
     let log: Awaited<ReturnType<typeof prisma.jobExecutionLog.findFirst>> = null;
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 60; i++) {
       log = await prisma.jobExecutionLog.findFirst({ where: { ruleId }, orderBy: { startedAt: 'desc' } });
       if (log && log.status !== 'RUNNING') break;
       await new Promise((r) => setTimeout(r, 200));

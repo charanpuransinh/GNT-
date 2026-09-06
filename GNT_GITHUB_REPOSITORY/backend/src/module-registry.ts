@@ -173,7 +173,12 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
       return createIntegrationRoutes(new IntegrationController(integrationService), new WebhookController(webhookService));
     } },
   { code: 'M19', path: '/api/v1/monitoring', mounted: true,
-    load: async () => (await import('./modules/m19-production-monitoring')).securityRoutes },
+    load: async () => {
+      const m19 = await import('./modules/m19-production-monitoring');
+      // cross-module: har business event append-only audit_log me
+      m19.registerSecurityEventHandlers();
+      return m19.securityRoutes;
+    } },
   // M21 — SENSE/MAP/VALIDATE/PREVIEW चालू (Claude, 2026-09-03)। TRANSFER अभी बाक़ी:
   // owner के 3 फ़ैसले चाहिए (tips/reviewer-ai/SPEC-REVIEW-M20-M21.md)।
   { code: 'M21', path: '/api/v1/data-sense', mounted: true,

@@ -4,10 +4,12 @@
  */
 
 export const REPORT_EVENTS = {
-  // Events that M17 subscribes to (event-registry.json के canonical names से align)
+  // Events that M17 subscribes to — naam wahi jo publisher SACH ME emit karta hai
+  // (common/events/event-catalog.ts GNT_EVENTS ke saath align; `invoice.created`/
+  //  `po.approved` galat the — koi publish nahi karta)
   SUBSCRIPTIONS: {
-    SALES_INVOICE_CREATED: 'invoice.created',
-    PURCHASE_INVOICE_APPROVED: 'po.approved',
+    SALES_INVOICE_CREATED: 'sales.invoice.created',
+    PURCHASE_INVOICE_APPROVED: 'purchase.invoice.approved',
     STOCK_UPDATED: 'stock.low',
     PAYMENT_RECEIVED: 'payment.completed',
     EMPLOYEE_SALARY_PROCESSED: 'payroll.paid',

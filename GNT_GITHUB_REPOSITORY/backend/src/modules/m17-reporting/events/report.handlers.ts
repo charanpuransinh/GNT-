@@ -1,9 +1,15 @@
 /**
  * M17 Reporting — Event Consumers
  * Owner: D4-DELTA
+ *
+ * 2026-09-06 (Claude): companyId ab `eventCompanyId(payload)` se — M11/M12/M14
+ * `tenantId` bhejte hain, `payload.companyId` undefined jata tha aur cache
+ * kabhi invalidate hi nahi hota tha. Event naam report.events.ts me canonical
+ * (common/events/event-catalog.ts GNT_EVENTS ke saath align).
  */
 import { eventBus } from '../../../shared/events/event-bus';
-import { REPORT_EVENTS, ReportSubscriptionEvent } from './report.events';
+import { eventCompanyId } from '../../../common/events/event-catalog';
+import { REPORT_EVENTS } from './report.events';
 import { ReportService } from '../services/report.service';
 import { reportCache } from '../services/report.cache';
 
@@ -15,140 +21,25 @@ export class ReportEventHandlers {
   register(): void {
     if (this.registered) return; // दोबारा mount पर दोहरा subscribe नहीं
     this.registered = true;
-    // Subscribe to cross-module events to update report caches
-    eventBus.subscribe(
-      REPORT_EVENTS.SUBSCRIPTIONS.SALES_INVOICE_CREATED,
-      this.handleSalesInvoiceCreated.bind(this)
-    );
-    eventBus.subscribe(
-      REPORT_EVENTS.SUBSCRIPTIONS.PURCHASE_INVOICE_APPROVED,
-      this.handlePurchaseInvoiceApproved.bind(this)
-    );
-    eventBus.subscribe(
-      REPORT_EVENTS.SUBSCRIPTIONS.STOCK_UPDATED,
-      this.handleStockUpdated.bind(this)
-    );
-    eventBus.subscribe(
-      REPORT_EVENTS.SUBSCRIPTIONS.PAYMENT_RECEIVED,
-      this.handlePaymentReceived.bind(this)
-    );
-    eventBus.subscribe(
-      REPORT_EVENTS.SUBSCRIPTIONS.EMPLOYEE_SALARY_PROCESSED,
-      this.handleSalaryProcessed.bind(this)
-    );
+    const S = REPORT_EVENTS.SUBSCRIPTIONS;
+    eventBus.subscribe(S.SALES_INVOICE_CREATED, (p) => this.onSource(p, 'sales', S.SALES_INVOICE_CREATED));
+    eventBus.subscribe(S.PURCHASE_INVOICE_APPROVED, (p) => this.onSource(p, 'purchase', S.PURCHASE_INVOICE_APPROVED));
+    eventBus.subscribe(S.STOCK_UPDATED, (p) => this.onSource(p, 'inventory', S.STOCK_UPDATED));
+    eventBus.subscribe(S.PAYMENT_RECEIVED, (p) => this.onSource(p, 'accounting', S.PAYMENT_RECEIVED));
+    eventBus.subscribe(S.EMPLOYEE_SALARY_PROCESSED, (p) => this.onSource(p, 'hr', S.EMPLOYEE_SALARY_PROCESSED));
   }
 
-  /**
-   * Handle sales.invoice.created
-   * → Update sales report cache
-   */
-  private async handleSalesInvoiceCreated(payload: {
-    invoiceId: string;
-    companyId: string;
-    customerId: string;
-    totalAmount: number;
-    timestamp: string;
-  }): Promise<void> {
-    console.log(`[M17] Sales invoice created: ${payload.invoiceId}`);
-    // Invalidate sales report cache for the company
-    await this.invalidateReportCache(payload.companyId, 'sales');
-    // Publish report updated event
-    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
-      reportType: 'sales',
-      companyId: payload.companyId,
-      triggeredBy: 'sales.invoice.created',
-    });
-  }
-
-  /**
-   * Handle purchase.invoice.approved
-   * → Update purchase report cache
-   */
-  private async handlePurchaseInvoiceApproved(payload: {
-    poId: string;
-    companyId: string;
-    supplierId: string;
-    amount: number;
-    timestamp: string;
-  }): Promise<void> {
-    console.log(`[M17] Purchase invoice approved: ${payload.poId}`);
-    await this.invalidateReportCache(payload.companyId, 'purchase');
-    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
-      reportType: 'purchase',
-      companyId: payload.companyId,
-      triggeredBy: 'purchase.invoice.approved',
-    });
-  }
-
-  /**
-   * Handle stock.updated
-   * → Update inventory report cache
-   */
-  private async handleStockUpdated(payload: {
-    productId: string;
-    companyId: string;
-    warehouseId: string;
-    quantity: number;
-    timestamp: string;
-  }): Promise<void> {
-    console.log(`[M17] Stock updated: ${payload.productId}`);
-    await this.invalidateReportCache(payload.companyId, 'inventory');
-    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
-      reportType: 'inventory',
-      companyId: payload.companyId,
-      triggeredBy: 'stock.updated',
-    });
-  }
-
-  /**
-   * Handle payment.received
-   * → Update outstanding report
-   */
-  private async handlePaymentReceived(payload: {
-    paymentId: string;
-    companyId: string;
-    customerId: string;
-    amount: number;
-    timestamp: string;
-  }): Promise<void> {
-    console.log(`[M17] Payment received: ${payload.paymentId}`);
-    await this.invalidateReportCache(payload.companyId, 'accounting');
-    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
-      reportType: 'accounting',
-      companyId: payload.companyId,
-      triggeredBy: 'payment.received',
-    });
-  }
-
-  /**
-   * Handle employee.salary.processed
-   * → Update HR report cache
-   */
-  private async handleSalaryProcessed(payload: {
-    salaryId: string;
-    companyId: string;
-    employeeId: string;
-    month: string;
-    netSalary: number;
-    timestamp: string;
-  }): Promise<void> {
-    console.log(`[M17] Salary processed: ${payload.salaryId}`);
-    await this.invalidateReportCache(payload.companyId, 'hr');
-    eventBus.publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, {
-      reportType: 'hr',
-      companyId: payload.companyId,
-      triggeredBy: 'employee.salary.processed',
-    });
-  }
-
-  /**
-   * Invalidate report cache for a company and report type.
-   * Uses report.cache.ts (in-process Map today; swap for Redis in
-   * production by editing report.cache.ts only — this call site
-   * doesn't need to change).
-   */
-  private async invalidateReportCache(companyId: string, reportType: string): Promise<void> {
+  /** source data badla → us company ke us report-type ka cache invalidate + report.generated */
+  private onSource(payload: unknown, reportType: string, triggeredBy: string): void {
+    const companyId = eventCompanyId(payload);
+    if (!companyId) {
+      console.warn(`[M17] "${triggeredBy}" event me company id nahi mila — cache invalidate skip`);
+      return;
+    }
     const removed = reportCache.invalidate(companyId, reportType);
-    console.log(`[M17] Cache invalidated: ${companyId}/${reportType} (${removed} entries removed)`);
+    console.log(`[M17] cache invalidated: ${companyId}/${reportType} (${removed}) — trigger: ${triggeredBy}`);
+    void eventBus
+      .publish(REPORT_EVENTS.PUBLICATIONS.REPORT_GENERATED, { reportType, companyId, triggeredBy })
+      .catch(() => {});
   }
 }

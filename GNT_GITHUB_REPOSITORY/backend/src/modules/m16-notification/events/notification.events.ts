@@ -10,9 +10,11 @@ export const NotificationEvents = {
   FAILED: 'notification.failed',
   READ: 'notification.read',
 
-  // Incoming events (M16 subscribes)
-  SALES_INVOICE_CREATED: 'invoice.created',
-  PURCHASE_INVOICE_APPROVED: 'po.approved',
+  // Incoming events (M16 subscribes) — naam wahi jo publisher SACH ME emit karta hai
+  // (M08 sales.service `sales.invoice.created` publish karta hai, `invoice.created` nahi;
+  //  M07 abhi publish nahi karta par canonical naam `purchase.invoice.approved` hai)
+  SALES_INVOICE_CREATED: 'sales.invoice.created',
+  PURCHASE_INVOICE_APPROVED: 'purchase.invoice.approved',
   PAYMENT_RECEIVED: 'payment.completed',
   STOCK_LOW: 'stock.low',
   GST_RETURN_DUE: 'gst.return.due',
