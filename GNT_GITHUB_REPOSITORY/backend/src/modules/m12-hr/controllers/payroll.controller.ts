@@ -14,7 +14,7 @@ export class PayrollController {
       const { month, year, employeeIds } = req.body;
       const payrolls = await this.service.generate(tenantId, month, year, employeeIds);
       for (const payroll of payrolls) {
-        await this.events.publish('PAYROLL_GENERATED', {
+        await this.events.publish(tenantId, 'PAYROLL_GENERATED', {
           payrollId: payroll.id, employeeId: payroll.employeeId, amount: payroll.netPay,
           month, year, targetModule: 'M11'
         });
@@ -39,7 +39,7 @@ export class PayrollController {
     try {
       const tenantId = requireTenant(req).companyId;
       const payroll = await this.service.markAsPaid(tenantId, String(req.params.id), req.body);
-      await this.events.publish('PAYROLL_PAID', {
+      await this.events.publish(tenantId, 'PAYROLL_PAID', {
         payrollId: payroll.id, employeeId: payroll.employeeId, amount: payroll.netPay,
         paymentRef: payroll.paymentTransactionId, targetModule: 'M11'
       });

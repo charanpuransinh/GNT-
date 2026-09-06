@@ -12,7 +12,7 @@ export class LeaveController {
     try {
       const tenantId = requireTenant(req).companyId;
       const leave = await this.service.apply(tenantId, req.body);
-      await this.events.publish('LEAVE_APPLIED', { leaveId: leave.id, employeeId: leave.employeeId, days: leave.daysRequested });
+      await this.events.publish(tenantId, 'LEAVE_APPLIED', { leaveId: leave.id, employeeId: leave.employeeId, days: leave.daysRequested });
       res.status(201).json({ success: true, data: leave });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -26,7 +26,7 @@ export class LeaveController {
       // approver की पहचान auth token से — body से कभी नहीं (किसी और के नाम से approve रोकने के लिए)
       const approvedById = requireUser(req).id;
       const leave = await this.service.approve(tenantId, id, approvedById);
-      await this.events.publish('LEAVE_APPROVED', { leaveId: leave.id, employeeId: leave.employeeId });
+      await this.events.publish(tenantId, 'LEAVE_APPROVED', { leaveId: leave.id, employeeId: leave.employeeId });
       res.json({ success: true, data: leave });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -40,7 +40,7 @@ export class LeaveController {
       const approvedById = requireUser(req).id;
       const rejectionReason = req.body?.rejectionReason as string | undefined;
       const leave = await this.service.reject(tenantId, id, approvedById, rejectionReason ?? 'Rejected');
-      await this.events.publish('LEAVE_REJECTED', { leaveId: leave.id, employeeId: leave.employeeId, reason: rejectionReason });
+      await this.events.publish(tenantId, 'LEAVE_REJECTED', { leaveId: leave.id, employeeId: leave.employeeId, reason: rejectionReason });
       res.json({ success: true, data: leave });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });

@@ -12,7 +12,7 @@ export class EmployeeController {
     try {
       const tenantId = requireTenant(req).companyId;
       const employee = await this.service.create(tenantId, req.body);
-      await this.events.publish('EMPLOYEE_CREATED', { employeeId: employee.id, email: employee.email });
+      await this.events.publish(tenantId, 'EMPLOYEE_CREATED', { employeeId: employee.id, email: employee.email });
       res.status(201).json({ success: true, data: employee });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -48,7 +48,7 @@ export class EmployeeController {
     try {
       const tenantId = requireTenant(req).companyId;
       const employee = await this.service.update(tenantId, String(req.params.id), req.body);
-      await this.events.publish('EMPLOYEE_UPDATED', { employeeId: employee.id, changes: Object.keys(req.body) });
+      await this.events.publish(tenantId, 'EMPLOYEE_UPDATED', { employeeId: employee.id, changes: Object.keys(req.body) });
       res.json({ success: true, data: employee });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -59,7 +59,7 @@ export class EmployeeController {
     try {
       const tenantId = requireTenant(req).companyId;
       await this.service.remove(tenantId, String(req.params.id));
-      await this.events.publish('EMPLOYEE_DELETED', { employeeId: String(req.params.id) });
+      await this.events.publish(tenantId, 'EMPLOYEE_DELETED', { employeeId: String(req.params.id) });
       res.json({ success: true, message: 'Employee deleted' });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
