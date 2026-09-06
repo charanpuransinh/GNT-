@@ -64,13 +64,42 @@ export class ImportService {
 
     const suggestedMapping = this.suggestFieldMapping(result.headers, result.rows[0] || {});
 
+    // Preview me duplicate warning — full file parse karke exact-duplicate rows detect (best-effort)
+    let duplicateRows: { count: number; rowNumbers: number[] } = { count: 0, rowNumbers: [] };
+    try {
+      const ft = fileType.toLowerCase();
+      const full = ft === 'csv' ? await CSVParser.parse(filePath)
+        : (ft === 'xlsx' || ft === 'xls') ? ExcelParser.parse(filePath)
+        : JSONParser.parse(filePath);
+      duplicateRows = this.detectExactDuplicates(full.rows);
+    } catch {
+      // preview duplicate-check best-effort — parse fail ho to bina warning ke
+    }
+
     return {
       headers: result.headers,
       rows: result.rows,
       totalRows: result.totalRows,
       detectedType: fileType,
-      suggestedMapping
+      suggestedMapping,
+      duplicateRows
     };
+  }
+
+  /** exact-duplicate rows detect (generic — koi entity-specific hardcode nahi) */
+  private static detectExactDuplicates(rows: ImportRow[]): { count: number; rowNumbers: number[] } {
+    const seen = new Map<string, number>();
+    const rowNumbers: number[] = [];
+    for (const row of rows) {
+      const key = Object.entries(row)
+        .filter(([k]) => !k.startsWith('_'))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, v]) => String(v ?? '').trim().toLowerCase())
+        .join('|');
+      if (seen.has(key)) rowNumbers.push(row._rowNumber);
+      else seen.set(key, row._rowNumber);
+    }
+    return { count: rowNumbers.length, rowNumbers: rowNumbers.slice(0, 20) };
   }
 
   static async processJob(jobId: string, fieldMapping: FieldMapping[], tenantId: string): Promise<void> {

@@ -35,6 +35,7 @@ export interface ImportPreview {
   totalRows: number;
   detectedType: string;
   suggestedMapping: FieldMapping[];
+  duplicateRows?: { count: number; rowNumbers: number[] };
 }
 
 export interface ExportConfig {
