@@ -33,9 +33,10 @@ router.get('/exports', exportCtrl.listJobs);
 router.post('/exports/:jobId/cancel', exportCtrl.cancel);
 router.get('/exports/:jobId/download', exportCtrl.download);
 
-// Template Routes
+// Template Routes  (/templates/default before /templates/:id — वरना :id "default" पकड़ लेगा)
 router.post('/templates', templateCtrl.create);
 router.get('/templates', templateCtrl.list);
+router.get('/templates/default', templateCtrl.getDefault);
 router.get('/templates/:id', templateCtrl.getById);
 router.put('/templates/:id', templateCtrl.update);
 router.delete('/templates/:id', templateCtrl.delete);

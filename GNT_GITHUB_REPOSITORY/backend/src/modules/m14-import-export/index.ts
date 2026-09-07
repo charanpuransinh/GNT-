@@ -14,4 +14,3 @@ export { JobService } from './services/job.service';
 
 // LIVE utils
 export * from './utils/csvParser';
-export * from './utils/excelHandler';
