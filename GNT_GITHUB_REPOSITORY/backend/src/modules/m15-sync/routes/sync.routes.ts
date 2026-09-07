@@ -1,25 +1,25 @@
 // M15 Sync Module — Routes (टास्क #025 B3: असली static controllers से मिलाया गया)
 // पुराने m15 middleware (authenticate/requireTenant/validateRequest) हटा दिए गए —
 // मुख्य app की #009 chain हर /api/v1 रास्ते पर पहले ही चलती है।
+//
+// 2026-09-07 (Claude, M15 cert): webhook endpoints/deliveries M18 की चीज़ हैं
+// (टास्क #008 का फ़ैसला)। M15 का webhook.service सिर्फ़ 501 फेंकने वाला stub था
+// जो फिर भी 7 routes पर चढ़ा हुआ था — वे routes + stub service/controller हटा दिए।
+// webhook चाहिए तो `/api/v1/integrations/...` (M18)।
 import { Router, Request, Response } from 'express';
+import { prisma } from '@/common/config/prisma';
 import { AuthenticatedRequest } from '../middleware/tenant.middleware';
 import { SyncController } from '../controllers/sync.controller';
 import { ConflictController } from '../controllers/conflict.controller';
 import { BackupController } from '../controllers/backup.controller';
-import { WebhookController } from '../controllers/webhook.controller';
 import { BackupService } from '../services/backup.service';
-import { WebhookService } from '../services/webhook.service';
 import { ConflictService } from '../services/conflict.service';
 import { EventEmitter } from '../events/sync.emitter';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
 const eventEmitter = new EventEmitter();
 const backupService = new BackupService(prisma, eventEmitter);
-const webhookService = new WebhookService(prisma, eventEmitter);
 const conflictService = new ConflictService(prisma, eventEmitter);
 const backupController = new BackupController(backupService);
-const webhookController = new WebhookController(webhookService);
 const conflictController = new ConflictController(conflictService);
 
 const router = Router();
@@ -57,14 +57,5 @@ router.delete('/backups/:id', (req, res, next) => backupController.deleteBackup(
 router.post('/backups/:id/restore', (req, res, next) => backupController.restoreBackup(req, res, next));
 router.get('/restores', (req, res, next) => backupController.getRestoreJobs(req, res, next));
 router.post('/restores/:id/rollback', (req, res, next) => backupController.rollbackRestore(req, res, next));
-
-// ── WEBHOOKS (instance; service अब M18-गेट stub है) ──
-router.get('/webhooks', (req, res, next) => webhookController.getAllEndpoints(req, res, next));
-router.post('/webhooks', (req, res, next) => webhookController.createEndpoint(req, res, next));
-router.put('/webhooks/:id', (req, res, next) => webhookController.updateEndpoint(req, res, next));
-router.delete('/webhooks/:id', (req, res, next) => webhookController.deleteEndpoint(req, res, next));
-router.patch('/webhooks/:id/toggle', (req, res, next) => webhookController.toggleEndpoint(req, res, next));
-router.get('/webhooks/:id/deliveries', (req, res, next) => webhookController.getDeliveries(req, res, next));
-router.post('/webhooks/:id/test', (req, res, next) => webhookController.testEndpoint(req, res, next));
 
 export default router;

@@ -1,8 +1,14 @@
 // M15 Sync Module — Event Emitter
 // GNT Team C | Modular Monolith Architecture
-// Publishes to Redis Event Bus for cross-module communication
+//
+// Local (in-module) handlers + a forward onto the shared in-process event bus
+// (`@/common/events/event-bus`) so sync/backup/conflict events reach other
+// modules. Pehle yahan ek fake `publishToRedis` tha jo sirf `console.log`
+// karta tha ("[REDIS PUBLISH] ...") — koi Redis hai hi nahi; woh hata diya.
 
-type EventHandler = (payload: any) => void | Promise<void>;
+import { eventBus } from '@/common/events/event-bus';
+
+type EventHandler = (payload: unknown) => void | Promise<void>;
 
 export class EventEmitter {
   private handlers: Map<string, EventHandler[]> = new Map();
@@ -21,8 +27,8 @@ export class EventEmitter {
     }
   }
 
-  async emit(event: string, payload: any): Promise<void> {
-    // Local handlers
+  async emit(event: string, payload: unknown): Promise<void> {
+    // Local (in-module) handlers
     const handlers = this.handlers.get(event) || [];
     for (const handler of handlers) {
       try {
@@ -32,14 +38,12 @@ export class EventEmitter {
       }
     }
 
-    // Publish to Redis Event Bus for cross-module communication
-    await this.publishToRedis(event, payload);
-  }
-
-  private async publishToRedis(event: string, payload: any): Promise<void> {
-    // In production: await redisClient.publish(`m15.${event}`, JSON.stringify(payload));
-    // For now, log the event
-    console.log(`[REDIS PUBLISH] m15.${event}`, JSON.stringify(payload));
+    // Cross-module: forward onto the shared in-process bus (namespaced `m15.`)
+    try {
+      await eventBus.publish(`m15.${event}`, payload as Record<string, unknown>);
+    } catch (err) {
+      console.error(`[M15] bus publish failed for m15.${event}:`, err);
+    }
   }
 }
 
@@ -71,9 +75,4 @@ export const M15_EVENTS = {
   RESTORE_COMPLETED: 'restore.completed',
   RESTORE_FAILED: 'restore.failed',
   RESTORE_ROLLED_BACK: 'restore.rolled_back',
-
-  // Webhook events
-  WEBHOOK_CREATED: 'webhook.created',
-  WEBHOOK_UPDATED: 'webhook.updated',
-  WEBHOOK_DELETED: 'webhook.deleted',
 } as const;

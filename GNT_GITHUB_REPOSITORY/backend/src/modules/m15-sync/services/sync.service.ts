@@ -1,6 +1,7 @@
-import { PrismaClient, SyncConfig, SyncJob, SyncEntityLog, SyncConflict, SyncState, BackupJob, SyncEntityConfig } from '@prisma/client';
+import { SyncConfig, SyncJob, SyncEntityLog, SyncConflict, SyncState, BackupJob, SyncEntityConfig } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'events';
+import { prisma } from '@/common/config/prisma';
 import {
   CreateSyncConfigRequest,
   UpdateSyncConfigRequest,
@@ -11,7 +12,6 @@ import {
 } from '../types/sync.types';
 import { fetchExternalEntities as fetchExternalFromProvider } from './external.connector';
 
-const prisma = new PrismaClient();
 const progressEmitter = new EventEmitter();
 
 export class SyncService {

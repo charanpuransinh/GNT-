@@ -202,54 +202,9 @@ export interface RestoreJob {
   createdAt: Date;
 }
 
-// ───────────────────────────────────────────────
-// WEBHOOK TYPES
-// ───────────────────────────────────────────────
-
-export type WebhookEvent = 
-  | 'sync.completed' 
-  | 'sync.failed' 
-  | 'backup.completed' 
-  | 'backup.failed'
-  | 'conflict.created'
-  | 'restore.completed'
-  | 'restore.failed';
-
-export interface WebhookEndpoint {
-  id: string;
-  tenantId: string;
-  name: string;
-  url: string;
-  secret: string;
-  events: WebhookEvent[];
-  isActive: boolean;
-  lastTriggeredAt?: Date;
-  failureCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateWebhookDTO {
-  name: string;
-  url: string;
-  secret: string;
-  events: WebhookEvent[];
-}
-
-export type DeliveryStatus = 'delivered' | 'failed' | 'retrying';
-
-export interface WebhookDelivery {
-  id: string;
-  tenantId: string;
-  webhookId: string;
-  eventType: WebhookEvent;
-  payload: Record<string, unknown>;
-  responseStatus?: number;
-  responseBody?: string;
-  deliveryStatus: DeliveryStatus;
-  retryCount: number;
-  createdAt: Date;
-}
+// NOTE: webhook endpoint/delivery types removed 2026-09-07 — webhooks belong to
+// M18 (External Integration), not M15 (टास्क #008). M15's webhook routes + the
+// 501-stub service/controller were removed at the same time.
 
 // ───────────────────────────────────────────────
 // SYNC STATE TYPES
