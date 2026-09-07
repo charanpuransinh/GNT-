@@ -1,53 +1,67 @@
 # M13_WIRING_MAP.md
 # ============================================================================
-# GNT MASTER BLUEPRINT V2 — M13 AUTOMATION — WIRING & CALL MAP
-# Session: 7 | Module: M13 | Layer: Backend
+# GNT MASTER BLUEPRINT V2 — M13 SMART AUTOMATION — WIRING & CALL MAP
+# Rewritten 2026-09-07 (previous version described a deleted BullMQ design)
 # ============================================================================
 
-## INBOUND (Other Modules → M13)
+## INBOUND (other modules → M13)
 
-| Source Module | Interface Type | Entry Point | Purpose |
-|--------------|----------------|-------------|---------|
-| M04 Config   | IMPORT         | m13.config.ts | Redis connection config |
-| M05 Validation | IMPORT       | m13.middleware.ts | Request validation (TEMP MOCK) |
-| M06 Auth     | IMPORT         | m13.middleware.ts | Auth middleware (TEMP MOCK) |
-| M08 Notification | SERVICE CALL | action-executor.service.ts | SEND_EMAIL action delegate |
-| M11 Payment  | EVENT          | event.handler.ts | Payment events → workflow triggers |
-| M12 HR       | EVENT          | event.handler.ts | HR events → workflow triggers |
-| M14 Import/Export | EVENT     | event.handler.ts | Import/Export events → workflow triggers |
-| M15 Sync     | EVENT          | event.handler.ts | Sync events → workflow triggers |
-| M18 Integration | EVENT BUS   | event.handler.ts | Central event bus subscription |
-| M19 Monitoring | SERVICE CALL | job-processor.service.ts | Job metrics export |
+All inbound cross-module signals arrive on the **shared in-process event bus**
+(`@/common/events/event-bus`). `registerAutomationEventHandlers()` calls
+`eventBus.subscribeAll(...)`; for each event it looks up active `EVENT`-trigger
+rules whose `triggerEvent` equals the event name **and** whose `tenantId`
+matches the event's `tenantId | companyId | company_id`.
 
-## OUTBOUND (M13 → Other Modules)
+| Source | Event name | Effect |
+|---|---|---|
+| M06 Inventory | `stock.low` | run matching rules (e.g. NOTIFY purchasing) |
+| M09 GST | `gst.einvoice.generated` | run matching rules |
+| M12 HR | `payroll.generated`, `payroll.paid` (`payroll.*`) | run matching rules |
+| M14 Import/Export | `import.completed`, `export.completed` | run matching rules |
+| any module | any published event | eligible if a tenant rule names it |
 
-| Target Module | Interface Type | Exit Point | Purpose |
-|--------------|----------------|------------|---------|
-| M08 Notification | PUBLIC API | action-executor.service.ts | SEND_EMAIL delegate |
-| M18 Integration | EVENT BUS | event.emitter.ts | Emit M13 events via BullMQ queue |
-| M19 Monitoring | LOG STREAM | All workers | Job execution logs |
+No module imports M13 code. No module calls an M13 service directly.
+
+## OUTBOUND (M13 → other modules)
+
+| Target | Interface | Exit point | Purpose |
+|---|---|---|---|
+| M16 Notification | `notificationService.sendNotification(...)` (public API) | `services/automation.internal.ts` → `runNotifyAction` | NOTIFY action |
+| external HTTP | `fetch()` — HTTPS only, SSRF-guarded | `services/automation.internal.ts` → `runWebhookAction` | WEBHOOK action |
+| (self) `jobExecutionLog` | Prisma | repository | audit trail of every run |
+
+M13 never posts to a ledger, never mutates stock, never writes another
+module's tables. LOG actions write only to `jobExecutionLog`.
 
 ## INTERNAL WIRING
 
-| Layer | File | Calls |
-|-------|------|-------|
-| Controller | workflow.controller.ts | workflowEngineService, triggerEvaluatorService |
-| Controller | job.controller.ts | jobProcessorService, retryHandlerService |
-| Controller | schedule.controller.ts | schedulerService |
-| Service | workflow-engine.service.ts | Queue (m13:workflow), Prisma (m13_job) |
-| Service | trigger-evaluator.service.ts | Prisma (m13_trigger) |
-| Service | action-executor.service.ts | Prisma (m13_job_log), M08 API (NOT SPECIFIED) |
-| Service | job-processor.service.ts | Prisma (m13_job, m13_job_log) |
-| Service | scheduler.service.ts | Queue (m13:scheduled), Prisma (m13_schedule) |
-| Service | retry-handler.service.ts | Queue (m13:retry), Prisma (m13_job) |
-| Worker | workflow.worker.ts | workflowEngineService, actionExecutorService, jobProcessorService, retryHandlerService |
-| Worker | scheduled.worker.ts | triggerEvaluatorService, workflowEngineService |
-| Worker | retry.worker.ts | workflowEngineService, jobProcessorService |
-| Event | event.handler.ts | triggerEvaluatorService, workflowEngineService |
-| Event | event.emitter.ts | BullMQ Queue (m13:event) |
+```
+routes/automation.routes.ts
+  ├── AutomationController → AutomationService → AutomationRepository → prisma(automationRule)
+  └── SchedulerController  → AutomationRepository → prisma(scheduledJob)
+                           → schedulerService.runJobNow()
 
-## CROSS-MODULE RULES VERIFIED
-✅ NO direct DB access to other modules
-✅ NO direct repo imports from other modules
-✅ All cross-module calls via PUBLIC Service/API/Event ONLY
-✅ Event bus uses real Redis-backed BullMQ (NOT in-memory)
+services/scheduler.service.ts  (setInterval 30s, unref)
+  runDueJobsOnce() → repo.findDueJobs() → runJob()
+    → repo.findRuleById() (fail-closed if rule missing/inactive → PAUSE job)
+    → executeRuleActions(rule, tenantId, payload)   [automation.internal.ts]
+    → repo.finishLog()
+    → repo.updateJob({ lastRunAt, nextRunAt: nextRunAfter(cron, now, tz) })
+
+events/automation.handlers.ts  (eventBus.subscribeAll)
+  runEventRules(eventName, payload)
+    → payloadTenant(payload)  (tenantId | companyId | company_id)
+    → repo.findActiveRulesByEvent(eventName, tenantId)
+    → executeRuleActions(...) per rule → repo.finishLog()
+
+services/automation.internal.ts  executeRuleActions()
+  for each action (stops at first failure — never reports half-success):
+    NOTIFY  → applyTemplate({{keys}}) → notificationService.sendNotification()
+    WEBHOOK → assertSafeWebhookUrl() → fetch(https, redirect:error, 10s)
+    LOG     → applyTemplate() → string into jobExecutionLog.metadata.steps
+```
+
+## Trigger types
+- `EVENT` — fired by the bus (see INBOUND)
+- `SCHEDULE` — a `scheduledJob` row with a cron expr drives it (30s poll)
+- `MANUAL` — `POST /rules/:id/trigger` with a payload

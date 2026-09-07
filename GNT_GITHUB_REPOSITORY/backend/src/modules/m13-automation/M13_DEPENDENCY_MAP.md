@@ -1,108 +1,51 @@
 # M13_DEPENDENCY_MAP.md
 # ============================================================================
-# GNT MASTER BLUEPRINT V2 — M13 AUTOMATION — DEPENDENCY MAP
-# Session: 7 | Module: M13 | Layer: Backend
+# GNT MASTER BLUEPRINT V2 — M13 SMART AUTOMATION — DEPENDENCY MAP
+# Rewritten 2026-09-07 (previous version listed bullmq/ioredis — both removed)
 # ============================================================================
 
-## External Dependencies (package.json)
+## External packages actually used by M13
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| bullmq | ^5.x | BullMQ queue engine |
-| ioredis | ^5.x | Redis client for BullMQ |
-| @prisma/client | ^5.x | Database ORM |
-| express | ^4.x | HTTP framework |
-| vitest | ^1.x | Test runner |
+| Package | Purpose |
+|---|---|
+| `@prisma/client` | DB access (`automationRule`, `scheduledJob`, `jobExecutionLog`) |
+| `express` | routing (controllers are Express handlers) |
+| `zod` | request validation (`validators/automation.schema.ts`) |
+| Node built-ins | `fetch`, `AbortController`, `setTimeout`, `Intl.DateTimeFormat`, `URL` |
 
-## Internal Dependencies (within M13)
+**Not used (removed):** `bullmq`, `ioredis`, any Redis client, any cron library,
+any HTTP client library. The cron matcher and the poll loop are hand-rolled in
+`utils/cron.ts` and `services/scheduler.service.ts`.
+
+## Internal shared dependencies (backend/src/common)
+
+| Import | Used by |
+|---|---|
+| `@/common/config/prisma` (singleton) | repository, routes, handlers, scheduler |
+| `@/common/events/event-bus` (singleton) | `events/automation.handlers.ts` |
+| `@/common/errors/error-classes` (`AppError`) | repository, controllers, scheduler, cron guard |
+
+## Cross-module code dependency
+
+| Import | Direction | Notes |
+|---|---|---|
+| `@/modules/m16-notification` (`notificationService`, types) | M13 → M16 | **only** public entrypoint used; NOTIFY action |
+
+No other `@/modules/*` import exists in M13. M13 consumes M06/M09/M12/M14
+purely through event names on the bus (string coupling, no code import).
+
+## Intra-module dependency order
 
 ```
-m13.config.ts
-    └── (no internal deps)
-
-m13.types.ts
-    └── (no internal deps)
-
-DTOs (workflow.dto.ts, trigger.dto.ts, action.dto.ts, job.dto.ts)
-    └── (no internal deps)
-
-queue.setup.ts
-    ├── m13.config.ts
-    └── bullmq, ioredis
-
-queue.names.ts
-    └── (no internal deps)
-
-services/workflow-engine.service.ts
-    ├── types/m13.types.ts
-    ├── queue/queue.setup.ts
-    ├── queue/queue.names.ts
-    ├── config/m13.config.ts
-    └── @prisma/client
-
-services/trigger-evaluator.service.ts
-    ├── types/m13.types.ts
-    └── @prisma/client
-
-services/action-executor.service.ts
-    ├── types/m13.types.ts
-    ├── queue/queue.setup.ts
-    ├── queue/queue.names.ts
-    └── @prisma/client
-
-services/job-processor.service.ts
-    ├── types/m13.types.ts
-    └── @prisma/client
-
-services/scheduler.service.ts
-    ├── queue/queue.setup.ts
-    ├── queue/queue.names.ts
-    ├── config/m13.config.ts
-    └── @prisma/client
-
-services/retry-handler.service.ts
-    ├── types/m13.types.ts
-    ├── queue/queue.setup.ts
-    ├── queue/queue.names.ts
-    ├── config/m13.config.ts
-    └── @prisma/client
-
-events/event.handler.ts
-    ├── types/m13.types.ts
-    ├── services/trigger-evaluator.service.ts
-    └── services/workflow-engine.service.ts
-
-events/event.emitter.ts
-    ├── config/m13.config.ts
-    ├── queue/queue.setup.ts
-    └── queue/queue.names.ts
-
-controllers/*.ts
-    ├── services/*
-    └── @prisma/client
-
-routes/*.ts
-    ├── controllers/*
-    └── middleware/m13.middleware.ts
-
-middleware/m13.middleware.ts
-    └── express
-
-utils/m13.utils.ts
-    └── (no internal deps)
-
-workers/*.ts
-    ├── queue/queue.setup.ts
-    ├── queue/queue.names.ts
-    └── services/*
-
-index.ts
-    ├── routes/*
-    ├── services/*
-    ├── events/*
-    ├── middleware/*
-    └── queue/queue.setup.ts
+types/m13.types.ts        (no deps)
+utils/cron.ts             → AppError
+validators/automation.schema.ts → zod
+repositories/automation.repository.ts → prisma, AppError, types
+services/automation.internal.ts → m16 notificationService, types
+services/scheduler.service.ts   → repository, automation.internal, cron, prisma, AppError
+services/automation.service.ts  → repository, automation.internal
+events/automation.handlers.ts   → eventBus, prisma, repository, automation.internal
+controllers/*.ts                → services, repository, cron, AppError
+routes/automation.routes.ts     → controllers, services, validators, middleware, prisma
+index.ts                        → routes, scheduler.service, automation.handlers
 ```
-
-## Circular Dependency Check
-✅ NO circular dependencies detected
