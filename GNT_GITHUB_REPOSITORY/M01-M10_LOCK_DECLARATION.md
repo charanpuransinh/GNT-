@@ -79,8 +79,9 @@ M05, M07–M10 from this declaration + `CERTIFICATION_LOG.md` when convenient.
 | M09 | GST | 18 pass / 0 fail (real DB) | e-invoice/e-way routes never mounted + 2 cross-tenant P0s |
 | M10 | Accounting | 45 pass / 0 fail (real DB) | BRS never mounted + cross-tenant BRS P0 |
 
-Latest full backend run (2026-09-07, no DB in this environment): **341 passed / 0 failed / 279
-DB-gated skipped** — DB-gated tests skip cleanly, they do not fail.
+Latest full backend run (2026-09-07, against live migrated PostgreSQL `gnt_db`, `TEST_DB=1`):
+**620 passed / 0 failed / 0 skipped** across 142 test files (duration 327s). Without a DB the same
+suite is 341 passed / 279 DB-gated skipped — the DB-gated tests skip cleanly, they do not fail.
 
 ---
 
