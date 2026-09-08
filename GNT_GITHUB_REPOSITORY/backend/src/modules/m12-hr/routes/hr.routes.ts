@@ -6,6 +6,7 @@ import { LeaveController } from '../controllers/leave.controller';
 import { DepartmentController } from '../controllers/department.controller';
 import { PayrollController } from '../controllers/payroll.controller';
 import { TaxSlabController } from '../controllers/tax-slab.controller';
+import { TdsSectionController } from '../controllers/tds-section.controller';
 
 const router = Router();
 const employee = new EmployeeController();
@@ -14,6 +15,7 @@ const leave = new LeaveController();
 const department = new DepartmentController();
 const payroll = new PayrollController();
 const taxSlab = new TaxSlabController();
+const tdsSection = new TdsSectionController();
 
 router.post('/employees', employee.create.bind(employee));
 router.get('/employees', employee.findAll.bind(employee));
@@ -47,8 +49,12 @@ router.get('/payroll/employee/:employeeId', payroll.getByEmployee.bind(payroll))
 router.post('/payroll/:id/pay', payroll.processPayment.bind(payroll));
 router.get('/payroll/summary', payroll.getMonthlySummary.bind(payroll));
 
-// Tax slabs (admin: effective-dated, owner/accountant editable)
+// Salary TDS slabs (section 192): DB-backed, effective-dated, owner/accountant editable
 router.get('/tax-slabs', taxSlab.list.bind(taxSlab));
 router.post('/tax-slabs', taxSlab.create.bind(taxSlab));
+
+// Vendor / non-salary payment TDS (194C, 194J, 194I ...): rates from config/tds_slabs.json
+router.get('/tds-sections', tdsSection.list.bind(tdsSection));
+router.post('/tds-sections/calculate', tdsSection.calculate.bind(tdsSection));
 
 export default router;

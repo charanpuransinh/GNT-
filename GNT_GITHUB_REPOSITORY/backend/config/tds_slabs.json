@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "description": "TDS section rates & thresholds for vendor / non-salary payments (194C, 194J, 194I ...). This file is the single source of truth. On any Union Budget / CBDT change, edit the numbers here (or add a new section) and save — the running system picks it up on the next request, no code change and no redeploy. Salary TDS (section 192) is NOT here: that is slab-based and lives in the DB via the /api/v1/hr/tax-slabs admin screen.",
+    "fy": "2026-27",
+    "last_updated": "2026-09-07",
+    "updated_by": "owner (Charan Puransinh Ranjitsinh)",
+    "rate_format": "decimal fraction, e.g. 0.01 == 1%",
+    "threshold_semantics": "per-payment amount at or below `threshold` => zero TDS; above => TDS on the full amount at the applicable rate",
+    "deductee_types": ["individual", "huf", "company", "firm", "other"],
+    "rate_selection": "sections with rate_ind/rate_other use rate_ind for deductee_type individual|huf and rate_other otherwise; sections with a single `rate` use it for everyone"
+  },
+  "sections": {
+    "194C": {
+      "label": "Payment to contractors / sub-contractors",
+      "rate_ind": 0.01,
+      "rate_other": 0.02,
+      "threshold": 30000
+    },
+    "194J": {
+      "label": "Fees for professional or technical services",
+      "rate": 0.1,
+      "threshold": 50000
+    },
+    "194I": {
+      "label": "Rent of plant, machinery or equipment",
+      "rate": 0.02,
+      "threshold": 240000
+    }
+  }
+}
