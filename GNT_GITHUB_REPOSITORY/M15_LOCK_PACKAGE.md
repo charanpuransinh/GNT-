@@ -63,7 +63,7 @@ were removed in commit `5f97acb`; no silent 0-sync).
 - [x] Integration Contract (entity fetch contract; FILE source contract; webhook→M18 boundary)
 - [x] Security Contract — every query tenant-scoped, fail-closed; shared prisma singleton; main-app #009 auth chain on every `/api/v1/sync` route; no x-tenant-id header trust (`sync.api.test.ts`)
 - [x] Test Report — 22/22 live-DB, 3× consecutive (2026-09-08); flaky waits replaced with polling; 5 placeholder `SELECT 1` files removed
-- [x] Change Log — 2026-09-08: prisma-singleton P0; CUSTOMER/ITEM/INVOICE internal fetch; honest failure on unknown entity + removed API connector; test cleanup + determinism
+- [x] Change Log — 2026-09-08: prisma-singleton P0; CUSTOMER/ITEM/INVOICE internal fetch; honest failure on unknown entity + removed API connector; test cleanup + determinism; SonarCloud pass. **Qodo review (2026-09-08):** `assertNotTruncated` (limit 5000) — a company with more records makes the sync job `FAIL` loudly instead of `COMPLETED` with a silently truncated subset; `external.connector.fetchExternalEntities` de-`async`ed (`Promise.resolve`/`Promise.reject`), non-interpolated template literal → plain string
 - [x] Version: 1.0.0
 - [ ] Lock Status: **PENDING OWNER SIGN-OFF**
 

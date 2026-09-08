@@ -39,15 +39,19 @@ async function fetchFileExternal(cc: Record<string, unknown>): Promise<Record<st
   }
 }
 
-export async function fetchExternalEntities(
+const API_CONNECTOR_REMOVED =
+  ' ka API connector hata diya gaya hai (owner: koi API/credential nahi). ' +
+  'sourceSystem=FILE rakh kar uploaded Excel/CSV/JSON se sync karein.';
+
+export function fetchExternalEntities(
   config: { sourceSystem?: string | null; connectionConfig?: unknown },
   entityConfig: { externalEntity?: string | null; internalEntity?: string | null },
   // file already tenant ke upload ka hai — signature cross-module flow se consistent rakhne ko hai
-  _tenantId: string
+  _tenantId: string,
 ): Promise<Record<string, unknown>[]> {
   const src = (config.sourceSystem ?? '').toUpperCase();
   const entity = entityConfig.externalEntity ?? entityConfig.internalEntity ?? '';
-  if (!entity) return [];
+  if (!entity) return Promise.resolve([]);
 
   // FILE/CSV/EXCEL/XLSX/XLS — uploaded file se (owner का "कोई API नहीं" फ़ैसला)
   if (FILE_SOURCES.has(src)) {
@@ -55,12 +59,9 @@ export async function fetchExternalEntities(
   }
 
   // INTERNAL — external side ka data internal engine hi bharta hai (yahan kuch nahi)
-  if (NO_FETCH_SOURCES.has(src)) return [];
+  if (NO_FETCH_SOURCES.has(src)) return Promise.resolve([]);
 
   // API connectors (TALLY / ZOHO / QUICKBOOKS / ...) hata diye gaye — chupchap 0-sync nahi,
   // saaf error taaki sync job FAILED ho aur user ko FILE source use karna pata chale.
-  throw new Error(
-    `M15 sync: external source "${src}" ka API connector hata diya gaya hai (owner: koi API/credential nahi). ` +
-    `sourceSystem=FILE rakh kar uploaded Excel/CSV/JSON se sync karein.`
-  );
+  return Promise.reject(new Error(`M15 sync: external source "${src}"${API_CONNECTOR_REMOVED}`));
 }

@@ -43,6 +43,45 @@ function defaultConfigPath(): string {
   return fileURLToPath(new URL('../../../../config/tds_slabs.json', import.meta.url));
 }
 
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+const isRate = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+const isThreshold = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+/**
+ * Operator-edited JSON is untrusted: `parsed as TdsConfigFile` does not check runtime shape.
+ * Reject the whole file (→ fallback) if any section has an out-of-range / non-numeric rate or
+ * threshold, so a typo can never stay marked `source: "file"` and produce a negative deduction
+ * or an inflated net payment.
+ */
+function assertValidConfig(parsed: TdsConfigFile): void {
+  for (const [code, section] of Object.entries(parsed.sections)) {
+    if (!section || typeof section !== 'object') {
+      throw new Error(`section "${code}" is not an object`);
+    }
+    if (!isThreshold(section.threshold)) {
+      throw new Error(`section "${code}": threshold must be a finite number >= 0`);
+    }
+    const hasSplit = section.rate_ind !== undefined || section.rate_other !== undefined;
+    const hasFlat = section.rate !== undefined;
+    if (hasSplit) {
+      if (!isRate(section.rate_ind) || !isRate(section.rate_other)) {
+        throw new Error(`section "${code}": rate_ind and rate_other must both be decimal rates in [0,1]`);
+      }
+    } else if (hasFlat) {
+      if (!isRate(section.rate)) {
+        throw new Error(`section "${code}": rate must be a decimal rate in [0,1]`);
+      }
+    } else {
+      throw new Error(`section "${code}": needs either rate or (rate_ind + rate_other)`);
+    }
+  }
+}
+
 export class TdsSectionService {
   private readonly configPath: string;
   private cache: { mtimeMs: number; data: TdsConfigFile } | null = null;
@@ -71,12 +110,13 @@ export class TdsSectionService {
       if (!parsed || typeof parsed !== 'object' || !parsed.sections || typeof parsed.sections !== 'object') {
         throw new Error('tds_slabs.json: missing "sections" object');
       }
+      assertValidConfig(parsed); // out-of-range / non-numeric rate or threshold => reject whole file
       this.cache = { mtimeMs, data: parsed };
       this.usingFallback = false;
       return parsed;
-    } catch (err) {
-      // Malformed file — do not crash payroll/payment flows; fall back and stay loud.
-      console.error(`[M12/TDS] config load failed (${this.configPath}): ${(err as Error).message}. Using fallback defaults.`);
+    } catch (err: unknown) {
+      // Malformed / invalid file — do not crash payroll/payment flows; fall back and stay loud.
+      console.error(`[M12/TDS] config load failed (${this.configPath}): ${errMsg(err)}. Using fallback defaults.`);
       this.usingFallback = true;
       this.cache = null;
       return FALLBACK_DEFAULTS;
@@ -113,13 +153,15 @@ export class TdsSectionService {
   }
 
   /** Rate for a section given the deductee type. */
-  private rateFor(s: TdsSectionConfig, deducteeType: DeducteeType): number {
-    if (s.rate_ind != null || s.rate_other != null) {
-      const r = INDIVIDUAL_LIKE.has(deducteeType) ? s.rate_ind : s.rate_other;
-      if (r == null) throw new Error('Section has rate_ind/rate_other but the one needed is missing');
-      return r;
+  private rateFor(section: TdsSectionConfig, deducteeType: DeducteeType): number {
+    if (section.rate_ind !== undefined || section.rate_other !== undefined) {
+      const rate = INDIVIDUAL_LIKE.has(deducteeType) ? section.rate_ind : section.rate_other;
+      if (typeof rate !== 'number') {
+        throw new Error('Section has rate_ind/rate_other but the one needed is missing');
+      }
+      return rate;
     }
-    if (s.rate != null) return s.rate;
+    if (typeof section.rate === 'number') return section.rate;
     throw new Error('Section config has neither rate_ind/rate_other nor rate');
   }
 

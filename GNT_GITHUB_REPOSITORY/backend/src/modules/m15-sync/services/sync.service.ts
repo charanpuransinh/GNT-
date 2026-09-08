@@ -349,14 +349,30 @@ export class SyncService {
     return keyMappings.every(m => internal[m.internalField] === external[m.externalField]);
   }
 
+  // एक sync run में एक entity के अधिकतम records। इससे ज़्यादा हों तो job चुपचाप truncated
+  // subset sync नहीं करेगा — साफ़ error (job FAILED), ताकि operator batched FILE sync करे।
+  private static readonly INTERNAL_FETCH_LIMIT = 5000;
+
+  /** query ने limit छू ली → आगे records बच गए → चुपचाप मत छोड़ो, job fail करो */
+  private static assertNotTruncated(rowCount: number, entityType: string): void {
+    if (rowCount > SyncService.INTERNAL_FETCH_LIMIT) {
+      throw new Error(
+        `M15 sync: "${entityType}" के ${SyncService.INTERNAL_FETCH_LIMIT}+ records हैं — ` +
+        `एक run में पूरा sync नहीं होगा (truncated data नहीं भेजेंगे)। FILE source से batches में sync करें।`,
+      );
+    }
+  }
+
   private static async fetchInternalEntities(entityType: string, tenantId: string): Promise<any[]> {
     // हर internal entity अपने owner module के canonical table से (tenant-scoped, read-only)।
     const et = entityType.toUpperCase();
+    const take = SyncService.INTERNAL_FETCH_LIMIT + 1; // +1 = limit छुई या नहीं, पता चले
 
     if (et === 'PAYMENT') {
       const txs = await prisma.paymentTransaction.findMany({
-        where: { tenantId }, orderBy: { createdAt: 'desc' }, take: 500,
+        where: { tenantId }, orderBy: { createdAt: 'desc' }, take,
       });
+      SyncService.assertNotTruncated(txs.length, et);
       return txs.map((t) => ({
         id: t.id, name: t.partyName, code: t.transactionNumber,
         partyId: t.partyId, partyType: t.partyType, amount: Number(t.amount),
@@ -366,7 +382,8 @@ export class SyncService {
     }
 
     if (et === 'CUSTOMER' || et === 'PARTY' || et === 'SUPPLIER') {
-      const rows = await prisma.party_master.findMany({ where: { company_id: tenantId }, take: 500 });
+      const rows = await prisma.party_master.findMany({ where: { company_id: tenantId }, take });
+      SyncService.assertNotTruncated(rows.length, et);
       return rows.map((r) => ({
         id: r.id, name: r.name, code: r.display_name ?? r.name, email: r.email, phone: r.phone,
         gstin: r.gstin, partyType: r.party_type,
@@ -375,7 +392,8 @@ export class SyncService {
     }
 
     if (et === 'ITEM' || et === 'PRODUCT' || et === 'INVENTORY') {
-      const rows = await prisma.product_master.findMany({ where: { company_id: tenantId }, take: 500 });
+      const rows = await prisma.product_master.findMany({ where: { company_id: tenantId }, take });
+      SyncService.assertNotTruncated(rows.length, et);
       return rows.map((r) => ({
         id: r.id, name: r.name, code: r.code, hsn: r.hsn_code,
         salePrice: Number(r.sale_price ?? 0),
@@ -384,7 +402,10 @@ export class SyncService {
     }
 
     if (et === 'INVOICE' || et === 'SALES_INVOICE') {
-      const rows = await prisma.salesInvoice.findMany({ where: { companyId: tenantId }, orderBy: { invoiceDate: 'desc' }, take: 500 });
+      const rows = await prisma.salesInvoice.findMany({
+        where: { companyId: tenantId }, orderBy: { invoiceDate: 'desc' }, take,
+      });
+      SyncService.assertNotTruncated(rows.length, et);
       return rows.map((r) => ({
         id: r.id, name: r.invoiceNumber, code: r.invoiceNumber,
         customerId: r.customerId, status: r.status,

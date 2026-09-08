@@ -67,7 +67,7 @@ that the CERTIFICATION_LOG flagged **does not exist in the code** — payroll co
 - [x] Integration Contract (event payloads; TDS config-file contract; `config/tds_slabs.json` schema — see `backend/config/README.md`)
 - [x] Security Contract — token identity, tenant-scoped, prisma singleton, TDS fallback flagged
 - [x] Test Report — 30/30 live-DB (17 base + 13 vendor-TDS: file source, hot-reload, new-section-in-file, missing-file fallback, malformed JSON, per-section fallback, rate/threshold math)
-- [x] Change Log — 2026-09-08: full cert pass. 2026-09-07: config-driven vendor TDS (194C/J/I). Earlier: real attendance in payroll, DB tax slabs, prisma singleton
+- [x] Change Log — 2026-09-08: full cert pass. 2026-09-07: config-driven vendor TDS (194C/J/I). Earlier: real attendance in payroll, DB tax slabs, prisma singleton. **Qodo review (2026-09-08):** `assertValidConfig` — reject the whole `tds_slabs.json` (→ flagged fallback + logged) if any section's rate is outside `[0,1]` or its threshold is not a finite `≥ 0`; controller `async` removed (no `await`), `catch (error: unknown)` + typed message, explicit returns
 - [x] Version: 1.0.0
 - [ ] Lock Status: **PENDING OWNER SIGN-OFF** — and owner enters real FY salary slabs via `/hr/tax-slabs`
 

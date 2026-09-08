@@ -111,16 +111,6 @@ export class SubscriptionController {
     }
   }
 
-  async payInvoice(req: Request, res: Response) {
-    try {
-      const companyId = requireTenant(req).companyId;
-      const invoice = await subscriptionService.markInvoicePaid(String(req.params.id), companyId);
-      res.json({ success: true, data: invoice });
-    } catch (error: any) {
-      res.status(400).json({ success: false, error: error.message });
-    }
-  }
-
   /** cron / platform-admin — पूरे system का billing cycle चलाओ */
   async runBilling(_req: Request, res: Response) {
     try {

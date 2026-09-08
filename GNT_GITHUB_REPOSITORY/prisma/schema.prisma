@@ -3040,7 +3040,9 @@ model SubscriptionInvoice {
   periodEnd      DateTime
   createdAt      DateTime           @default(now())
 
+  @@unique([subscriptionId, periodStart]) // ek subscription-period ka ek hi invoice (concurrency-safe renewal)
   @@index([companyId, status])
+  @@index([subscriptionId, status])
   @@map("m22_subscription_invoices")
 }
 

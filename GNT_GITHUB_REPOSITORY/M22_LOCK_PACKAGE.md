@@ -41,8 +41,9 @@
 | GET | `/access/:feature` | feature-gate check → `{ allowed }` | `M22:view` |
 | POST | `/invoices/generate` | invoice for the current period from plan price | `M22:create` |
 | GET | `/invoices` | company invoice history | `M22:view` |
-| POST | `/invoices/:id/pay` | mark paid → renew + reactivate | `M22:create` |
 | POST | `/billing/run` | run the billing lifecycle (cron / admin) | `M22:create` |
+
+**No `/invoices/:id/pay` route.** A subscription invoice is marked paid **only** by a verified payment-gateway confirm (M18 webhook → M11 → `subscriptionService.markInvoicePaid(id, { paymentRef })`) or a platform-admin billing tool — a tenant cannot renew/reactivate service by marking their own invoice paid.
 
 ## Subscription state machine
 `TRIAL` → `ACTIVE` (on subscribe/pay) → `PAST_DUE` (invoice overdue, grace access) → `EXPIRED` (after grace)
@@ -69,7 +70,7 @@ other modules call to gate premium functionality.
 - [x] Repository Map (service-only by blueprint rule — no repository layer)
 - [x] File Registry (controller ×1, service ×1, routes, validators, types, index)
 - [x] Database Map (`SubscriptionPlan`, `CompanySubscription`, `SubscriptionInvoice`)
-- [x] Database Registry (migrations `015`, `016`; canonical `prisma/schema.prisma`)
+- [x] Database Registry (migrations `015`, `016`, **`018` — `@@unique([subscriptionId, periodStart])`**; canonical `prisma/schema.prisma`)
 - [x] Dependency Map (M01/M02 auth + permission catalog; consumed by any module for feature gating; M11/M18 for invoice payment)
 - [x] Wiring Map (`wiring-maps/module-wiring/m22/`)
 - [x] Wiring Registry
@@ -77,7 +78,7 @@ other modules call to gate premium functionality.
 - [x] Integration Contract (`canAccess` gate contract; `markInvoicePaid` contract; billing-cycle contract)
 - [x] Security Contract — **permission catalog entry added**, tenant-scoped, transactional transitions, prisma singleton
 - [x] Test Report — 11/11 live-DB: plan CRUD, subscribe/upsert/cancel, feature gate (+ wildcard), trial, invoice generate/list/pay, **dunning (OVERDUE→PAST_DUE→EXPIRED), pay-reactivates-with-period-extension, auto-renew invoice generation**, HTTP flow, tenant isolation
-- [x] Change Log — 2026-09-08: permission-catalog gap fixed; billing lifecycle + dunning + auto-renew; `markInvoicePaid` renewal; routes wired; `PAST_DUE` status
+- [x] Change Log — 2026-09-08: permission-catalog gap fixed; billing lifecycle + dunning + auto-renew; `markInvoicePaid` renewal; routes wired; `PAST_DUE` status. **Qodo review round 2 (2026-09-08):** removed self-service `/invoices/:id/pay` (owner-pays-own-invoice vuln) + `markInvoicePaid` now requires a gateway `paymentRef` and is internal-only; `canAccess` PAST_DUE now has an independent grace-deadline check (not reliant on the cron); `@@unique([subscriptionId, periodStart])` + migration `018` + P2002-tolerant `createInvoiceOnce` (concurrent-run duplicate invoices); atomic conditional `PENDING→OVERDUE` so a concurrently-paid invoice is not reverted
 - [x] Version: 1.0.0
 - [ ] Lock Status: **PENDING OWNER SIGN-OFF**
 
