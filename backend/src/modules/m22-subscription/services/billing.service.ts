@@ -1,5 +1,14 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 
+// Custom type guard for Prisma errors to completely avoid 'any'
+interface PrismaKnownError extends Error {
+  code: string;
+}
+
+const isPrismaKnownError = (error: unknown): error is PrismaKnownError => {
+  return error instanceof Error && 'code' in error && typeof (error as Record<string, unknown>).code === 'string';
+};
+
 export class BillingService {
   private prisma: PrismaClient;
 
@@ -22,28 +31,34 @@ export class BillingService {
         return false;
       }
 
-      // Defensive Type Safety (Issue 4)
       const features = subscription.plan.features;
       
       if (!Array.isArray(features)) {
-        return false; // Safely deny access if not an array
+        return false;
       }
       
-      // Replace `any` with `unknown` and type guard
       const validFeatures = features.filter((f: unknown): f is string => typeof f === 'string');
       return validFeatures.includes(requiredFeature);
       
     } catch (error: unknown) {
-      // Catch Block Error Type (Issue 3)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[M22] Plan gating check failed for company ${companyId}:`, errorMessage);
-      return false; // Safely deny access on error instead of crashing
+      return false;
     }
   }
 
   async handleFailedPayment(subscriptionId: string, errorMessage: string): Promise<void> {
-    // Concurrency & Atomicity (Issue 2)
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Fetch subscription to get companyId safely (No TEMP_ID hacks)
+      const sub = await tx.companySubscription.findUnique({
+        where: { id: subscriptionId },
+        select: { companyId: true }
+      });
+
+      if (!sub) {
+        throw new Error(`Subscription ${subscriptionId} not found`);
+      }
+
       const lastInvoice = await tx.subscriptionInvoice.findFirst({
         where: { 
           subscriptionId, 
@@ -59,6 +74,7 @@ export class BillingService {
       try {
         await tx.subscriptionInvoice.create({
           data: {
+            companyId: sub.companyId,
             subscriptionId,
             attemptNumber: nextAttempt,
             periodEnd: nextScheduledDate,
@@ -67,12 +83,11 @@ export class BillingService {
             amount: 0,
             billingCycle: 'MONTHLY',
             periodStart: new Date(),
-            companyId: 'TEMP_ID', 
           }
         });
       } catch (e: unknown) {
-        // Type guard for Prisma error
-        if (e instanceof Error && 'code' in e && (e as any).code === 'P2002') {
+        // Strict Type Guard without 'any'
+        if (isPrismaKnownError(e) && e.code === 'P2002') {
           console.warn(`[M22] Concurrent dunning attempt detected for sub ${subscriptionId}, attempt ${nextAttempt}`);
           return; 
         }
