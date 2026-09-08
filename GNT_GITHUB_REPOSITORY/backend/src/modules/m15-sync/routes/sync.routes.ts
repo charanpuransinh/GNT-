@@ -11,9 +11,8 @@ import { BackupService } from '../services/backup.service';
 import { WebhookService } from '../services/webhook.service';
 import { ConflictService } from '../services/conflict.service';
 import { EventEmitter } from '../events/sync.emitter';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 
-const prisma = new PrismaClient();
 const eventEmitter = new EventEmitter();
 const backupService = new BackupService(prisma, eventEmitter);
 const webhookService = new WebhookService(prisma, eventEmitter);

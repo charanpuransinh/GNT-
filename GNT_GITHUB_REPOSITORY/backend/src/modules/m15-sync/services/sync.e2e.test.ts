@@ -15,8 +15,25 @@ async function cleanup() {
   await prisma.syncConfig.deleteMany({ where: { tenantId: TENANT } });
 }
 
+/** processJobAsync fire-and-forget hai — fixed sleep flaky tha; ab terminal status ka poll */
+async function waitForSyncJob(jobId: string, maxMs = 15000) {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const j = await prisma.syncJob.findUnique({ where: { id: jobId } });
+    if (j && ['COMPLETED', 'FAILED', 'CANCELLED'].includes(j.status)) return j;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error('sync job did not reach a terminal state in time');
+}
+
 describe.runIf(process.env.TEST_DB === '1')('M15 sync end-to-end — live DB', () => {
-  beforeAll(cleanup);
+  beforeAll(async () => {
+    await prisma.company_master.upsert({
+      where: { id: TENANT }, update: {},
+      create: { id: TENANT, name: 'M15 E2E Co', code: 'M15E2E' },
+    });
+    await cleanup();
+  });
   afterAll(cleanup);
 
   it('config → trigger → job COMPLETED + entity log banta hai (sync engine sach me chalta hai)', async () => {
@@ -33,10 +50,8 @@ describe.runIf(process.env.TEST_DB === '1')('M15 sync end-to-end — live DB', (
 
     const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
 
-    // processJobAsync background me chalta hai — wait
-    await new Promise((r) => setTimeout(r, 800));
-
-    const finalJob = await prisma.syncJob.findUnique({ where: { id: job.id } });
+    // processJobAsync background me chalta hai — terminal hone ka wait
+    const finalJob = await waitForSyncJob(job.id);
     expect(finalJob).toBeTruthy();
     // COMPLETED (ya FAILED bhi ho sakta hai agar external fetch me dikkat) — par RUNNING/QUEUED nahi rehna chahiye
     expect(['COMPLETED', 'FAILED']).toContain(finalJob!.status);
@@ -69,14 +84,60 @@ describe.runIf(process.env.TEST_DB === '1')('M15 sync end-to-end — live DB', (
     }, TENANT);
 
     const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
-    await new Promise((r) => setTimeout(r, 800));
+    const finalJob = await waitForSyncJob(job.id);
 
-    const finalJob = await prisma.syncJob.findUnique({ where: { id: job.id } });
     expect(finalJob).toBeTruthy();
     expect(finalJob!.status).toBe('COMPLETED');
     // file की 2 rows external data me aayi — totalEntities = max(internal, external) = 2
     expect(finalJob!.totalEntities).toBeGreaterThanOrEqual(2);
 
     await rm(tmp, { recursive: true, force: true });
+  });
+
+  it('internal entity CUSTOMER: asli party_master rows sync me aati hain (PAYMENT ke alawa bhi)', async () => {
+    await prisma.party_master.deleteMany({ where: { company_id: TENANT } });
+    await prisma.party_master.createMany({
+      data: [
+        { company_id: TENANT, party_type: 'customer', name: 'Sync Cust A', gstin: '27AAAAA0000A1Z5' },
+        { company_id: TENANT, party_type: 'customer', name: 'Sync Cust B', gstin: '27BBBBB0000B1Z5' },
+      ],
+    });
+
+    const tmp = await mkdtemp(path.join(os.tmpdir(), 'm15-cust-'));
+    const file = path.join(tmp, 'ext.csv');
+    await writeFile(file, 'name,gstin\nSync Cust A,27AAAAA0000A1Z5\n');
+
+    const config = await SyncService.createConfig({
+      configCode: `SYNC-CUST-${Date.now()}`,
+      name: 'Customer sync', sourceSystem: 'FILE', syncDirection: 'TO_EXTERNAL', connectionType: 'FILE',
+      connectionConfig: { fileKey: file, fileType: 'csv' },
+      entityConfigs: [{
+        internalEntity: 'CUSTOMER', externalEntity: 'Contacts',
+        fieldMappings: [{ internalField: 'name', externalField: 'name', isKey: true }], isActive: true,
+      }],
+    }, TENANT);
+
+    const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
+    const finalJob = await waitForSyncJob(job.id);
+
+    expect(finalJob!.status).toBe('COMPLETED');
+    // 2 internal parties vs 1 external row → totalEntities = max = 2 (internal fetch sach me chala)
+    expect(finalJob!.totalEntities).toBeGreaterThanOrEqual(2);
+
+    await prisma.party_master.deleteMany({ where: { company_id: TENANT } });
+    await rm(tmp, { recursive: true, force: true });
+  });
+
+  it('unknown internal entity → sync job FAILED (chupchap empty nahi)', async () => {
+    const config = await SyncService.createConfig({
+      configCode: `SYNC-BAD-${Date.now()}`,
+      name: 'Bad entity', sourceSystem: 'INTERNAL', syncDirection: 'TO_EXTERNAL', connectionType: 'API',
+      entityConfigs: [{ internalEntity: 'GLROX_WIDGETS', externalEntity: 'x', fieldMappings: [], isActive: true }],
+    }, TENANT);
+
+    const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
+    const finalJob = await waitForSyncJob(job.id);
+
+    expect(finalJob!.status).toBe('FAILED');
   });
 });
