@@ -50,6 +50,15 @@ export async function fetchExternalEntities(
     return await fetchFileExternal(cc);
   }
 
-  // API (Tally/Zoho) हटा दिया गया — unsupported ab honest empty
-  return [];
+  // INTERNAL — external side ka data internal engine hi bharta hai (yahan kuch nahi)
+  if (src === 'INTERNAL' || src === '') {
+    return [];
+  }
+
+  // API connectors (TALLY / ZOHO / QUICKBOOKS / ...) hata diye gaye — chupchap 0-sync nahi,
+  // saaf error taaki sync job FAILED ho aur user ko FILE source use karna pata chale.
+  throw new Error(
+    `M15 sync: external source "${src}" ka API connector hata diya gaya hai (owner: koi API/credential nahi). ` +
+    `sourceSystem=FILE rakh kar uploaded Excel/CSV/JSON se sync karein.`
+  );
 }

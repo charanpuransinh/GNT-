@@ -1,4 +1,5 @@
-import { PrismaClient, SyncConfig, SyncJob, SyncEntityLog, SyncConflict, SyncState, BackupJob, SyncEntityConfig } from '@prisma/client';
+import { SyncConfig, SyncJob, SyncEntityLog, SyncConflict, SyncState, BackupJob, SyncEntityConfig } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'events';
 import {
@@ -11,7 +12,6 @@ import {
 } from '../types/sync.types';
 import { fetchExternalEntities as fetchExternalFromProvider } from './external.connector';
 
-const prisma = new PrismaClient();
 const progressEmitter = new EventEmitter();
 
 export class SyncService {
@@ -352,27 +352,53 @@ export class SyncService {
   }
 
   private static async fetchInternalEntities(entityType: string, tenantId: string): Promise<any[]> {
-    // अपने module (M11 payment) से असली data; बाक़ी (ITEM/CUSTOMER/INVOICE = M05/M06/M07/M08)
-    // Claude की public fetch अभी नहीं — fake data लौटाने की बजाय खाली (ईमानदार)।
-    if (entityType.toUpperCase() === 'PAYMENT') {
+    // हर internal entity अपने owner module के canonical table से (tenant-scoped, read-only)।
+    const et = entityType.toUpperCase();
+
+    if (et === 'PAYMENT') {
       const txs = await prisma.paymentTransaction.findMany({
-        where: { tenantId },
-        orderBy: { createdAt: 'desc' },
-        take: 500,
+        where: { tenantId }, orderBy: { createdAt: 'desc' }, take: 500,
       });
       return txs.map((t) => ({
-        id: t.id,
-        name: t.partyName,
-        code: t.transactionNumber,
-        partyId: t.partyId,
-        partyType: t.partyType,
-        amount: Number(t.amount),
-        direction: t.direction,
-        status: t.status,
+        id: t.id, name: t.partyName, code: t.transactionNumber,
+        partyId: t.partyId, partyType: t.partyType, amount: Number(t.amount),
+        direction: t.direction, status: t.status,
         updatedAt: (t.updatedAt ?? t.createdAt).toISOString(),
       }));
     }
-    return [];
+
+    if (et === 'CUSTOMER' || et === 'PARTY' || et === 'SUPPLIER') {
+      const rows = await prisma.party_master.findMany({ where: { company_id: tenantId }, take: 500 });
+      return rows.map((r) => ({
+        id: r.id, name: r.name, code: r.display_name ?? r.name, email: r.email, phone: r.phone,
+        gstin: r.gstin, partyType: r.party_type,
+        updatedAt: r.updated_at.toISOString(),
+      }));
+    }
+
+    if (et === 'ITEM' || et === 'PRODUCT' || et === 'INVENTORY') {
+      const rows = await prisma.product_master.findMany({ where: { company_id: tenantId }, take: 500 });
+      return rows.map((r) => ({
+        id: r.id, name: r.name, code: r.code, hsn: r.hsn_code,
+        salePrice: Number(r.sale_price ?? 0),
+        updatedAt: r.updated_at.toISOString(),
+      }));
+    }
+
+    if (et === 'INVOICE' || et === 'SALES_INVOICE') {
+      const rows = await prisma.salesInvoice.findMany({ where: { companyId: tenantId }, orderBy: { invoiceDate: 'desc' }, take: 500 });
+      return rows.map((r) => ({
+        id: r.id, name: r.invoiceNumber, code: r.invoiceNumber,
+        customerId: r.customerId, status: r.status,
+        grandTotal: Number(r.grandTotal), paymentStatus: r.paymentStatus,
+        updatedAt: (r.updatedAt ?? r.invoiceDate).toISOString(),
+      }));
+    }
+
+    // अनजान entity — चुपचाप खाली नहीं; साफ़ error ताकि sync job FAILED हो
+    throw new Error(
+      `M15 sync: unsupported internal entity "${entityType}". Supported: PAYMENT, CUSTOMER/PARTY/SUPPLIER, ITEM/PRODUCT/INVENTORY, INVOICE.`
+    );
   }
 
   private static async fetchExternalEntities(config: SyncConfig, entityConfig: any, tenantId: string): Promise<any[]> {
