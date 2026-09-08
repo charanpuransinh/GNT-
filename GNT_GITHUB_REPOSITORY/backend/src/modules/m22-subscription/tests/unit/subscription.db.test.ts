@@ -10,7 +10,7 @@ const COMPANY_ID = '00000000-0000-4000-8000-000000000096';
 
 async function cleanup() {
   await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
-  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST', 'GATE-TEST', 'ALL-TEST', 'TRIAL-TEST', 'INV-TEST'] } } });
+  await prisma.subscriptionPlan.deleteMany({ where: { code: { in: ['BASIC-TEST', 'PRO-TEST', 'GATE-TEST', 'ALL-TEST', 'TRIAL-TEST', 'INV-TEST', 'DUN-TEST', 'PAY-TEST', 'RENEW-TEST', 'NOPAY-TEST', 'GRACE-TEST'] } } });
 }
 
 describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () => {
@@ -106,7 +106,127 @@ describe.runIf(process.env.TEST_DB === '1')('M22 subscription — live DB', () =
     const list = await subscriptionService.listInvoices(COMPANY_ID);
     expect(list.some((i) => i.id === inv.id)).toBe(true);
 
-    const paid = await subscriptionService.markInvoicePaid(inv.id, COMPANY_ID);
-    expect(paid!.status).toBe('PAID');
+    const paid = await subscriptionService.markInvoicePaid(inv.id, { paymentRef: 'pay_test_inv', companyId: COMPANY_ID });
+    expect(paid.status).toBe('PAID');
+  });
+
+  it('markInvoicePaid: paymentRef ke bina reject (tenant apna invoice bina paise "paid" na kare)', async () => {
+    const plan = await subscriptionService.createPlan({
+      code: 'NOPAY-TEST', name: 'NoPay', priceMonthly: 10, priceYearly: 100, billingCycle: 'MONTHLY',
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: plan.id });
+    const invoice = await subscriptionService.generateInvoice(COMPANY_ID);
+    await expect(
+      subscriptionService.markInvoicePaid(invoice.id, { paymentRef: '', companyId: COMPANY_ID }),
+    ).rejects.toThrow(/paymentRef/);
+    const stillPending = await prisma.subscriptionInvoice.findUnique({ where: { id: invoice.id } });
+    expect(stillPending?.status).toBe('PENDING');
+    await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
+    await prisma.subscriptionPlan.deleteMany({ where: { code: 'NOPAY-TEST' } });
+  });
+
+  it('billing lifecycle: unpaid invoice period beet gaya → OVERDUE + PAST_DUE; grace ke baad EXPIRED', async () => {
+    const p = await subscriptionService.createPlan({
+      code: 'DUN-TEST', name: 'Dunning Plan', priceMonthly: 100, priceYearly: 1000, billingCycle: 'MONTHLY',
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: p.id });
+    const sub = await subscriptionService.getActiveSubscription(COMPANY_ID);
+
+    // invoice jiska period 2 din pehle khatam hua + unpaid
+    const periodEnd = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    await prisma.subscriptionInvoice.create({
+      data: {
+        companyId: COMPANY_ID, subscriptionId: sub!.id, planId: p.id, amount: 100,
+        billingCycle: 'MONTHLY', status: 'PENDING',
+        periodStart: new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000), periodEnd,
+      },
+    });
+
+    // aaj chalao → OVERDUE + PAST_DUE (abhi grace ke andar hai)
+    const s1 = await subscriptionService.runBillingCycle(new Date());
+    expect(s1.markedOverdue).toBeGreaterThanOrEqual(1);
+    expect(s1.pastDue).toBeGreaterThanOrEqual(1);
+    expect((await subscriptionService.getActiveSubscription(COMPANY_ID))!.status).toBe('PAST_DUE');
+
+    // 10 din baad chalao → OVERDUE invoice grace (7 din) se purani → EXPIRED
+    const s2 = await subscriptionService.runBillingCycle(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000));
+    expect(s2.expired).toBeGreaterThanOrEqual(1);
+    expect((await subscriptionService.getActiveSubscription(COMPANY_ID))!.status).toBe('EXPIRED');
+
+    await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
+    await prisma.subscriptionPlan.deleteMany({ where: { code: 'DUN-TEST' } });
+  });
+
+  it('billing lifecycle: PAST_DUE subscription ka invoice pay karne par ACTIVE + period aage badhta hai', async () => {
+    const p = await subscriptionService.createPlan({
+      code: 'PAY-TEST', name: 'Reactivate Plan', priceMonthly: 200, priceYearly: 2000, billingCycle: 'MONTHLY',
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: p.id });
+    const sub = await subscriptionService.getActiveSubscription(COMPANY_ID);
+
+    const futureEnd = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
+    const inv = await prisma.subscriptionInvoice.create({
+      data: {
+        companyId: COMPANY_ID, subscriptionId: sub!.id, planId: p.id, amount: 200,
+        billingCycle: 'MONTHLY', status: 'OVERDUE',
+        periodStart: new Date(), periodEnd: futureEnd,
+      },
+    });
+    if (!sub) throw new Error('subscription not created');
+    await prisma.companySubscription.update({ where: { id: sub.id }, data: { status: 'PAST_DUE' } });
+
+    await subscriptionService.markInvoicePaid(inv.id, { paymentRef: 'pay_gw_ref_1', companyId: COMPANY_ID });
+    const after = await subscriptionService.getActiveSubscription(COMPANY_ID);
+    if (!after) throw new Error('subscription missing after pay');
+    expect(after.status).toBe('ACTIVE');
+    expect(after.endDate?.getTime()).toBe(futureEnd.getTime());
+
+    await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
+    await prisma.subscriptionPlan.deleteMany({ where: { code: 'PAY-TEST' } });
+  });
+
+  it('canAccess: PAST_DUE subscription grace (7 din) ke baad access band, chahe billing cron ruka ho', async () => {
+    const plan = await subscriptionService.createPlan({
+      code: 'GRACE-TEST', name: 'Grace', priceMonthly: 50, priceYearly: 500, billingCycle: 'MONTHLY', features: ['*'],
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: plan.id });
+    const subscription = await subscriptionService.getActiveSubscription(COMPANY_ID);
+    if (!subscription) throw new Error('subscription not created');
+
+    // OVERDUE invoice jiska periodEnd 10 din pehle (grace se bahar) — par billing cron chala hi nahi
+    await prisma.subscriptionInvoice.create({
+      data: {
+        companyId: COMPANY_ID, subscriptionId: subscription.id, planId: plan.id, amount: 50,
+        billingCycle: 'MONTHLY', status: 'OVERDUE',
+        periodStart: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+        periodEnd: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      },
+    });
+    await prisma.companySubscription.update({ where: { id: subscription.id }, data: { status: 'PAST_DUE' } });
+
+    expect(await subscriptionService.canAccess(COMPANY_ID, 'gst')).toBe(false);
+
+    await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
+    await prisma.subscriptionPlan.deleteMany({ where: { code: 'GRACE-TEST' } });
+  });
+
+  it('auto-renew: period ~2 din me khatam → runBillingCycle agla invoice bana deta hai', async () => {
+    const p = await subscriptionService.createPlan({
+      code: 'RENEW-TEST', name: 'Renew Plan', priceMonthly: 350, priceYearly: 3500, billingCycle: 'MONTHLY',
+    });
+    await subscriptionService.subscribe(COMPANY_ID, { planId: p.id, autoRenew: true });
+    const sub = await subscriptionService.getActiveSubscription(COMPANY_ID);
+    await prisma.companySubscription.update({
+      where: { id: sub!.id },
+      data: { endDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) },
+    });
+
+    const s = await subscriptionService.runBillingCycle();
+    expect(s.renewed).toBeGreaterThanOrEqual(1);
+    const invs = await subscriptionService.listInvoices(COMPANY_ID);
+    expect(invs.length).toBeGreaterThanOrEqual(1);
+
+    await prisma.companySubscription.deleteMany({ where: { companyId: COMPANY_ID } });
+    await prisma.subscriptionPlan.deleteMany({ where: { code: 'RENEW-TEST' } });
   });
 });

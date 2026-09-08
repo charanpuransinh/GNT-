@@ -18,6 +18,10 @@ export class WebhookController {
   async receiveWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { provider } = webhookProviderParamSchema.parse(req.params);
+      // optional per-integration id (multi-tenant सही webhook routing)
+      const integrationId = typeof req.params.integrationId === 'string' && req.params.integrationId
+        ? req.params.integrationId
+        : undefined;
       // express.raw की वजह से req.body Buffer (असली bytes) होता है
       const rawBody = Buffer.isBuffer(req.body)
         ? req.body.toString('utf8')
@@ -27,7 +31,7 @@ export class WebhookController {
         headers: req.headers as Record<string, string>,
         raw_body: rawBody,
         full_url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
-      });
+      }, integrationId);
 
       res.status(200).json({ received: true, log_id: result.logId });
     } catch (err) {

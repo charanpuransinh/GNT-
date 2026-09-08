@@ -54,6 +54,7 @@ export const MODULES: readonly ModuleDef[] = [
   { code: 'M19', path: '/api/v1/monitoring',    resource: 'monitoring',    department: 'admin',           label: 'निगरानी' },
   { code: 'M20', path: '/api/v1/trade',         resource: 'trade',         department: 'admin',           label: 'विदेश व्यापार' },
   { code: 'M21', path: '/api/v1/data-sense',    resource: 'data_sense',    department: 'admin',           label: 'DataSense' },
+  { code: 'M22', path: '/api/v1/subscriptions', resource: 'subscription',  department: 'admin',           label: 'सदस्यता' },
 ] as const;
 
 /** `module:action` — यही string भूमिका के पास होती है और यही जाँची जाती है */

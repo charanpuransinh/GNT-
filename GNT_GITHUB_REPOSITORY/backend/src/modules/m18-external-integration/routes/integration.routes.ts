@@ -28,7 +28,10 @@ export function createIntegrationRoutes(
   router.get('/integrations/api-keys', integrationController.listApiKeys.bind(integrationController));
   router.delete('/integrations/api-keys/:id', integrationController.revokeApiKey.bind(integrationController));
 
-  // Webhooks (public — no auth required for signature validation)
+  // Webhooks (public — no auth; signature validation guards authenticity)
+  //   /:provider/:integrationId — multi-tenant सही (हर tenant की अलग webhook URL); पसंदीदा
+  //   /:provider                — तभी काम करता है जब उस provider की एक ही active integration हो
+  router.post('/integrations/webhook/:provider/:integrationId', webhookController.receiveWebhook.bind(webhookController));
   router.post('/integrations/webhook/:provider', webhookController.receiveWebhook.bind(webhookController));
 
   return router;

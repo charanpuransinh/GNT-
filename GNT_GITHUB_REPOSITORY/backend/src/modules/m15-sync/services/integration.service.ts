@@ -1,7 +1,6 @@
-import { PrismaClient, ExternalIntegration } from '@prisma/client';
+import { ExternalIntegration } from '@prisma/client';
 import axios from 'axios';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/common/config/prisma';
 
 export class IntegrationService {
   static async createIntegration(data: {

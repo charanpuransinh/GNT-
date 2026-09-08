@@ -1,5 +1,5 @@
 // M22 — Subscription types (PUBLIC)
-export type SubscriptionStatus = 'ACTIVE' | 'TRIAL' | 'EXPIRED' | 'CANCELLED';
+export type SubscriptionStatus = 'ACTIVE' | 'TRIAL' | 'PAST_DUE' | 'EXPIRED' | 'CANCELLED';
 export type BillingCycle = 'MONTHLY' | 'YEARLY';
 
 export interface SubscriptionPlanDTO {

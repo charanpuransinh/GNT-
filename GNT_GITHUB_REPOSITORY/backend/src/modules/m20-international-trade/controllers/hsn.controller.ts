@@ -2,13 +2,12 @@
 // Owner: D4-DELTA
 
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { HSNService } from '../services/hsn.service';
 import { EventBus } from '../../../shared/events/event-bus';
 import { SearchHSNQuerySchema, HSNValidationSchema } from '../validators/trade.schema';
 import { AppError } from '../../../shared/errors/app-error';
 
-const prisma = new PrismaClient();
 const eventBus = new EventBus();
 
 export class HSNController {

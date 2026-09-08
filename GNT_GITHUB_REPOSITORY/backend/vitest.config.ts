@@ -22,6 +22,9 @@ export default defineConfig({
     globalSetup: ['./src/tests/setup/permissions.setup.ts'],
     // DB नहीं है — DB वाले tests fail होकर सच दिखाएँगे (छिपाव नहीं)
     testTimeout: 20000,
-    hookTimeout: 20000,
+    // hookTimeout 20s बहुत tight था: कई files के beforeAll `registerModules()` (22 module
+    // dynamic import) + DB seed करते हैं; full sequential suite के load पर यह 20s पार कर
+    // जाता था और M13/M14 जैसे modules flaky fail होते थे। 60s पर stable.
+    hookTimeout: 60000,
   },
 });

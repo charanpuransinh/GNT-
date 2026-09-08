@@ -2,7 +2,7 @@
 import { Request, Response } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { subscriptionService } from '../services/subscription.service';
-import { createPlanSchema, updatePlanSchema, subscribeSchema } from '../validators/subscription.schema';
+import { createPlanSchema, updatePlanSchema, subscribeSchema, startTrialSchema } from '../validators/subscription.schema';
 
 export class SubscriptionController {
   async listPlans(_req: Request, res: Response) {
@@ -66,6 +66,58 @@ export class SubscriptionController {
       res.json({ success: true, data: sub });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  async startTrial(req: Request, res: Response) {
+    try {
+      const companyId = requireTenant(req).companyId;
+      const { planId, trialDays } = startTrialSchema.parse(req.body);
+      const sub = await subscriptionService.startTrial(companyId, planId, trialDays);
+      res.status(201).json({ success: true, data: sub });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  async checkAccess(req: Request, res: Response) {
+    try {
+      const companyId = requireTenant(req).companyId;
+      const feature = String(req.params.feature);
+      const allowed = await subscriptionService.canAccess(companyId, feature);
+      res.json({ success: true, data: { feature, allowed } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  async generateInvoice(req: Request, res: Response) {
+    try {
+      const companyId = requireTenant(req).companyId;
+      const invoice = await subscriptionService.generateInvoice(companyId);
+      res.status(201).json({ success: true, data: invoice });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  async listInvoices(req: Request, res: Response) {
+    try {
+      const companyId = requireTenant(req).companyId;
+      const invoices = await subscriptionService.listInvoices(companyId);
+      res.json({ success: true, data: invoices });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /** cron / platform-admin — पूरे system का billing cycle चलाओ */
+  async runBilling(_req: Request, res: Response) {
+    try {
+      const summary = await subscriptionService.runBillingCycle();
+      res.json({ success: true, data: summary });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 }

@@ -96,8 +96,18 @@ export interface MountResult {
   reason?: string;
 }
 
-/** हर module अलग-अलग चढ़ता है — एक का गिरना दूसरे को नहीं गिराएगा */
-export async function registerModules(): Promise<MountResult[]> {
+// registerModules idempotent — कई test files इसे beforeAll में बुलाते हैं; पहले हर बार
+// सारे 22 module दोबारा import + app.use होते थे (duplicate middleware stack + full-suite
+// load पर hook timeout / flaky fail)। अब पहली call का promise cache होता है।
+let registration: Promise<MountResult[]> | null = null;
+
+/** हर module अलग-अलग चढ़ता है — एक का गिरना दूसरे को नहीं गिराएगा। बार-बार safe (memoized)। */
+export function registerModules(): Promise<MountResult[]> {
+  if (!registration) registration = doRegisterModules();
+  return registration;
+}
+
+async function doRegisterModules(): Promise<MountResult[]> {
   const results: MountResult[] = [];
 
   for (const m of MODULE_MOUNTS as ModuleMount[]) {

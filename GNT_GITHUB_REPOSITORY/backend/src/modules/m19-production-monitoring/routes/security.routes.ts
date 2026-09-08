@@ -8,9 +8,7 @@ import { SecurityService } from '../services/security.service';
 import { HealthService } from '../services/health.service';
 import { AuditRepository } from '../repositories/audit.repository';
 import { SecurityRepository } from '../repositories/security.repository';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/common/config/prisma';
 
 const auditRepo = new AuditRepository(prisma);
 const securityRepo = new SecurityRepository(prisma);

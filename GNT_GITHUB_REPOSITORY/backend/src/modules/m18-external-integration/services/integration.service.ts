@@ -10,6 +10,7 @@
  */
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
+import { AppError } from '@/common/errors/error-classes';
 import {
   IntegrationConfig,
   CreateIntegrationConfigDto,
@@ -74,6 +75,35 @@ export class IntegrationService {
   async findIntegrationByProvider(provider: string): Promise<IntegrationConfig | null> {
     // webhook (public, no-tenant) — provider से सीधा, company scope के बिना (secret signature सही prove करेगा)
     return this.repository.findByProvider(provider);
+  }
+
+  /**
+   * Webhook routing — multi-tenant सही।
+   * - integrationId दिया हो → उसी integration को id से (उसका provider match होना चाहिए)।
+   * - नहीं दिया → provider से; पर अगर उस provider की एक से ज़्यादा active integration हैं तो
+   *   ambiguous (कौनसे tenant का webhook?) — साफ़ error, ताकि caller per-integration URL इस्तेमाल करे।
+   */
+  async findIntegrationForWebhook(provider: string, integrationId?: string): Promise<IntegrationConfig> {
+    if (integrationId) {
+      const byId = await this.repository.findActiveByIdForWebhook(integrationId);
+      if (!byId) throw new AppError('GNT-ERR-1801', `No active integration ${integrationId}`, 404);
+      if (byId.provider.toLowerCase() !== provider.toLowerCase()) {
+        throw new AppError('GNT-ERR-1805', `Integration ${integrationId} is not provider "${provider}"`, 400);
+      }
+      return byId;
+    }
+    const count = await this.repository.countActiveByProvider(provider);
+    if (count > 1) {
+      throw new AppError(
+        'GNT-ERR-1806',
+        `Multiple active "${provider}" integrations — use the per-integration webhook URL ` +
+        `/integrations/webhook/${provider}/{integrationId}`,
+        400,
+      );
+    }
+    const byProvider = await this.repository.findByProvider(provider);
+    if (!byProvider) throw new AppError('GNT-ERR-1801', `No integration found for provider: ${provider}`, 404);
+    return byProvider;
   }
 
   async updateIntegration(id: string, companyId: string, dto: UpdateIntegrationConfigDto): Promise<IntegrationConfig> {

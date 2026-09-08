@@ -8,7 +8,7 @@ import { HSNController } from '../controllers/hsn.controller';
 import { CustomsController } from '../controllers/customs.controller';
 import { TradeDocumentService } from '../services/trade-document.service';
 import { FXService } from '../services/fx.service';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { AppError } from '../../../shared/errors/app-error';
 import { GenerateDocumentSchema } from '../validators/trade.schema';
 import { M20LandedCostController } from '../controllers/m20-landed-cost.controller';
@@ -18,7 +18,6 @@ const router = Router();
 const tradeCtrl = new TradeController();
 const hsnCtrl = new HSNController();
 const customsCtrl = new CustomsController();
-const prisma = new PrismaClient();
 const fxService = new FXService(prisma);
 const docService = new TradeDocumentService(prisma);
 

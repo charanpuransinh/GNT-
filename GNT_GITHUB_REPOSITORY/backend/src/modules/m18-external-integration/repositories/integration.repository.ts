@@ -50,6 +50,18 @@ export class IntegrationRepository {
     }) as Promise<IntegrationConfig | null>;
   }
 
+  /** webhook के लिए — किसी tenant की active integration को सीधे id से (multi-tenant सही routing) */
+  async findActiveByIdForWebhook(id: string): Promise<IntegrationConfig | null> {
+    return this.prisma.integration_config.findFirst({
+      where: { id, is_active: true },
+    }) as Promise<IntegrationConfig | null>;
+  }
+
+  /** एक provider के लिए कितनी active integrations हैं (multi-tenant ambiguity पकड़ने को) */
+  async countActiveByProvider(provider: string): Promise<number> {
+    return this.prisma.integration_config.count({ where: { provider, is_active: true } });
+  }
+
   async findIntegrations(filters: {
     company_id?: string;
     type?: GatewayType;

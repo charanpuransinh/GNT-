@@ -10,9 +10,14 @@ import {
 } from '../../types/report.types';
 
 /**
- * M17 → M10 adapter (टास्क #012)
- * IAccountingService को implement करता है; ledger की असली entries facade से,
- * बाक़ी (trial/cashflow/aging) अभी खाली — समीक्षक AI के नियम अनुसार झूठा डेटा नहीं।
+ * M17 → M10 adapter — IAccountingService (READ ONLY).
+ * All four accounting reports are real, tenant-scoped M10 reads:
+ *   - getLedgerEntries : M10 `accountingService.getLedgerEntries` (row-level day book)
+ *   - getTrialBalance  : `ledger` grouped by `account_id`, summed debit/credit
+ *   - getCashflow      : `ledger` inflow/outflow in the date window
+ *   - getAgingReport   : unpaid/partial `SalesInvoice` outstanding, bucketed by days overdue
+ * `buildAccountingReport` (report.internal.ts) calls all four and merges them; the
+ * `cashflow`/`aging` fields on `getLedgerEntries`'s own return are placeholders it fills.
  */
 export class AccountingAdapter implements IAccountingService {
   async getLedgerEntries(filters: AccountingReportFilters): Promise<AccountingReportData> {

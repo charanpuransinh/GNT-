@@ -57,4 +57,43 @@ describe.runIf(process.env.TEST_DB === '1')('M18 webhook end-to-end — live DB'
 
     expect(res.status).toBe(401);
   });
+
+  it('multi-tenant: do company ki razorpay integration → bare URL ambiguous (400), per-integration URL sahi tenant ka secret use karta hai', async () => {
+    const SECRET_B = 'whsec_company_b';
+    const intB = await prisma.integration_config.create({
+      data: {
+        company_id: '00000000-0000-4000-8000-000000000002',
+        provider: 'razorpay', type: 'payment',
+        config_json: { webhook_secret: SECRET_B },
+        status: 'active', is_active: true,
+      },
+    });
+
+    const payload = { event: 'payment.captured', payload: { payment: { entity: { order_id: 'ORD-B-1' } } } };
+    const rawBody = JSON.stringify(payload);
+
+    // bare URL — ab do integrations hain → ambiguous
+    const ambiguous = await request(app)
+      .post('/api/v1/integrations/webhook/razorpay')
+      .set('x-razorpay-signature', crypto.createHmac('sha256', SECRET_B).update(rawBody).digest('hex'))
+      .set('Content-Type', 'application/json')
+      .send(rawBody);
+    expect(ambiguous.status).toBe(400);
+
+    // per-integration URL + company B ka secret → 200
+    const ok = await request(app)
+      .post(`/api/v1/integrations/webhook/razorpay/${intB.id}`)
+      .set('x-razorpay-signature', crypto.createHmac('sha256', SECRET_B).update(rawBody).digest('hex'))
+      .set('Content-Type', 'application/json')
+      .send(rawBody);
+    expect(ok.status).toBe(200);
+
+    // per-integration URL par company A ka secret → 401 (galat tenant ka secret)
+    const wrongSecret = await request(app)
+      .post(`/api/v1/integrations/webhook/razorpay/${intB.id}`)
+      .set('x-razorpay-signature', crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex'))
+      .set('Content-Type', 'application/json')
+      .send(rawBody);
+    expect(wrongSecret.status).toBe(401);
+  });
 });

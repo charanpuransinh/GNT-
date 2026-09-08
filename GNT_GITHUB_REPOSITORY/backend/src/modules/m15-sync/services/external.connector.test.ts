@@ -41,20 +41,22 @@ describe('M15 external connector — FILE source (koi API nahi)', () => {
     expect(rows).toEqual([]);
   });
 
-  it('API source (Tally/Zoho) ab unsupported — honest [] (API connector hata diya)', async () => {
-    const tally = await fetchExternalEntities(
-      { sourceSystem: 'TALLY', connectionConfig: { integrationCode: 't1' } },
-      { externalEntity: 'Ledger' },
-      'tenant-1'
-    );
-    expect(tally).toEqual([]);
+  it('API source (Tally/Zoho) ab unsupported — saaf error (chupchap 0-sync nahi)', async () => {
+    await expect(
+      fetchExternalEntities(
+        { sourceSystem: 'TALLY', connectionConfig: { integrationCode: 't1' } },
+        { externalEntity: 'Ledger' },
+        'tenant-1'
+      )
+    ).rejects.toThrow(/API connector hata diya gaya hai/);
 
-    const zoho = await fetchExternalEntities(
-      { sourceSystem: 'ZOHO', connectionConfig: { integrationCode: 'z1' } },
-      { externalEntity: 'contacts' },
-      'tenant-1'
-    );
-    expect(zoho).toEqual([]);
+    await expect(
+      fetchExternalEntities(
+        { sourceSystem: 'ZOHO', connectionConfig: { integrationCode: 'z1' } },
+        { externalEntity: 'contacts' },
+        'tenant-1'
+      )
+    ).rejects.toThrow(/sourceSystem=FILE/);
   });
 
   it('bina externalEntity ke [] deta hai', async () => {

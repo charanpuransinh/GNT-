@@ -1,4 +1,5 @@
-import { PrismaClient, SyncConfig, SyncJob, SyncEntityLog, SyncConflict, SyncState, BackupJob, SyncEntityConfig } from '@prisma/client';
+import { Prisma, SyncConfig, SyncJob, SyncEntityConfig } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'events';
 import {
@@ -11,8 +12,39 @@ import {
 } from '../types/sync.types';
 import { fetchExternalEntities as fetchExternalFromProvider } from './external.connector';
 
-const prisma = new PrismaClient();
 const progressEmitter = new EventEmitter();
+
+interface SyncTally {
+  total: number; processed: number;
+  created: number; updated: number; deleted: number; skipped: number;
+  errors: number; conflicts: number;
+}
+
+const ACTION_TO_COUNTER: Record<string, keyof SyncTally> = {
+  CREATE: 'created', UPDATE: 'updated', DELETE: 'deleted', SKIP: 'skipped', CONFLICT: 'conflicts'
+};
+
+/** एक entity record (internal या external) — dynamic field-mapped data */
+type SyncEntity = Record<string, unknown>;
+
+interface FieldMapping {
+  internalField: string;
+  externalField: string;
+  isKey?: boolean;
+}
+
+/** determineAction/matchByKey को entityConfig से बस इतना चाहिए */
+interface EntityConfigLike {
+  internalEntity: string;
+  syncDirection: string;
+  fieldMappings: unknown;
+}
+
+function errorInfo(error: unknown): { message: string; stack?: string } {
+  return error instanceof Error
+    ? { message: error.message, stack: error.stack }
+    : { message: String(error) };
+}
 
 export class SyncService {
   // ── Sync Config CRUD ────────────────────────────────────
@@ -139,6 +171,136 @@ export class SyncService {
     return job;
   }
 
+  private static emptyTally(): SyncTally {
+    return { total: 0, processed: 0, created: 0, updated: 0, deleted: 0, skipped: 0, errors: 0, conflicts: 0 };
+  }
+
+  private static emitProgress(job: SyncJob, currentEntity: string, t: SyncTally): void {
+    progressEmitter.emit('progress', {
+      jobId: job.id,
+      jobNumber: job.jobNumber,
+      status: 'RUNNING',
+      totalEntities: t.total,
+      processedEntities: t.processed,
+      createdCount: t.created,
+      updatedCount: t.updated,
+      deletedCount: t.deleted,
+      skippedCount: t.skipped,
+      errorCount: t.errors,
+      conflictCount: t.conflicts,
+      percentComplete: t.total > 0 ? Math.round((t.processed / t.total) * 100) : 0,
+      currentEntity
+    } as SyncProgress);
+  }
+
+  /** ek internal item ko external ke saath milaakar action decide karo + log/conflict likho */
+  private static async syncOneItem(
+    job: SyncJob, config: SyncConfig, entityConfig: SyncEntityConfig,
+    item: SyncEntity, externalData: SyncEntity[], tally: SyncTally
+  ): Promise<void> {
+    const externalMatch = externalData.find((candidate) =>
+      this.matchByKey(item, candidate, entityConfig.fieldMappings),
+    );
+    const action = await this.determineAction(item, externalMatch, entityConfig.syncDirection, config.syncDirection);
+    const isConflict = action.action === 'CONFLICT';
+    const externalId = typeof externalMatch?.id === 'string' ? externalMatch.id : undefined;
+
+    if (isConflict) {
+      await prisma.syncConflict.create({
+        data: {
+          tenantId: job.tenantId,
+          syncJobId: job.id,
+          entityType: entityConfig.internalEntity,
+          internalId: String(item.id),
+          externalId: externalId ?? 'unknown',
+          conflictType: 'UPDATE_BOTH',
+          internalValue: item as Prisma.InputJsonValue,
+          externalValue: (externalMatch ?? null) as Prisma.InputJsonValue,
+          resolution: entityConfig.conflictResolution
+        }
+      });
+    }
+
+    const counter = ACTION_TO_COUNTER[action.action];
+    if (counter) (tally[counter] as number)++;
+
+    await prisma.syncEntityLog.create({
+      data: {
+        tenantId: job.tenantId,
+        syncJobId: job.id,
+        entityType: entityConfig.internalEntity,
+        internalId: String(item.id),
+        externalId,
+        direction: action.direction,
+        action: action.action,
+        internalData: item as Prisma.InputJsonValue,
+        externalData: (externalMatch ?? null) as Prisma.InputJsonValue,
+        status: isConflict ? 'CONFLICT' : 'SUCCESS'
+      }
+    });
+
+    tally.processed++;
+    this.emitProgress(job, entityConfig.internalEntity, tally);
+  }
+
+  private static async finalizeSuccess(
+    job: SyncJob, config: SyncConfig, entityConfigs: SyncEntityConfig[], tally: SyncTally, startTime: number
+  ): Promise<void> {
+    await prisma.syncJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'COMPLETED',
+        totalEntities: tally.total,
+        processedEntities: tally.processed,
+        createdCount: tally.created,
+        updatedCount: tally.updated,
+        deletedCount: tally.deleted,
+        skippedCount: tally.skipped,
+        errorCount: tally.errors,
+        conflictCount: tally.conflicts,
+        completedAt: new Date(),
+        durationMs: Date.now() - startTime,
+        resultSummary: {
+          entitiesProcessed: tally.processed,
+          created: tally.created, updated: tally.updated, deleted: tally.deleted,
+          skipped: tally.skipped, conflicts: tally.conflicts, errors: tally.errors
+        }
+      }
+    });
+    await prisma.syncConfig.update({
+      where: { id: config.id },
+      data: {
+        lastSyncAt: new Date(),
+        lastSyncStatus: tally.conflicts > 0 ? 'PARTIAL' : 'SUCCESS',
+        lastSyncJobId: job.id,
+        consecutiveErrors: 0
+      }
+    });
+    await this.updateSyncState(config.id, entityConfigs[0]?.internalEntity || 'ALL', job.id, job.tenantId);
+  }
+
+  private static async finalizeFailure(
+    job: SyncJob, config: SyncConfig, error: unknown, startTime: number
+  ): Promise<void> {
+    await prisma.syncJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'FAILED',
+        completedAt: new Date(),
+        durationMs: Date.now() - startTime,
+        errorSummary: errorInfo(error)
+      }
+    });
+    await prisma.syncConfig.update({
+      where: { id: config.id },
+      data: {
+        lastSyncStatus: 'FAILED',
+        consecutiveErrors: { increment: 1 },
+        status: config.consecutiveErrors + 1 >= config.errorThreshold ? 'ERROR' : config.status
+      }
+    });
+  }
+
   private static async processJobAsync(jobId: string): Promise<void> {
     const job = await prisma.syncJob.findUnique({
       where: { id: jobId },
@@ -146,171 +308,32 @@ export class SyncService {
     });
     if (!job) return;
 
-    await prisma.syncJob.update({
-      where: { id: jobId },
-      data: { status: 'RUNNING', startedAt: new Date() }
-    });
+    await prisma.syncJob.update({ where: { id: jobId }, data: { status: 'RUNNING', startedAt: new Date() } });
 
     const startTime = Date.now();
     const config = job.syncConfig;
-    const entityConfigs = config.entityConfigs.filter(ec =>
-      !job.entityType || ec.internalEntity === job.entityType
-    );
-
-    let totalEntities = 0;
-    let processed = 0;
-    let created = 0;
-    let updated = 0;
-    let deleted = 0;
-    let skipped = 0;
-    let errors = 0;
-    let conflicts = 0;
+    const entityConfigs = config.entityConfigs.filter(ec => !job.entityType || ec.internalEntity === job.entityType);
+    const tally = this.emptyTally();
 
     try {
       for (const entityConfig of entityConfigs) {
         if (!entityConfig.isActive) continue;
-
-        // Fetch internal and external data (REAL — provider connector, fail-closed)
+        // REAL fetch — provider connector, fail-closed
         const internalData = await this.fetchInternalEntities(entityConfig.internalEntity, job.tenantId);
         const externalData = await this.fetchExternalEntities(config, entityConfig, job.tenantId);
-
-        totalEntities += Math.max(internalData.length, externalData.length);
-
+        tally.total += Math.max(internalData.length, externalData.length);
         for (const item of internalData) {
-          const externalMatch = externalData.find(e =>
-            this.matchByKey(item, e, entityConfig.fieldMappings as any)
-          );
-
-          const action = await this.determineAction(
-            item, externalMatch, entityConfig.syncDirection, config.syncDirection
-          );
-
-          const logData: any = {
-            tenantId: job.tenantId,
-            syncJobId: job.id,
-            entityType: entityConfig.internalEntity,
-            internalId: item.id,
-            externalId: externalMatch?.id,
-            direction: action.direction,
-            action: action.action,
-            internalData: item,
-            externalData: externalMatch,
-            status: 'SUCCESS'
-          };
-
-          if (action.action === 'CONFLICT') {
-            await prisma.syncConflict.create({
-              data: {
-                tenantId: job.tenantId,
-                syncJobId: job.id,
-                entityType: entityConfig.internalEntity,
-                internalId: item.id,
-                externalId: externalMatch?.id || 'unknown',
-                conflictType: 'UPDATE_BOTH',
-                internalValue: item,
-                externalValue: externalMatch,
-                resolution: entityConfig.conflictResolution
-              }
-            });
-            logData.status = 'CONFLICT';
-            conflicts++;
-          } else if (action.action === 'CREATE') {
-            created++;
-          } else if (action.action === 'UPDATE') {
-            updated++;
-          } else if (action.action === 'DELETE') {
-            deleted++;
-          } else if (action.action === 'SKIP') {
-            skipped++;
-          }
-
-          await prisma.syncEntityLog.create({ data: logData });
-          processed++;
-
-          // Emit progress
-          progressEmitter.emit('progress', {
-            jobId: job.id,
-            jobNumber: job.jobNumber,
-            status: 'RUNNING',
-            totalEntities,
-            processedEntities: processed,
-            createdCount: created,
-            updatedCount: updated,
-            deletedCount: deleted,
-            skippedCount: skipped,
-            errorCount: errors,
-            conflictCount: conflicts,
-            percentComplete: Math.round((processed / totalEntities) * 100),
-            currentEntity: entityConfig.internalEntity
-          } as SyncProgress);
+          await this.syncOneItem(job, config, entityConfig, item, externalData, tally);
         }
       }
-
-      const duration = Date.now() - startTime;
-
-      await prisma.syncJob.update({
-        where: { id: jobId },
-        data: {
-          status: errors > 0 ? 'COMPLETED' : 'COMPLETED',
-          totalEntities,
-          processedEntities: processed,
-          createdCount: created,
-          updatedCount: updated,
-          deletedCount: deleted,
-          skippedCount: skipped,
-          errorCount: errors,
-          conflictCount: conflicts,
-          completedAt: new Date(),
-          durationMs: duration,
-          resultSummary: {
-            entitiesProcessed: processed,
-            created,
-            updated,
-            deleted,
-            skipped,
-            conflicts,
-            errors
-          }
-        }
-      });
-
-      await prisma.syncConfig.update({
-        where: { id: config.id },
-        data: {
-          lastSyncAt: new Date(),
-          lastSyncStatus: conflicts > 0 ? 'PARTIAL' : 'SUCCESS',
-          lastSyncJobId: job.id,
-          consecutiveErrors: 0
-        }
-      });
-
-      // Update sync state watermark
-      await this.updateSyncState(config.id, entityConfigs[0]?.internalEntity || 'ALL', job.id, job.tenantId);
-
-    } catch (error: any) {
-      await prisma.syncJob.update({
-        where: { id: jobId },
-        data: {
-          status: 'FAILED',
-          completedAt: new Date(),
-          durationMs: Date.now() - startTime,
-          errorSummary: { message: error.message, stack: error.stack }
-        }
-      });
-
-      await prisma.syncConfig.update({
-        where: { id: config.id },
-        data: {
-          lastSyncStatus: 'FAILED',
-          consecutiveErrors: { increment: 1 },
-          status: config.consecutiveErrors + 1 >= config.errorThreshold ? 'ERROR' : config.status
-        }
-      });
+      await this.finalizeSuccess(job, config, entityConfigs, tally, startTime);
+    } catch (error: unknown) {
+      await this.finalizeFailure(job, config, error, startTime);
     }
   }
 
   private static async determineAction(
-    internal: any, external: any | undefined,
+    internal: SyncEntity | undefined, external: SyncEntity | undefined,
     entityDirection: string, configDirection: string
   ): Promise<{ action: string; direction: string }> {
     const direction = entityDirection !== 'BIDIRECTIONAL' ? entityDirection : configDirection;
@@ -334,9 +357,13 @@ export class SyncService {
     if (direction === 'TO_EXTERNAL') return { action: 'UPDATE', direction: 'TO_EXTERNAL' };
     if (direction === 'FROM_EXTERNAL') return { action: 'UPDATE', direction: 'FROM_EXTERNAL' };
 
-    // BIDIRECTIONAL — check for conflicts
-    const internalUpdated = new Date(internal.updatedAt || 0);
-    const externalUpdated = new Date(external.updatedAt || 0);
+    // BIDIRECTIONAL — check for conflicts (yahan dono defined hain)
+    const toTime = (value: unknown): number => {
+      const parsed = new Date((value as string | number | Date) ?? 0).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+    const internalUpdated = new Date(toTime(internal?.updatedAt));
+    const externalUpdated = new Date(toTime(external?.updatedAt));
 
     if (Math.abs(internalUpdated.getTime() - externalUpdated.getTime()) < 5000) {
       return { action: 'CONFLICT', direction: 'BIDIRECTIONAL' };
@@ -345,37 +372,87 @@ export class SyncService {
     return { action: 'UPDATE', direction: internalUpdated > externalUpdated ? 'TO_EXTERNAL' : 'FROM_EXTERNAL' };
   }
 
-  private static matchByKey(internal: any, external: any, mappings: any[]): boolean {
-    const keyMappings = mappings.filter(m => m.isKey);
+  private static matchByKey(internal: SyncEntity, external: SyncEntity, mappings: unknown): boolean {
+    const list: FieldMapping[] = Array.isArray(mappings) ? (mappings as FieldMapping[]) : [];
+    const keyMappings = list.filter((mapping) => mapping?.isKey);
     if (keyMappings.length === 0) return internal.id === external.id;
-    return keyMappings.every(m => internal[m.internalField] === external[m.externalField]);
+    return keyMappings.every((mapping) => internal[mapping.internalField] === external[mapping.externalField]);
   }
 
-  private static async fetchInternalEntities(entityType: string, tenantId: string): Promise<any[]> {
-    // अपने module (M11 payment) से असली data; बाक़ी (ITEM/CUSTOMER/INVOICE = M05/M06/M07/M08)
-    // Claude की public fetch अभी नहीं — fake data लौटाने की बजाय खाली (ईमानदार)।
-    if (entityType.toUpperCase() === 'PAYMENT') {
+  // एक sync run में एक entity के अधिकतम records। इससे ज़्यादा हों तो job चुपचाप truncated
+  // subset sync नहीं करेगा — साफ़ error (job FAILED), ताकि operator batched FILE sync करे।
+  private static readonly INTERNAL_FETCH_LIMIT = 5000;
+
+  /** query ने limit छू ली → आगे records बच गए → चुपचाप मत छोड़ो, job fail करो */
+  private static assertNotTruncated(rowCount: number, entityType: string): void {
+    if (rowCount > SyncService.INTERNAL_FETCH_LIMIT) {
+      throw new Error(
+        `M15 sync: "${entityType}" के ${SyncService.INTERNAL_FETCH_LIMIT}+ records हैं — ` +
+        `एक run में पूरा sync नहीं होगा (truncated data नहीं भेजेंगे)। FILE source से batches में sync करें।`,
+      );
+    }
+  }
+
+  private static async fetchInternalEntities(entityType: string, tenantId: string): Promise<SyncEntity[]> {
+    // हर internal entity अपने owner module के canonical table से (tenant-scoped, read-only)।
+    const et = entityType.toUpperCase();
+    const take = SyncService.INTERNAL_FETCH_LIMIT + 1; // +1 = limit छुई या नहीं, पता चले
+
+    if (et === 'PAYMENT') {
       const txs = await prisma.paymentTransaction.findMany({
-        where: { tenantId },
-        orderBy: { createdAt: 'desc' },
-        take: 500,
+        where: { tenantId }, orderBy: { createdAt: 'desc' }, take,
       });
+      SyncService.assertNotTruncated(txs.length, et);
       return txs.map((t) => ({
-        id: t.id,
-        name: t.partyName,
-        code: t.transactionNumber,
-        partyId: t.partyId,
-        partyType: t.partyType,
-        amount: Number(t.amount),
-        direction: t.direction,
-        status: t.status,
+        id: t.id, name: t.partyName, code: t.transactionNumber,
+        partyId: t.partyId, partyType: t.partyType, amount: Number(t.amount),
+        direction: t.direction, status: t.status,
         updatedAt: (t.updatedAt ?? t.createdAt).toISOString(),
       }));
     }
-    return [];
+
+    if (et === 'CUSTOMER' || et === 'PARTY' || et === 'SUPPLIER') {
+      const rows = await prisma.party_master.findMany({ where: { company_id: tenantId }, take });
+      SyncService.assertNotTruncated(rows.length, et);
+      return rows.map((r) => ({
+        id: r.id, name: r.name, code: r.display_name ?? r.name, email: r.email, phone: r.phone,
+        gstin: r.gstin, partyType: r.party_type,
+        updatedAt: r.updated_at.toISOString(),
+      }));
+    }
+
+    if (et === 'ITEM' || et === 'PRODUCT' || et === 'INVENTORY') {
+      const rows = await prisma.product_master.findMany({ where: { company_id: tenantId }, take });
+      SyncService.assertNotTruncated(rows.length, et);
+      return rows.map((r) => ({
+        id: r.id, name: r.name, code: r.code, hsn: r.hsn_code,
+        salePrice: Number(r.sale_price ?? 0),
+        updatedAt: r.updated_at.toISOString(),
+      }));
+    }
+
+    if (et === 'INVOICE' || et === 'SALES_INVOICE') {
+      const rows = await prisma.salesInvoice.findMany({
+        where: { companyId: tenantId }, orderBy: { invoiceDate: 'desc' }, take,
+      });
+      SyncService.assertNotTruncated(rows.length, et);
+      return rows.map((r) => ({
+        id: r.id, name: r.invoiceNumber, code: r.invoiceNumber,
+        customerId: r.customerId, status: r.status,
+        grandTotal: Number(r.grandTotal), paymentStatus: r.paymentStatus,
+        updatedAt: (r.updatedAt ?? r.invoiceDate).toISOString(),
+      }));
+    }
+
+    // अनजान entity — चुपचाप खाली नहीं; साफ़ error ताकि sync job FAILED हो
+    throw new Error(
+      `M15 sync: unsupported internal entity "${entityType}". Supported: PAYMENT, CUSTOMER/PARTY/SUPPLIER, ITEM/PRODUCT/INVENTORY, INVOICE.`
+    );
   }
 
-  private static async fetchExternalEntities(config: SyncConfig, entityConfig: any, tenantId: string): Promise<any[]> {
+  private static async fetchExternalEntities(
+    config: SyncConfig, entityConfig: EntityConfigLike, tenantId: string,
+  ): Promise<SyncEntity[]> {
     // External system (Tally/Zoho) se asli fetch — provider-driven, fail-closed.
     // koi ACTIVE integration na ho toh honest [] (koi fake data nahi); real API error throw hota hai.
     return fetchExternalFromProvider(config, entityConfig, tenantId);
@@ -503,9 +580,11 @@ export class SyncService {
       const external = await this.fetchExternalEntities(config, ec, tenantId);
       totalEstimated += Math.max(internal.length, external.length);
 
-      const changes = [];
+      const changes: Array<{ action: string; internalId: unknown; externalId?: unknown; diff: unknown }> = [];
       for (const item of internal.slice(0, 10)) {
-        const match = external.find(e => this.matchByKey(item, e, ec.fieldMappings as any));
+        const match = external.find((candidate) =>
+          this.matchByKey(item, candidate, ec.fieldMappings),
+        );
         if (!match) {
           changes.push({ action: 'CREATE', internalId: item.id, diff: { status: { internal: 'new', external: null } } });
         } else if (JSON.stringify(item) !== JSON.stringify(match)) {
