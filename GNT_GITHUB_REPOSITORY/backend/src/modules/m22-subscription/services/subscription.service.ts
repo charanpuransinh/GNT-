@@ -106,16 +106,19 @@ export class SubscriptionService {
   }
 
   /**
-   * Feature gate: कंपनी के ACTIVE plan में यह feature है या नहीं।
-   * `features: ['*']` = सब कुछ खुला। EXPIRED/CANCELLED पर false।
+   * Feature gate: कंपनी के plan में यह feature है या नहीं।
+   * `features: ['*']` = सब कुछ खुला।
+   * ACTIVE / TRIAL / PAST_DUE (grace period) → access मिलता है; EXPIRED / CANCELLED → नहीं।
+   * TRIAL/ACTIVE का endDate बीत चुका हो तो भी नहीं (runBillingCycle के चलने से पहले भी fail-safe)।
    */
   async canAccess(companyId: string, feature: string): Promise<boolean> {
     const sub = await prisma.companySubscription.findUnique({
       where: { companyId },
       include: { plan: true },
     });
-    if (!sub || (sub.status !== 'ACTIVE' && sub.status !== 'TRIAL')) return false;
-    if (sub.endDate && sub.endDate < new Date()) return false;
+    if (!sub) return false;
+    if (sub.status === 'EXPIRED' || sub.status === 'CANCELLED') return false;
+    if ((sub.status === 'ACTIVE' || sub.status === 'TRIAL') && sub.endDate && sub.endDate < new Date()) return false;
     const features = (sub.plan.features ?? []) as unknown as string[];
     if (features.includes('*')) return true;
     return features.includes(feature);
@@ -158,13 +161,103 @@ export class SubscriptionService {
     });
   }
 
+  /**
+   * Invoice paid — status PAID + subscription को उसी period तक बढ़ाओ (renewal) और
+   * PAST_DUE थी तो ACTIVE कर दो। (Payment gateway से confirm आने पर M11/M18 यही बुलाएँगे,
+   * या admin manually।)
+   */
   async markInvoicePaid(invoiceId: string, companyId: string) {
-    const result = await prisma.subscriptionInvoice.updateMany({
-      where: { id: invoiceId, companyId },
-      data: { status: 'PAID' },
+    const invoice = await prisma.subscriptionInvoice.findFirst({ where: { id: invoiceId, companyId } });
+    if (!invoice) throw new Error('Invoice not found');
+    if (invoice.status === 'PAID') return invoice;
+
+    return prisma.$transaction(async (tx) => {
+      const paid = await tx.subscriptionInvoice.update({
+        where: { id: invoiceId },
+        data: { status: 'PAID' },
+      });
+      const sub = await tx.companySubscription.findUnique({ where: { id: invoice.subscriptionId } });
+      if (sub && sub.status !== 'CANCELLED') {
+        // period बढ़ाओ — जो बाद में हो: मौजूदा endDate या इस invoice का periodEnd
+        const newEnd = !sub.endDate || sub.endDate < invoice.periodEnd ? invoice.periodEnd : sub.endDate;
+        await tx.companySubscription.update({
+          where: { id: sub.id },
+          data: {
+            status: sub.status === 'PAST_DUE' || sub.status === 'EXPIRED' ? 'ACTIVE' : sub.status,
+            endDate: newEnd,
+            updatedAt: new Date(),
+          },
+        });
+      }
+      return paid;
     });
-    if (result.count === 0) throw new Error('Invoice not found');
-    return prisma.subscriptionInvoice.findFirst({ where: { id: invoiceId, companyId } });
+  }
+
+  /**
+   * Billing lifecycle — cron/admin हर दिन एक बार बुलाए (M13 schedule या /billing/run)।
+   * 1. auto-renew subs जिनका period ~3 दिन में ख़त्म → अगला invoice generate
+   * 2. PENDING invoice जिसका periodEnd बीत गया + अब तक unpaid → OVERDUE + subscription PAST_DUE
+   * 3. PAST_DUE subscription जिसकी OVERDUE invoice `graceDays` से पुरानी → EXPIRED (autoRenew off)
+   */
+  async runBillingCycle(now: Date = new Date(), graceDays = 7) {
+    const soon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const summary = { renewed: 0, markedOverdue: 0, pastDue: 0, expired: 0 };
+
+    // 1. renewal
+    const dueForRenewal = await prisma.companySubscription.findMany({
+      where: { autoRenew: true, status: { in: ['ACTIVE', 'PAST_DUE'] }, endDate: { lte: soon } },
+      include: { plan: true },
+    });
+    for (const sub of dueForRenewal) {
+      const yearly = sub.plan.billingCycle === 'YEARLY';
+      const periodStart = sub.endDate && sub.endDate > now ? sub.endDate : now;
+      const periodEnd = new Date(periodStart.getTime() + (yearly ? 365 : 30) * 24 * 60 * 60 * 1000);
+      const already = await prisma.subscriptionInvoice.findFirst({
+        where: { subscriptionId: sub.id, periodStart, status: { in: ['PENDING', 'PAID'] } },
+      });
+      if (already) continue;
+      await prisma.subscriptionInvoice.create({
+        data: {
+          companyId: sub.companyId,
+          subscriptionId: sub.id,
+          planId: sub.planId,
+          amount: yearly ? Number(sub.plan.priceYearly) : Number(sub.plan.priceMonthly),
+          billingCycle: sub.plan.billingCycle,
+          periodStart,
+          periodEnd,
+        },
+      });
+      summary.renewed++;
+    }
+
+    // 2. overdue
+    const nowOverdue = await prisma.subscriptionInvoice.findMany({
+      where: { status: 'PENDING', periodEnd: { lt: now } },
+    });
+    for (const inv of nowOverdue) {
+      await prisma.subscriptionInvoice.update({ where: { id: inv.id }, data: { status: 'OVERDUE' } });
+      summary.markedOverdue++;
+      const upd = await prisma.companySubscription.updateMany({
+        where: { id: inv.subscriptionId, status: { in: ['ACTIVE', 'TRIAL'] } },
+        data: { status: 'PAST_DUE', updatedAt: now },
+      });
+      summary.pastDue += upd.count;
+    }
+
+    // 3. expire after grace
+    const graceCutoff = new Date(now.getTime() - graceDays * 24 * 60 * 60 * 1000);
+    const staleOverdue = await prisma.subscriptionInvoice.findMany({
+      where: { status: 'OVERDUE', periodEnd: { lt: graceCutoff } },
+    });
+    for (const inv of staleOverdue) {
+      const upd = await prisma.companySubscription.updateMany({
+        where: { id: inv.subscriptionId, status: 'PAST_DUE' },
+        data: { status: 'EXPIRED', autoRenew: false, updatedAt: now },
+      });
+      summary.expired += upd.count;
+    }
+
+    return summary;
   }
 }
 

@@ -19,3 +19,8 @@ export const subscribeSchema = z.object({
   autoRenew: z.boolean().default(false),
   endDate: z.string().datetime().optional(),
 });
+
+export const startTrialSchema = z.object({
+  planId: z.string().min(1),
+  trialDays: z.number().int().min(1).max(90).optional(),
+});
