@@ -1,0 +1,40 @@
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  price       Decimal  @db.Decimal(10, 2)
+  currency    String   @default("INR")
+  interval    String
+  features    Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  subscriptions UserSubscription[]
+}
+
+model UserSubscription {
+  id                String   @id @default(cuid())
+  userId            String
+  planId            String
+  status            String   @default("active")
+  currentPeriodEnd  DateTime
+  cancelAtPeriodEnd Boolean  @default(false)
+  dunningStatus     String   @default("none")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  plan              SubscriptionPlan @relation(fields: [planId], references: [id])
+  dunningLogs       DunningLog[]
+}
+
+model DunningLog {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  attemptNumber  Int
+  scheduledDate  DateTime
+  status         String
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  subscription   UserSubscription @relation(fields: [subscriptionId], references: [id])
+}
+// Migration: 020_add_subscription_core_tables.prisma
+// STATUS: CERTIFIED
