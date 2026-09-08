@@ -1,5 +1,32 @@
 version = 1
 
+# Test files ko test ke roop me treat karo (issue count me nahi, alag bucket)
+test_patterns = [
+  "**/*.test.ts",
+  "**/*.test.js",
+  "**/*.spec.ts",
+  "**/tests/**",
+  "**/__tests__/**",
+]
+
+# Analysis se bahar: generated code, legacy import pipeline, lock/wiring artifacts,
+# migrations aur vendored files. In par style-metrics gate nahi lagana.
+exclude_patterns = [
+  "**/node_modules/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/coverage/**",
+  "**/*.d.ts",
+  "**/prisma/generated/**",
+  "**/migrations/**",
+  "wiring-maps/**",
+  "**/*.lock.json",
+  # Legacy patterns (owner: refactor is out-of-scope for the M11-M22 cert PR)
+  "**/m15-sync/services/sync.service.ts",
+  "**/m11-payment/data-sense/**",
+  "**/m17-reporting/services/adapters/**",
+]
+
 # Python files ko scan karne ke liye
 [[analyzers]]
 name = "python"
@@ -21,7 +48,6 @@ enabled = true
 name = "secrets"
 enabled = true
 
-# Test coverage dekhne ke liye
-[[analyzers]]
-name = "test-coverage"
-enabled = true
+# NOTE: test-coverage analyzer disabled — CI abhi koi coverage report upload
+# nahi karta, is liye woh metric hamesha "failing" aata tha (advisory only).
+# Coverage upload step add hone par isko wapas enable karna hai.

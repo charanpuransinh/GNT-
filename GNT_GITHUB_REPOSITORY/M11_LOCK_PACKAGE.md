@@ -2,10 +2,24 @@
 
 ## Module Info
 - **Module ID:** M11
-- **Name:** Payment (transactions, methods, bank accounts, refunds, reconciliation, M10 ledger bridge)
-- **Mount:** `/api/v1/payments`
+- **Name:** Payment (transactions, methods, bank accounts, refunds, reconciliation, M10 ledger bridge, **Data Sense** legacy-import pipeline)
+- **Mount:** `/api/v1/payments` (Data Sense sub-router at `/api/v1/payments/data-sense`)
 - **Status:** ✅ CERTIFIED by Claude 2026-09-08 — READY FOR OWNER LOCK
-- **Certification evidence:** 17/17 M11 tests on live PostgreSQL (`TEST_DB=1`); independent combined run with M16 was 33/33; full backend suite 623/623; typecheck clean; biome lint clean (35 files).
+- **Certification evidence:** 17/17 M11 tests + 30/30 relocated Data Sense tests (28 existing + 2 new FIFO-settlement) on live PostgreSQL (`TEST_DB=1`); full backend suite green; typecheck clean; biome lint clean.
+
+## Data Sense sub-module (was standalone M21 — folded in 2026-09-08 by owner decision)
+`src/modules/m11-payment/data-sense/` — reads a client's legacy file (Tally/Vyapar/Marg/Excel/CSV),
+SENSE → MAP → VALIDATE → PREVIEW → (on approval) TRANSFER into the owning module via its **public API**
+(party→M05, item→M06, purchase→M07, sales→M08, accounting→M10, export→M20). It owns no master data.
+- **Routes (`/api/v1/payments/data-sense`):** `POST /analyze`, `POST /transfer`, `GET /field-map`, `GET /options` — all under M11's `payment` permission.
+- **Owner decision #3 (bank receipts) — both paths now REAL** (were `pending-adapter`):
+  - `direct-ledger-credit` (default) → **M10**: credits the party's ledger account directly.
+  - `fifo-invoice-settlement` → **M11**: the receipt settles that party's oldest open `SalesInvoice`s
+    in order — writes a real `PaymentTransaction` (`IN`/`COMPLETED`) + `PaymentAllocation` rows and
+    updates each invoice's `amountPaid` / `paymentStatus` (full → `paid`, partial → `partial`);
+    leftover is reported as advance. If the tenant has no active payment method a `BANK_TRANSFER` one
+    is auto-created. No open bill ⇒ the row is skipped (suspense), not silently lost.
+- **Tests:** `data-sense/tests/unit/*` — 28 existing (sense/validate/decisions/transfer-db/export/sales) all green after the move + `bank.fifo.db.test.ts` (full settle, partial, no-open-bill skip).
 
 ## Database Ownership
 `PaymentTransaction`, `PaymentMethod`, `PaymentAllocation`, `PaymentSchedule`, `PaymentInstallment`,
@@ -20,6 +34,7 @@ Migrations: `001_M11_payment_master.sql`, `013_M11_payment_method_code_per_tenan
 | Bank accounts | POST/GET/PUT/DELETE `/bank-accounts` |
 | Refunds | POST `/refunds`, POST `/refunds/:id/approve`, GET `/refunds` |
 | Reconciliation | POST `/reconciliations`, GET `/reconciliations/:id`, POST `/reconciliations/:id/upload-statement` (auto-match) |
+| Data Sense | POST `/data-sense/analyze`, POST `/data-sense/transfer`, GET `/data-sense/field-map`, GET `/data-sense/options` |
 
 ## M10 ledger integration (`services/ledgerBridge.service.ts`) — the real fix
 Before: `payment.service` wrote to its own private `PaymentLedgerEntry` with hardcoded account codes
@@ -70,7 +85,7 @@ non-existent party is rejected (tested).
 - [x] Integration Contract (M10 voucher bridge contract; M05 party validation; event payloads)
 - [x] Security Contract — token-only identity, tenant-scoped, DI prisma, Decimal money, audit identity server-side
 - [x] Test Report — 17/17 live-DB (33/33 combined with M16); auth gates, per-entity CRUD, M05 validation, M10 double-entry voucher (both directions), tenant isolation read+write
-- [x] Change Log — 2026-09-08: full cert pass. Earlier (Claude): real M10 ledger bridge, M05 party validation, direction-from-party-type fix
+- [x] Change Log — 2026-09-08: full cert pass. **2026-09-08 #2:** absorbed the former standalone M21 as the `data-sense/` sub-module (owner decision); implemented owner decision #3 — bank-receipt `settle-invoices-fifo` executor branch (real `PaymentTransaction` + `PaymentAllocation` + invoice `amountPaid`/`paymentStatus` update) and `credit-ledger` → M10; removed M21's `module-registry` + `permission-catalog` entries. Earlier (Claude): real M10 ledger bridge, M05 party validation, direction-from-party-type fix
 - [x] Version: 1.0.0
 - [ ] Lock Status: **PENDING OWNER SIGN-OFF**
 

@@ -1,9 +1,9 @@
+import assert from 'node:assert/strict';
 /**
  * M21 — Data Sense ki jaanch: pehchaan (SENSE), jodi (MAP), aur rang (VALIDATE).
  * Sab kuch DB ke bina — yeh shuddh logic hai.
  */
 import { test } from 'vitest';
-import assert from 'node:assert/strict';
 import { DataSenseService } from '../../services/dataSense.service';
 import { senseSheet } from '../../services/sense.engine';
 
@@ -22,11 +22,24 @@ test('M21: Tally jaisi party file pehchaani jaati hai aur M05 ko jaati hai', () 
 });
 
 test('M21: item file M06 ko, sales file M08 ko jaati hai', () => {
-  const item = senseSheet({ headers: ['Item Name', 'Item Code', 'HSN Code', 'UOM', 'Rate'], rows: [] });
+  const item = senseSheet({
+    headers: ['Item Name', 'Item Code', 'HSN Code', 'UOM', 'Rate'],
+    rows: [],
+  });
   assert.equal(item.group, 'item');
   assert.equal(item.ownerModule, 'm06-inventory');
 
-  const sales = senseSheet({ headers: ['Invoice No', 'Invoice Date', 'Customer Name', 'Taxable Value', 'GST Amount', 'Grand Total'], rows: [] });
+  const sales = senseSheet({
+    headers: [
+      'Invoice No',
+      'Invoice Date',
+      'Customer Name',
+      'Taxable Value',
+      'GST Amount',
+      'Grand Total',
+    ],
+    rows: [],
+  });
   assert.equal(sales.group, 'sales');
   assert.equal(sales.ownerModule, 'm08-sales');
 });
@@ -71,31 +84,51 @@ test('M21: file ke andar duplicate GSTIN ORANGE ho jata hai', () => {
 test('M21: bikri ka jod na mile to ORANGE (rok nahi, chetavni)', () => {
   const r = svc.analyze('c1', {
     headers: ['Invoice No', 'Invoice Date', 'Taxable Value', 'GST Amount', 'Grand Total'],
-    rows: [{ 'Invoice No': 'INV-1', 'Invoice Date': '01/04/2026', 'Taxable Value': 1000, 'GST Amount': 180, 'Grand Total': 1200 }],
+    rows: [
+      {
+        'Invoice No': 'INV-1',
+        'Invoice Date': '01/04/2026',
+        'Taxable Value': 1000,
+        'GST Amount': 180,
+        'Grand Total': 1200,
+      },
+    ],
   });
   assert.equal(r.verdicts[0].status, 'ORANGE');
   assert.match(r.verdicts[0].reasons.join(' '), /जोड़ नहीं मिल रहा/);
 });
 
 test('M21: bharatiya tareekh dd/mm/yyyy chalti hai, bakwas tareekh RED', () => {
-  const ok = svc.analyze('c1', { headers: ['Invoice No', 'Invoice Date'], rows: [{ 'Invoice No': 'A1', 'Invoice Date': '15/08/2026' }] });
+  const ok = svc.analyze('c1', {
+    headers: ['Invoice No', 'Invoice Date'],
+    rows: [{ 'Invoice No': 'A1', 'Invoice Date': '15/08/2026' }],
+  });
   assert.equal(ok.verdicts[0].status, 'GREEN');
 
-  const bad = svc.analyze('c1', { headers: ['Invoice No', 'Invoice Date'], rows: [{ 'Invoice No': 'A1', 'Invoice Date': 'kal subah' }] });
+  const bad = svc.analyze('c1', {
+    headers: ['Invoice No', 'Invoice Date'],
+    rows: [{ 'Invoice No': 'A1', 'Invoice Date': 'kal subah' }],
+  });
   assert.equal(bad.verdicts[0].status, 'RED');
 });
 
 test('M21: HSN 4/6/8 ank hi chalega', () => {
   const r = svc.analyze('c1', {
     headers: ['Item Name', 'HSN Code'],
-    rows: [{ 'Item Name': 'Pen', 'HSN Code': '9608' }, { 'Item Name': 'Book', 'HSN Code': '96' }],
+    rows: [
+      { 'Item Name': 'Pen', 'HSN Code': '9608' },
+      { 'Item Name': 'Book', 'HSN Code': '96' },
+    ],
   });
   assert.equal(r.verdicts[0].status, 'GREEN');
   assert.equal(r.verdicts[1].status, 'RED');
 });
 
 test('M21: bebuniyaad file par andaza nahi lagata — saaf mana karta hai', () => {
-  const r = svc.analyze('c1', { headers: ['zzz', 'qqq', 'xyz'], rows: [{ zzz: 1, qqq: 2, xyz: 3 }] });
+  const r = svc.analyze('c1', {
+    headers: ['zzz', 'qqq', 'xyz'],
+    rows: [{ zzz: 1, qqq: 2, xyz: 3 }],
+  });
   assert.equal(r.sense.group, null);
   assert.equal(r.importable, false);
   assert.equal(r.verdicts[0].status, 'RED');

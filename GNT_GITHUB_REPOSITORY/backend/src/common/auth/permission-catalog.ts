@@ -53,7 +53,8 @@ export const MODULES: readonly ModuleDef[] = [
   { code: 'M18', path: '/api/v1/integrations',  resource: 'integration',   department: 'admin',           label: 'बाहरी जुड़ाव' },
   { code: 'M19', path: '/api/v1/monitoring',    resource: 'monitoring',    department: 'admin',           label: 'निगरानी' },
   { code: 'M20', path: '/api/v1/trade',         resource: 'trade',         department: 'admin',           label: 'विदेश व्यापार' },
-  { code: 'M21', path: '/api/v1/data-sense',    resource: 'data_sense',    department: 'admin',           label: 'DataSense' },
+  // M21 (Data Sense) हटा — owner फ़ैसला 2026-09-08। अब M11 का sub-module है:
+  // `/api/v1/payments/data-sense` M11 (payment) की permission से ही सुरक्षित।
   { code: 'M22', path: '/api/v1/subscriptions', resource: 'subscription',  department: 'admin',           label: 'सदस्यता' },
 ] as const;
 

@@ -10,8 +10,8 @@
  * तारीख़ पढ़ी जा सके।
  */
 import type { DataGroup, DataSenseStatus } from '../types/dataGroup';
-import { GROUP_SPECS } from './sense.engine';
 import { DEFAULT_OPTIONS, type DataSenseOptions, type RowVerdict } from '../types/dataSense.types';
+import { GROUP_SPECS } from './sense.engine';
 
 /** भारत का GSTIN: 2 अंक राज्य + 10 अंक PAN + 1 इकाई + Z + 1 checksum */
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
@@ -45,7 +45,7 @@ export function validateRow(
   mapped: Record<string, unknown>,
   group: DataGroup,
   rowNumber: number,
-  options: DataSenseOptions = DEFAULT_OPTIONS,
+  options: DataSenseOptions = DEFAULT_OPTIONS
 ): RowVerdict {
   const reasons: string[] = [];
   // status को object में रखा है क्योंकि नीचे closures इसे बदलते हैं और
@@ -53,8 +53,14 @@ export function validateRow(
   const state: { status: DataSenseStatus } = { status: 'GREEN' };
   let zone: RowVerdict['zone'] = 'ready';
 
-  const red = (msg: string) => { reasons.push(msg); state.status = 'RED'; };
-  const orange = (msg: string) => { reasons.push(msg); if (state.status !== 'RED') state.status = 'ORANGE'; };
+  const red = (msg: string) => {
+    reasons.push(msg);
+    state.status = 'RED';
+  };
+  const orange = (msg: string) => {
+    reasons.push(msg);
+    if (state.status !== 'RED') state.status = 'ORANGE';
+  };
 
   // 1) ज़रूरी fields
   for (const field of GROUP_SPECS[group].required) {
@@ -83,7 +89,19 @@ export function validateRow(
   }
 
   // 4) रक़म वाले fields
-  for (const field of ['rate', 'purchaseRate', 'taxableValue', 'gstAmount', 'invoiceTotal', 'openingBalance', 'openingStock', 'debit', 'credit', 'fobValue', 'discountPercent']) {
+  for (const field of [
+    'rate',
+    'purchaseRate',
+    'taxableValue',
+    'gstAmount',
+    'invoiceTotal',
+    'openingBalance',
+    'openingStock',
+    'debit',
+    'credit',
+    'fobValue',
+    'discountPercent',
+  ]) {
     if (!isBlank(mapped[field]) && !isNumeric(mapped[field])) {
       red(`"${field}" में संख्या होनी चाहिए, मिला: "${String(mapped[field])}"`);
     }
@@ -97,7 +115,10 @@ export function validateRow(
   }
 
   // 6) सम्पर्क — ग़लत हो तो रोकना नहीं, पर बताना ज़रूरी
-  if (!isBlank(mapped.phone) && !PHONE_RE.test(String(mapped.phone).replace(/\D/g, '').slice(-10))) {
+  if (
+    !isBlank(mapped.phone) &&
+    !PHONE_RE.test(String(mapped.phone).replace(/\D/g, '').slice(-10))
+  ) {
     orange(`फ़ोन नंबर 10 अंकों का नहीं लगता: "${String(mapped.phone)}"`);
   }
   if (!isBlank(mapped.email) && !EMAIL_RE.test(String(mapped.email).trim())) {
@@ -112,7 +133,12 @@ export function validateRow(
   }
 
   // 8) बिक्री/ख़रीद का जोड़ मिलान (सहनशीलता ₹1 — rounding के लिए)
-  if ((group === 'sales' || group === 'purchase') && isNumeric(mapped.taxableValue) && isNumeric(mapped.gstAmount) && isNumeric(mapped.invoiceTotal)) {
+  if (
+    (group === 'sales' || group === 'purchase') &&
+    isNumeric(mapped.taxableValue) &&
+    isNumeric(mapped.gstAmount) &&
+    isNumeric(mapped.invoiceTotal)
+  ) {
     const t = Number(String(mapped.taxableValue).replace(/[,\s₹]/g, ''));
     const g = Number(String(mapped.gstAmount).replace(/[,\s₹]/g, ''));
     const total = Number(String(mapped.invoiceTotal).replace(/[,\s₹]/g, ''));
@@ -131,7 +157,8 @@ export function findDuplicates(verdicts: RowVerdict[], group: DataGroup): number
   const keyOf = (m: Record<string, unknown>): string | null => {
     if (group === 'party') {
       if (!isBlank(m.gstin)) return `gstin:${String(m.gstin).toUpperCase()}`;
-      if (!isBlank(m.name)) return `name:${String(m.name).toLowerCase().trim()}|${String(m.phone ?? '').replace(/\D/g, '')}`;
+      if (!isBlank(m.name))
+        return `name:${String(m.name).toLowerCase().trim()}|${String(m.phone ?? '').replace(/\D/g, '')}`;
       return null;
     }
     if (group === 'item') {
@@ -164,7 +191,9 @@ export function findDuplicates(verdicts: RowVerdict[], group: DataGroup): number
     if (!dupRows.has(v.rowNumber)) continue;
     if (v.status === 'GREEN') v.status = 'ORANGE';
     if (v.zone !== 'blocked') v.zone = 'review';
-    v.reasons.push('इसी फ़ाइल में यह पंक्ति दोहरी है — Review Zone में रोकी गई (न जोड़ी जाएगी, न अपने-आप चढ़ेगी)');
+    v.reasons.push(
+      'इसी फ़ाइल में यह पंक्ति दोहरी है — Review Zone में रोकी गई (न जोड़ी जाएगी, न अपने-आप चढ़ेगी)'
+    );
   }
 
   return groups;

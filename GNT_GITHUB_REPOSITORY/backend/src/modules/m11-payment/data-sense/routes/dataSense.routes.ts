@@ -1,4 +1,4 @@
-/** M21 — routes (M21_API_BASE = /api/v1/data-sense) */
+/** Data Sense — routes (mounted under M11 at /api/v1/payments/data-sense) */
 import { Router } from 'express';
 import { dataSenseController } from '../controllers/dataSense.controller';
 

@@ -2,10 +2,10 @@
 // M21 — Data Sense TRANSFER (DB-gated) — party sheet → M05, tenant-scoped
 // ============================================================================
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '@/common/config/prisma';
-import { dataSenseService } from '../../services/dataSense.service';
 import { TEST_COMPANY_ID } from '@/tests/helpers/auth';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { dataSenseService } from '../../services/dataSense.service';
 
 const OTHER_COMPANY_ID = '00000000-0000-4000-8000-000000000099';
 
@@ -14,12 +14,19 @@ const partySheet = {
   headers: ['Name', 'GSTIN', 'Phone', 'Email'],
   rows: [
     { Name: 'Acme Traders', GSTIN: '27ABCDE1234F1Z5', Phone: '9876543210', Email: 'acme@test.com' },
-    { Name: 'Beta Suppliers', GSTIN: '27XYZAB5678C1Z6', Phone: '9123456780', Email: 'beta@test.com' },
+    {
+      Name: 'Beta Suppliers',
+      GSTIN: '27XYZAB5678C1Z6',
+      Phone: '9123456780',
+      Email: 'beta@test.com',
+    },
   ],
 };
 
 async function cleanup() {
-  await prisma.party_master.deleteMany({ where: { company_id: { in: [TEST_COMPANY_ID, OTHER_COMPANY_ID] } } });
+  await prisma.party_master.deleteMany({
+    where: { company_id: { in: [TEST_COMPANY_ID, OTHER_COMPANY_ID] } },
+  });
 }
 
 describe.runIf(process.env.TEST_DB === '1')('M21 Data Sense TRANSFER — live DB', () => {
@@ -72,7 +79,9 @@ describe.runIf(process.env.TEST_DB === '1')('M21 Data Sense TRANSFER — live DB
     const testParties = await prisma.party_master.count({ where: { company_id: TEST_COMPANY_ID } });
     expect(testParties).toBe(2);
 
-    const otherParties = await prisma.party_master.findMany({ where: { company_id: OTHER_COMPANY_ID } });
+    const otherParties = await prisma.party_master.findMany({
+      where: { company_id: OTHER_COMPANY_ID },
+    });
     expect(otherParties.length).toBe(1);
     expect(otherParties[0].name).toBe('Gamma Co');
   });
