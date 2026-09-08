@@ -1,4 +1,4 @@
-import { SyncConfig, SyncJob, SyncEntityConfig } from '@prisma/client';
+import { Prisma, SyncConfig, SyncJob, SyncEntityConfig } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'events';
@@ -23,6 +23,28 @@ interface SyncTally {
 const ACTION_TO_COUNTER: Record<string, keyof SyncTally> = {
   CREATE: 'created', UPDATE: 'updated', DELETE: 'deleted', SKIP: 'skipped', CONFLICT: 'conflicts'
 };
+
+/** एक entity record (internal या external) — dynamic field-mapped data */
+type SyncEntity = Record<string, unknown>;
+
+interface FieldMapping {
+  internalField: string;
+  externalField: string;
+  isKey?: boolean;
+}
+
+/** determineAction/matchByKey को entityConfig से बस इतना चाहिए */
+interface EntityConfigLike {
+  internalEntity: string;
+  syncDirection: string;
+  fieldMappings: unknown;
+}
+
+function errorInfo(error: unknown): { message: string; stack?: string } {
+  return error instanceof Error
+    ? { message: error.message, stack: error.stack }
+    : { message: String(error) };
+}
 
 export class SyncService {
   // ── Sync Config CRUD ────────────────────────────────────
@@ -174,11 +196,14 @@ export class SyncService {
   /** ek internal item ko external ke saath milaakar action decide karo + log/conflict likho */
   private static async syncOneItem(
     job: SyncJob, config: SyncConfig, entityConfig: SyncEntityConfig,
-    item: any, externalData: any[], tally: SyncTally
+    item: SyncEntity, externalData: SyncEntity[], tally: SyncTally
   ): Promise<void> {
-    const externalMatch = externalData.find(e => this.matchByKey(item, e, entityConfig.fieldMappings as any));
+    const externalMatch = externalData.find((candidate) =>
+      this.matchByKey(item, candidate, entityConfig.fieldMappings),
+    );
     const action = await this.determineAction(item, externalMatch, entityConfig.syncDirection, config.syncDirection);
     const isConflict = action.action === 'CONFLICT';
+    const externalId = typeof externalMatch?.id === 'string' ? externalMatch.id : undefined;
 
     if (isConflict) {
       await prisma.syncConflict.create({
@@ -186,11 +211,11 @@ export class SyncService {
           tenantId: job.tenantId,
           syncJobId: job.id,
           entityType: entityConfig.internalEntity,
-          internalId: item.id,
-          externalId: externalMatch?.id || 'unknown',
+          internalId: String(item.id),
+          externalId: externalId ?? 'unknown',
           conflictType: 'UPDATE_BOTH',
-          internalValue: item,
-          externalValue: externalMatch,
+          internalValue: item as Prisma.InputJsonValue,
+          externalValue: (externalMatch ?? null) as Prisma.InputJsonValue,
           resolution: entityConfig.conflictResolution
         }
       });
@@ -204,14 +229,14 @@ export class SyncService {
         tenantId: job.tenantId,
         syncJobId: job.id,
         entityType: entityConfig.internalEntity,
-        internalId: item.id,
-        externalId: externalMatch?.id,
+        internalId: String(item.id),
+        externalId,
         direction: action.direction,
         action: action.action,
-        internalData: item,
-        externalData: externalMatch,
+        internalData: item as Prisma.InputJsonValue,
+        externalData: (externalMatch ?? null) as Prisma.InputJsonValue,
         status: isConflict ? 'CONFLICT' : 'SUCCESS'
-      } as any
+      }
     });
 
     tally.processed++;
@@ -255,7 +280,7 @@ export class SyncService {
   }
 
   private static async finalizeFailure(
-    job: SyncJob, config: SyncConfig, error: any, startTime: number
+    job: SyncJob, config: SyncConfig, error: unknown, startTime: number
   ): Promise<void> {
     await prisma.syncJob.update({
       where: { id: job.id },
@@ -263,7 +288,7 @@ export class SyncService {
         status: 'FAILED',
         completedAt: new Date(),
         durationMs: Date.now() - startTime,
-        errorSummary: { message: error?.message, stack: error?.stack }
+        errorSummary: errorInfo(error)
       }
     });
     await prisma.syncConfig.update({
@@ -302,13 +327,13 @@ export class SyncService {
         }
       }
       await this.finalizeSuccess(job, config, entityConfigs, tally, startTime);
-    } catch (error: any) {
+    } catch (error: unknown) {
       await this.finalizeFailure(job, config, error, startTime);
     }
   }
 
   private static async determineAction(
-    internal: any, external: any | undefined,
+    internal: SyncEntity | undefined, external: SyncEntity | undefined,
     entityDirection: string, configDirection: string
   ): Promise<{ action: string; direction: string }> {
     const direction = entityDirection !== 'BIDIRECTIONAL' ? entityDirection : configDirection;
@@ -332,9 +357,13 @@ export class SyncService {
     if (direction === 'TO_EXTERNAL') return { action: 'UPDATE', direction: 'TO_EXTERNAL' };
     if (direction === 'FROM_EXTERNAL') return { action: 'UPDATE', direction: 'FROM_EXTERNAL' };
 
-    // BIDIRECTIONAL — check for conflicts
-    const internalUpdated = new Date(internal.updatedAt || 0);
-    const externalUpdated = new Date(external.updatedAt || 0);
+    // BIDIRECTIONAL — check for conflicts (yahan dono defined hain)
+    const toTime = (value: unknown): number => {
+      const parsed = new Date((value as string | number | Date) ?? 0).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+    const internalUpdated = new Date(toTime(internal?.updatedAt));
+    const externalUpdated = new Date(toTime(external?.updatedAt));
 
     if (Math.abs(internalUpdated.getTime() - externalUpdated.getTime()) < 5000) {
       return { action: 'CONFLICT', direction: 'BIDIRECTIONAL' };
@@ -343,10 +372,11 @@ export class SyncService {
     return { action: 'UPDATE', direction: internalUpdated > externalUpdated ? 'TO_EXTERNAL' : 'FROM_EXTERNAL' };
   }
 
-  private static matchByKey(internal: any, external: any, mappings: any[]): boolean {
-    const keyMappings = mappings.filter(m => m.isKey);
+  private static matchByKey(internal: SyncEntity, external: SyncEntity, mappings: unknown): boolean {
+    const list: FieldMapping[] = Array.isArray(mappings) ? (mappings as FieldMapping[]) : [];
+    const keyMappings = list.filter((mapping) => mapping?.isKey);
     if (keyMappings.length === 0) return internal.id === external.id;
-    return keyMappings.every(m => internal[m.internalField] === external[m.externalField]);
+    return keyMappings.every((mapping) => internal[mapping.internalField] === external[mapping.externalField]);
   }
 
   // एक sync run में एक entity के अधिकतम records। इससे ज़्यादा हों तो job चुपचाप truncated
@@ -363,7 +393,7 @@ export class SyncService {
     }
   }
 
-  private static async fetchInternalEntities(entityType: string, tenantId: string): Promise<any[]> {
+  private static async fetchInternalEntities(entityType: string, tenantId: string): Promise<SyncEntity[]> {
     // हर internal entity अपने owner module के canonical table से (tenant-scoped, read-only)।
     const et = entityType.toUpperCase();
     const take = SyncService.INTERNAL_FETCH_LIMIT + 1; // +1 = limit छुई या नहीं, पता चले
@@ -420,7 +450,9 @@ export class SyncService {
     );
   }
 
-  private static async fetchExternalEntities(config: SyncConfig, entityConfig: any, tenantId: string): Promise<any[]> {
+  private static async fetchExternalEntities(
+    config: SyncConfig, entityConfig: EntityConfigLike, tenantId: string,
+  ): Promise<SyncEntity[]> {
     // External system (Tally/Zoho) se asli fetch — provider-driven, fail-closed.
     // koi ACTIVE integration na ho toh honest [] (koi fake data nahi); real API error throw hota hai.
     return fetchExternalFromProvider(config, entityConfig, tenantId);
@@ -548,9 +580,11 @@ export class SyncService {
       const external = await this.fetchExternalEntities(config, ec, tenantId);
       totalEstimated += Math.max(internal.length, external.length);
 
-      const changes = [];
+      const changes: Array<{ action: string; internalId: unknown; externalId?: unknown; diff: unknown }> = [];
       for (const item of internal.slice(0, 10)) {
-        const match = external.find(e => this.matchByKey(item, e, ec.fieldMappings as any));
+        const match = external.find((candidate) =>
+          this.matchByKey(item, candidate, ec.fieldMappings),
+        );
         if (!match) {
           changes.push({ action: 'CREATE', internalId: item.id, diff: { status: { internal: 'new', external: null } } });
         } else if (JSON.stringify(item) !== JSON.stringify(match)) {
