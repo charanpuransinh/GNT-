@@ -3,13 +3,11 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/common/config/prisma';
 import { CustomsService } from '../services/customs.service';
 import { FXService } from '../services/fx.service';
 import { CustomsCalculateSchema } from '../validators/trade.schema';
 import { AppError } from '../../../shared/errors/app-error';
-
-const prisma = new PrismaClient();
 
 export class CustomsController {
   private service: CustomsService;
