@@ -9,6 +9,8 @@ export class DunningSchedulerService {
 
   /**
    * Called by a background cron job to process due dunning attempts.
+   * ⚠️ NOTE FOR CLAUDE: This service must be wired into the application lifecycle 
+   * (e.g., via a cron job in module-registry.ts or a dedicated worker bootstrap).
    */
   async processDueDunningAttempts(): Promise<void> {
     const now = new Date();
@@ -25,7 +27,8 @@ export class DunningSchedulerService {
 
     for (const invoice of dueInvoices) {
       try {
-        const paymentRetrySuccess = false; // Simulated
+        // Simulated payment retry logic (Integrate with M18/M11 Payment Gateway here)
+        const paymentRetrySuccess = false; 
 
         if (paymentRetrySuccess) {
           await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -35,18 +38,41 @@ export class DunningSchedulerService {
             });
             await tx.companySubscription.update({
               where: { id: invoice.subscriptionId },
-              data: { dunningStatus: 'none', status: 'active' },
+              data: { dunningStatus: 'NONE', status: 'ACTIVE' },
             });
           });
         } else {
-          await this.prisma.subscriptionInvoice.update({
-            where: { id: invoice.id },
-            data: { status: 'FAILED' },
-          });
-          
-          await this.prisma.companySubscription.update({
-            where: { id: invoice.subscriptionId },
-            data: { dunningStatus: 'suspended', status: 'past_due' },
+          await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            await tx.subscriptionInvoice.update({
+              where: { id: invoice.id },
+              data: { status: 'FAILED' },
+            });
+            
+            const nextAttempt = invoice.attemptNumber + 1;
+            const nextScheduledDate = new Date();
+            nextScheduledDate.setDate(nextScheduledDate.getDate() + 3);
+
+            if (nextAttempt >= 3) {
+              await tx.companySubscription.update({
+                where: { id: invoice.subscriptionId },
+                data: { dunningStatus: 'SUSPENDED', status: 'PAST_DUE' },
+              });
+            } else {
+              // Schedule next attempt
+              await tx.subscriptionInvoice.create({
+                data: {
+                  companyId: invoice.companyId,
+                  subscriptionId: invoice.subscriptionId,
+                  planId: invoice.planId || 'DEFAULT',
+                  amount: invoice.amount,
+                  billingCycle: invoice.billingCycle,
+                  status: 'PENDING_RETRY',
+                  periodStart: new Date(),
+                  periodEnd: nextScheduledDate,
+                  attemptNumber: nextAttempt,
+                }
+              });
+            }
           });
         }
       } catch (error: unknown) {
