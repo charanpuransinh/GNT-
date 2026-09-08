@@ -13,6 +13,17 @@ async function cleanup() {
   await prisma.exportJob.deleteMany({ where: { tenantId: COMPANY_ID } });
 }
 
+/** background processJob ke terminal hone ka poll (fixed sleep flaky tha) */
+async function waitForExportJob(maxMs = 15000): Promise<void> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const job = await prisma.exportJob.findFirst({ where: { tenantId: COMPANY_ID }, orderBy: { createdAt: 'desc' } });
+    if (job && ['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status)) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error('export job did not reach a terminal state in time');
+}
+
 describe.runIf(process.env.TEST_DB === '1')('M14 export end-to-end — live DB', () => {
   beforeAll(async () => {
     await registerModules();
@@ -35,8 +46,8 @@ describe.runIf(process.env.TEST_DB === '1')('M14 export end-to-end — live DB',
       });
     expect(res.status).toBe(202);
 
-    // processJob background me chalta hai — wait
-    await new Promise((r) => setTimeout(r, 800));
+    // processJob background me chalta hai — terminal hone ka wait
+    await waitForExportJob();
 
     const job = await prisma.exportJob.findFirst({ where: { tenantId: COMPANY_ID } });
     expect(job).toBeTruthy();

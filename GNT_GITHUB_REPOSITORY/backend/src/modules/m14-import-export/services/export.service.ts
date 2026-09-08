@@ -6,7 +6,8 @@ import { prisma } from '@/common/config/prisma';
 import { eventBus } from '@/common/events/event-bus';
 import { createObjectCsvWriter } from 'csv-writer';
 import * as XLSX from 'xlsx';
-import { writeFileSync, mkdirSync } from 'fs';
+import PDFDocument from 'pdfkit';
+import { writeFileSync, mkdirSync, createWriteStream } from 'fs';
 import { ExportColumn } from '../types/export.types';
 import path from 'path';
 
@@ -46,8 +47,8 @@ export class ExportService {
     });
 
     try {
-      const mockData = await this.fetchEntityData(job.sourceEntity, tenantId, job.filters);
-      const fileKey = await this.generateFile(job, mockData);
+      const rows = await this.fetchEntityData(job.sourceEntity, tenantId, job.filters);
+      const fileKey = await this.generateFile(job, rows);
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
@@ -57,7 +58,7 @@ export class ExportService {
           status: 'COMPLETED',
           fileKey,
           fileUrl: `/api/exports/download/${jobId}`,
-          totalRecords: mockData.length,
+          totalRecords: rows.length,
           completedAt: new Date(),
           expiresAt
         }
@@ -66,7 +67,7 @@ export class ExportService {
       // साझा bus पर relay — M13 automation / M17 cache-invalidate (fire-and-forget)
       void eventBus.publish('export.completed', {
         tenantId, jobId, entityType: job.sourceEntity, format: job.format,
-        totalRecords: mockData.length, status: 'COMPLETED',
+        totalRecords: rows.length, status: 'COMPLETED',
       }).catch((e) => console.error('[M14→bus] export.completed handler failed:', e));
     } catch (error) {
       await prisma.exportJob.updateMany({
@@ -122,14 +123,49 @@ export class ExportService {
     return filePath;
   }
 
-  private static async generatePDF(data: unknown[], columns: ExportColumn[], filePath: string): Promise<string> {
-    writeFileSync(filePath, JSON.stringify({ data, columns }));
-    return filePath;
+  /** असली tabular PDF (pdfkit) — पहले सिर्फ़ JSON को .pdf नाम से लिखता था */
+  private static generatePDF(data: unknown[], columns: ExportColumn[], filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const cols: ExportColumn[] = columns?.length
+        ? columns
+        : Object.keys((data[0] as Record<string, unknown>) ?? {}).map((k) => ({ field: k, header: k } as ExportColumn));
+
+      const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
+      const stream = createWriteStream(filePath);
+      stream.on('finish', () => resolve(filePath));
+      stream.on('error', reject);
+      doc.on('error', reject);
+      doc.pipe(stream);
+
+      const left = doc.page.margins.left;
+      const usableWidth = doc.page.width - left - doc.page.margins.right;
+      const colWidth = usableWidth / Math.max(cols.length, 1);
+      const bottom = doc.page.height - doc.page.margins.bottom;
+
+      doc.fontSize(14).text(`Export — ${data.length} record(s)`, { align: 'center' }).moveDown(0.7);
+
+      const drawRow = (values: string[], bold: boolean) => {
+        const y = doc.y;
+        doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8);
+        values.forEach((v, i) => doc.text(v, left + i * colWidth, y, { width: colWidth - 4, ellipsis: true }));
+        doc.moveDown(0.4);
+        if (doc.y > bottom) doc.addPage();
+      };
+
+      drawRow(cols.map((c) => String(c.header)), true);
+      doc.moveTo(left, doc.y).lineTo(left + usableWidth, doc.y).stroke().moveDown(0.2);
+      for (const row of data as Record<string, unknown>[]) {
+        drawRow(cols.map((c) => (row[c.field] == null ? '' : String(row[c.field]))), false);
+      }
+      doc.end();
+    });
   }
+
+  private static readonly SUPPORTED_ENTITIES = ['customer/party/supplier', 'product/item/inventory', 'invoice'];
 
   private static async fetchEntityData(entityType: string, tenantId: string, _filters: unknown): Promise<Record<string, unknown>[]> {
     const t = (entityType ?? '').toLowerCase();
-    // असली entity table से data (fake 100 items नहीं) — tenant-scoped
+    // असली entity table से data (fake items नहीं) — tenant-scoped
     if (t === 'customer' || t === 'party' || t === 'supplier') {
       const rows = await prisma.party_master.findMany({ where: { company_id: tenantId }, take: 500 });
       return rows.map((r) => ({ id: r.id, name: r.name, email: r.email, phone: r.phone, gstin: r.gstin }));
@@ -138,7 +174,23 @@ export class ExportService {
       const rows = await prisma.product_master.findMany({ where: { company_id: tenantId }, take: 500 });
       return rows.map((r) => ({ id: r.id, name: r.name, sku: r.code, hsn: r.hsn_code, price: Number(r.sale_price ?? 0) }));
     }
-    return []; // unsupported entity — खाली (ईमानदार), fake नहीं
+    if (t === 'invoice' || t === 'sales_invoice' || t === 'salesinvoice') {
+      const rows = await prisma.salesInvoice.findMany({ where: { companyId: tenantId }, take: 500, orderBy: { invoiceDate: 'desc' } });
+      return rows.map((r) => ({
+        id: r.id,
+        invoiceNumber: r.invoiceNumber,
+        invoiceDate: r.invoiceDate.toISOString().slice(0, 10),
+        customerId: r.customerId,
+        status: r.status,
+        grandTotal: Number(r.grandTotal),
+        paymentStatus: r.paymentStatus,
+        amountPaid: Number(r.amountPaid),
+      }));
+    }
+    // unknown entity — चुपचाप खाली file नहीं; साफ़ error ताकि job FAILED हो (झूठा COMPLETED नहीं)
+    throw new Error(
+      `Unsupported export entity "${entityType}". Supported: ${ExportService.SUPPORTED_ENTITIES.join(', ')}.`
+    );
   }
 
   static async getJobStatus(jobId: string, tenantId: string): Promise<ExportJob | null> {
