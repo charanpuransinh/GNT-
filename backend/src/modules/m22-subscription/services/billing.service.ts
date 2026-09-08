@@ -1,6 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 
-// Custom type guard for Prisma errors to completely avoid 'any'
 interface PrismaKnownError extends Error {
   code: string;
 }
@@ -21,7 +20,7 @@ export class BillingService {
       const subscription = await this.prisma.companySubscription.findFirst({
         where: { 
           companyId, 
-          status: 'active', 
+          status: 'ACTIVE', 
           currentPeriodEnd: { gte: new Date() } 
         },
         include: { plan: true },
@@ -33,6 +32,7 @@ export class BillingService {
 
       const features = subscription.plan.features;
       
+      // Defensive Type Safety: Validate runtime shape of JSON
       if (!Array.isArray(features)) {
         return false;
       }
@@ -49,16 +49,16 @@ export class BillingService {
 
   async handleFailedPayment(subscriptionId: string, errorMessage: string): Promise<void> {
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Fetch subscription to get companyId safely (No TEMP_ID hacks)
       const sub = await tx.companySubscription.findUnique({
         where: { id: subscriptionId },
-        select: { companyId: true }
+        select: { companyId: true, planId: true }
       });
 
       if (!sub) {
         throw new Error(`Subscription ${subscriptionId} not found`);
       }
 
+      // Calculate nextAttempt INSIDE the transaction to prevent race conditions
       const lastInvoice = await tx.subscriptionInvoice.findFirst({
         where: { 
           subscriptionId, 
@@ -76,6 +76,7 @@ export class BillingService {
           data: {
             companyId: sub.companyId,
             subscriptionId,
+            planId: sub.planId,
             attemptNumber: nextAttempt,
             periodEnd: nextScheduledDate,
             status: 'PENDING_RETRY',
@@ -86,9 +87,9 @@ export class BillingService {
           }
         });
       } catch (e: unknown) {
-        // Strict Type Guard without 'any'
+        // Handle concurrent duplicate attempt gracefully (P2002 = Unique constraint violation)
         if (isPrismaKnownError(e) && e.code === 'P2002') {
-          console.warn(`[M22] Concurrent dunning attempt detected for sub ${subscriptionId}, attempt ${nextAttempt}`);
+          console.warn(`[M22] Concurrent dunning attempt detected for sub ${subscriptionId}, attempt ${nextAttempt}. Ignoring duplicate.`);
           return; 
         }
         throw e;
@@ -97,12 +98,12 @@ export class BillingService {
       if (nextAttempt >= 3) {
         await tx.companySubscription.update({
           where: { id: subscriptionId },
-          data: { dunningStatus: 'suspended', status: 'past_due' },
+          data: { dunningStatus: 'SUSPENDED', status: 'PAST_DUE' },
         });
       } else {
         await tx.companySubscription.update({
           where: { id: subscriptionId },
-          data: { dunningStatus: 'warning' },
+          data: { dunningStatus: 'WARNING' },
         });
       }
     }, {
