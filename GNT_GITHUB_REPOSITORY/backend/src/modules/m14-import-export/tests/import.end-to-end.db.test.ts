@@ -16,6 +16,22 @@ async function cleanup() {
   await prisma.importJob.deleteMany({ where: { tenantId: COMPANY_ID } });
 }
 
+/** background processJob fire-and-forget hai — fixed sleep flaky tha; ab naye job ke terminal status ka poll */
+const TERMINAL = ['COMPLETED', 'FAILED', 'PARTIAL', 'PARTIALLY_COMPLETED'];
+async function latestImportJobId(): Promise<string | null> {
+  const j = await prisma.importJob.findFirst({ where: { tenantId: COMPANY_ID }, orderBy: { createdAt: 'desc' } });
+  return j?.id ?? null;
+}
+async function waitForImportJobAfter(prevId: string | null, maxMs = 15000): Promise<void> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const job = await prisma.importJob.findFirst({ where: { tenantId: COMPANY_ID }, orderBy: { createdAt: 'desc' } });
+    if (job && job.id !== prevId && TERMINAL.includes(job.status)) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error('import job did not reach a terminal state in time');
+}
+
 describe.runIf(process.env.TEST_DB === '1')('M14 import end-to-end — live DB', () => {
   let tmpDir: string;
 
@@ -35,6 +51,7 @@ describe.runIf(process.env.TEST_DB === '1')('M14 import end-to-end — live DB',
     const csvFile = path.join(tmpDir, 'parties.csv');
     await writeFile(csvFile, 'name,email,phone\nAcme Import,acme@test.com,9876543210\n');
 
+    const prevId = await latestImportJobId();
     const res = await request(app)
       .post('/api/v1/imports/imports/upload')
       .set('Authorization', auth())
@@ -42,8 +59,8 @@ describe.runIf(process.env.TEST_DB === '1')('M14 import end-to-end — live DB',
       .attach('file', csvFile);
     expect(res.status).toBe(202);
 
-    // processJob background me chalta hai — wait
-    await new Promise((r) => setTimeout(r, 800));
+    // processJob background me chalta hai — naye job ke terminal hone ka wait
+    await waitForImportJobAfter(prevId);
 
     const party = await prisma.party_master.findFirst({ where: { company_id: COMPANY_ID, name: 'Acme Import' } });
     expect(party).toBeTruthy();
@@ -56,6 +73,7 @@ describe.runIf(process.env.TEST_DB === '1')('M14 import end-to-end — live DB',
 
     const before = await prisma.party_master.count({ where: { company_id: COMPANY_ID, name: 'Acme Import' } });
 
+    const prevId = await latestImportJobId();
     const res = await request(app)
       .post('/api/v1/imports/imports/upload')
       .set('Authorization', auth())
@@ -63,7 +81,7 @@ describe.runIf(process.env.TEST_DB === '1')('M14 import end-to-end — live DB',
       .attach('file', csvFile);
     expect(res.status).toBe(202);
 
-    await new Promise((r) => setTimeout(r, 800));
+    await waitForImportJobAfter(prevId);
 
     const after = await prisma.party_master.count({ where: { company_id: COMPANY_ID, name: 'Acme Import' } });
     expect(after).toBe(before); // duplicate skip — naya insert nahi hua
