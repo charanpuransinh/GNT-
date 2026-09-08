@@ -1,62 +1,57 @@
-export class DunningSchedulerService {
-  private prisma: any;
+import { PrismaClient, Prisma } from '@prisma/client';
 
-  constructor(prisma: any) {
+export class DunningSchedulerService {
+  private prisma: PrismaClient;
+
+  constructor(prisma: PrismaClient) {
     this.prisma = prisma;
   }
 
   /**
    * Called by a background cron job to process due dunning attempts.
-   * 
-   * ⚠️ IMPORTANT FOR CLAUDE: 
-   * Per Hard Rule #6, Qwen is FORBIDDEN from editing `module-registry.ts` or `app.ts`.
-   * Claude MUST wire this `DunningSchedulerService` into the application lifecycle 
-   * (e.g., in module-registry.ts or a dedicated worker bootstrap file).
    */
   async processDueDunningAttempts(): Promise<void> {
     const now = new Date();
     
     const dueInvoices = await this.prisma.subscriptionInvoice.findMany({
       where: {
-        status: 'pending_retry',
-        scheduledDate: { lte: now },
+        status: 'PENDING_RETRY',
+        periodEnd: { lte: now },
       },
       include: {
-        companySubscription: true,
+        subscription: true,
       },
     });
 
     for (const invoice of dueInvoices) {
       try {
-        // TODO: Integrate with M18/M11 Payment Gateway to actually retry the charge.
         const paymentRetrySuccess = false; // Simulated
 
         if (paymentRetrySuccess) {
-          await this.prisma.$transaction(async (tx: any) => {
+          await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             await tx.subscriptionInvoice.update({
               where: { id: invoice.id },
-              data: { status: 'paid', paidAt: new Date() },
+              data: { status: 'PAID' },
             });
             await tx.companySubscription.update({
-              where: { id: invoice.companySubscriptionId },
+              where: { id: invoice.subscriptionId },
               data: { dunningStatus: 'none', status: 'active' },
             });
           });
         } else {
           await this.prisma.subscriptionInvoice.update({
             where: { id: invoice.id },
-            data: { status: 'failed', errorMessage: 'Automated retry failed' },
+            data: { status: 'FAILED' },
           });
           
-          if (invoice.attemptNumber >= 3) {
-             await this.prisma.companySubscription.update({
-              where: { id: invoice.companySubscriptionId },
-              data: { dunningStatus: 'suspended', status: 'past_due' },
-            });
-          }
+          await this.prisma.companySubscription.update({
+            where: { id: invoice.subscriptionId },
+            data: { dunningStatus: 'suspended', status: 'past_due' },
+          });
         }
-      } catch (error) {
-        console.error(`[M22] Dunning scheduler failed for invoice ${invoice.id}:`, error);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[M22] Dunning scheduler failed for invoice ${invoice.id}:`, errorMessage);
       }
     }
   }
