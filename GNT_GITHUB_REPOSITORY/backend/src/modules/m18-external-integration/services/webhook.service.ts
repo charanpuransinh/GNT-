@@ -37,12 +37,15 @@ export class WebhookService {
     private readonly eventBus: EventEmitter,
   ) {}
 
-  async receiveWebhook(provider: string, dto: ReceiveWebhookDto): Promise<{ received: boolean; logId: string }> {
-    // 1. Find active integration for provider
-    const integration = await this.integrationService.findIntegrationByProvider(provider);
-    if (!integration) {
-      throw new AppError('GNT-ERR-1801', `No integration found for provider: ${provider}`, 404);
-    }
+  async receiveWebhook(
+    provider: string,
+    dto: ReceiveWebhookDto,
+    integrationId?: string,
+  ): Promise<{ received: boolean; logId: string }> {
+    // 1. Find the active integration for this webhook — multi-tenant सही:
+    //    integrationId हो तो उसी को (per-integration URL); न हो और provider की एक ही active
+    //    integration हो तो वो; एक से ज़्यादा हों तो साफ़ error (कौनसे tenant का webhook?)।
+    const integration = await this.integrationService.findIntegrationForWebhook(provider, integrationId);
 
     const cfg = integration.config_json as Record<string, string>;
 
