@@ -1,12 +1,13 @@
 /**
  * M17 Reporting — Report Endpoints
  * Owner: D4-DELTA
+ * Fixed: Prisma singleton pattern (2026-09-08)
  */
 import { Router } from 'express';
+import { prisma } from '@/common/config/prisma'; // ✅ FIX: Use singleton instead of new PrismaClient()
 import { ReportController } from '../controllers/report.controller';
 import { ReportService } from '../services/report.service';
 import { ReportRepository } from '../repositories/report.repository';
-import { PrismaClient } from '@prisma/client';
 
 // Import cross-module services (READ ONLY access)
 // These are injected into ReportService via the query builder
@@ -18,7 +19,6 @@ import { AccountingService } from '../../m10-accounting/services/accounting.serv
 import { HRService } from '../../m12-hr/services/hr.service';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Initialize repository and services
 const reportRepository = new ReportRepository(prisma);

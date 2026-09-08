@@ -1,10 +1,12 @@
-// Simplified webhook service with safer error handling
+// webhook.service.ts - M15 Sync Module
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/common/config/prisma'; // ✅ FIX: Use singleton instead of new PrismaClient()
 
 export class WebhookService {
+  // Use global prisma instance
+  // All webhook operations share single connection pool
+  // Prevents memory leaks from multiple connections
+  
   async testWebhook(tenantId: string, id: string, endpoint: any) {
     try {
       const payload = { event: 'webhook.test', timestamp: new Date().toISOString(), data: { test: true } };
