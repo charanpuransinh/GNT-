@@ -24,7 +24,7 @@ function isBankReceiptRow(group: DataGroup, mapped: Record<string, unknown>): bo
 export function buildTransferPlan(
   verdicts: RowVerdict[],
   group: DataGroup,
-  options: DataSenseOptions,
+  options: DataSenseOptions
 ): TransferPlanItem[] {
   const owner = DATA_GROUP_OWNER[group];
 
@@ -87,6 +87,12 @@ export function buildTransferPlan(
         ? 'फ़ैसला 2 (default, Option A) — B2C पार्टी बनेगी'
         : undefined;
 
-    return { rowNumber: v.rowNumber, targetModule: owner, operation: 'create', payload: v.mapped, note };
+    return {
+      rowNumber: v.rowNumber,
+      targetModule: owner,
+      operation: 'create',
+      payload: v.mapped,
+      note,
+    };
   });
 }

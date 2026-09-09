@@ -1,9 +1,9 @@
+import assert from 'node:assert/strict';
 /**
  * M21 — Malik ke 3 faislon ki jaanch (2026-09-03).
  * Har faisle ke DONO raaste test hote hain — default aur UI toggle.
  */
 import { test } from 'vitest';
-import assert from 'node:assert/strict';
 import { DataSenseService } from '../../services/dataSense.service';
 import { DEFAULT_OPTIONS } from '../../types/dataSense.types';
 
@@ -69,10 +69,17 @@ test('Faisla 2 (toggle B): suspense-zone chuno to panti ruk jaati hai', () => {
 });
 
 test('Faisla 2: GSTIN wali party par toggle ka koi asar nahi', () => {
-  const sheet = { headers: ['Party Name', 'GSTIN'], rows: [{ 'Party Name': 'Sharma', GSTIN: '27AAPFU0939F1ZV' }] };
+  const sheet = {
+    headers: ['Party Name', 'GSTIN'],
+    rows: [{ 'Party Name': 'Sharma', GSTIN: '27AAPFU0939F1ZV' }],
+  };
   for (const opt of ['b2c-auto-create', 'suspense-zone'] as const) {
     const r = svc.analyze('c1', sheet, { nonGstinParty: opt });
-    assert.equal(r.verdicts[0].zone, 'ready', `toggle ${opt} par GSTIN wali party rukni nahi chahiye`);
+    assert.equal(
+      r.verdicts[0].zone,
+      'ready',
+      `toggle ${opt} par GSTIN wali party rukni nahi chahiye`
+    );
   }
 });
 
@@ -80,7 +87,9 @@ test('Faisla 2: GSTIN wali party par toggle ka koi asar nahi', () => {
 
 const bankReceipt = {
   headers: ['Ledger Name', 'Date', 'Credit', 'Narration'],
-  rows: [{ 'Ledger Name': 'Sharma Traders', Date: '01/04/2026', Credit: '25000', Narration: 'NEFT' }],
+  rows: [
+    { 'Ledger Name': 'Sharma Traders', Date: '01/04/2026', Credit: '25000', Narration: 'NEFT' },
+  ],
 };
 
 test('Faisla 3 (default A): bank ki rakam seedhe party khate mein — M10', () => {
@@ -97,25 +106,36 @@ test('Faisla 3 (toggle B): FIFO chuno to purane bill se chukta — M11', () => {
 });
 
 test('Faisla 3: debit wali panti (bank credit nahi) par asar nahi — wahi M10 accounting', () => {
-  const r = svc.analyze('c1', {
-    headers: ['Ledger Name', 'Date', 'Debit'],
-    rows: [{ 'Ledger Name': 'Rent', Date: '01/04/2026', Debit: '5000' }],
-  }, { bankReconciliation: 'fifo-invoice-settlement' });
+  const r = svc.analyze(
+    'c1',
+    {
+      headers: ['Ledger Name', 'Date', 'Debit'],
+      rows: [{ 'Ledger Name': 'Rent', Date: '01/04/2026', Debit: '5000' }],
+    },
+    { bankReconciliation: 'fifo-invoice-settlement' }
+  );
   assert.equal(r.transferPlan[0].operation, 'create');
   assert.equal(r.transferPlan[0].targetModule, 'm10-accounting');
 });
 
 test('Faisla 3: RED panti kabhi transfer nahi hoti, chahe koi bhi toggle ho', () => {
-  const r = svc.analyze('c1', {
-    headers: ['Ledger Name', 'Date', 'Credit'],
-    rows: [{ 'Ledger Name': '', Date: 'kal', Credit: 'pachchees hazaar' }],
-  }, { bankReconciliation: 'fifo-invoice-settlement' });
+  const r = svc.analyze(
+    'c1',
+    {
+      headers: ['Ledger Name', 'Date', 'Credit'],
+      rows: [{ 'Ledger Name': '', Date: 'kal', Credit: 'pachchees hazaar' }],
+    },
+    { bankReconciliation: 'fifo-invoice-settlement' }
+  );
   assert.equal(r.verdicts[0].status, 'RED');
   assert.equal(r.transferPlan[0].operation, 'hold-for-review');
 });
 
 test('Faisla: chuni hui settings nateeje ke saath wapas aati hain (audit ke liye)', () => {
-  const r = svc.analyze('c1', noGstinParty, { nonGstinParty: 'suspense-zone', bankReconciliation: 'fifo-invoice-settlement' });
+  const r = svc.analyze('c1', noGstinParty, {
+    nonGstinParty: 'suspense-zone',
+    bankReconciliation: 'fifo-invoice-settlement',
+  });
   assert.deepEqual(r.options, {
     duplicatePolicy: 'review-zone',
     nonGstinParty: 'suspense-zone',

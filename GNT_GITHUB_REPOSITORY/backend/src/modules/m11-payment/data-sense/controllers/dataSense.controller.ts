@@ -1,13 +1,14 @@
-/** M21 — HTTP परत */
+/** Data Sense — HTTP परत (M11 sub-module) */
 import type { NextFunction, Request, Response } from 'express';
 import { dataSenseService } from '../services/dataSense.service';
-import { analyzeSheetSchema } from '../validators/dataSense.schema';
+import { listOpenHolds, resolveHold } from '../services/paymentHold.service';
 import { GROUP_SPECS } from '../services/sense.engine';
 import { DATA_GROUP_OWNER } from '../types/dataGroup';
 import { DEFAULT_OPTIONS } from '../types/dataSense.types';
+import { analyzeSheetSchema, resolveHoldSchema } from '../validators/dataSense.schema';
 
 export class DataSenseController {
-  /** POST /api/v1/data-sense/analyze */
+  /** POST /api/v1/payments/data-sense/analyze */
   async analyze(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
@@ -23,7 +24,7 @@ export class DataSenseController {
     }
   }
 
-  /** POST /api/v1/data-sense/transfer — मंज़ूरी के बाद असल में डालना */
+  /** POST /api/v1/payments/data-sense/transfer — मंज़ूरी के बाद असल में डालना */
   async transfer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
@@ -40,7 +41,40 @@ export class DataSenseController {
     }
   }
 
-  /** GET /api/v1/data-sense/options — UI के toggles और उनके default (मालिक के 3 फ़ैसले) */
+  /** GET /api/v1/payments/data-sense/on-hold — जो receipt अपने-आप apply नहीं हुईं (aging के साथ) */
+  async onHoldList(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
+      if (!companyId) {
+        res.status(400).json({ success: false, error: 'company_id required' });
+        return;
+      }
+      const data = await listOpenHolds(companyId);
+      res.json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /** POST /api/v1/payments/data-sense/on-hold/:id/resolve — owner का फ़ैसला (apply-fifo | discard) */
+  async onHoldResolve(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
+      if (!companyId) {
+        res.status(400).json({ success: false, error: 'company_id required' });
+        return;
+      }
+      const userId = req.user?.id ?? 'owner';
+      const dto = resolveHoldSchema.parse(req.body);
+      const holdId = String(req.params.id);
+      const row = await resolveHold(companyId, userId, holdId, dto);
+      res.json({ success: true, data: row });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /** GET /api/v1/payments/data-sense/options — UI के toggles और उनके default (मालिक के 3 फ़ैसले) */
   async options(_req: Request, res: Response): Promise<void> {
     res.json({
       success: true,
@@ -51,7 +85,9 @@ export class DataSenseController {
             key: 'duplicatePolicy',
             label: 'दोहरी पंक्तियाँ',
             fixed: true,
-            choices: [{ value: 'review-zone', label: 'Review Zone — इंसान देखे तभी आगे (मालिक का फ़ैसला 1)' }],
+            choices: [
+              { value: 'review-zone', label: 'Review Zone — इंसान देखे तभी आगे (मालिक का फ़ैसला 1)' },
+            ],
           },
           {
             key: 'nonGstinParty',
@@ -74,7 +110,10 @@ export class DataSenseController {
     });
   }
 
-  /** GET /api/v1/data-sense/field-map — कौन सा group किस module का, और उसके fields */  async fieldMap(_req: Request, res: Response): Promise<void> {
+  /** GET /api/v1/payments/data-sense/field-map — कौन सा group किस module का, और उसके fields */ async fieldMap(
+    _req: Request,
+    res: Response
+  ): Promise<void> {
     const data = Object.entries(GROUP_SPECS).map(([group, spec]) => ({
       group,
       ownerModule: DATA_GROUP_OWNER[group as keyof typeof DATA_GROUP_OWNER],

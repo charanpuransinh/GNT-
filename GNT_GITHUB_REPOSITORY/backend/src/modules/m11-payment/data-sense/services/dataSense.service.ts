@@ -6,23 +6,27 @@
  *  बाक़ी 3 फ़ैसलों के बाद; इसीलिए यहाँ जान-बूझकर नहीं है।)
  */
 import {
-  DEFAULT_OPTIONS,
   type AnalyzeResult,
+  DEFAULT_OPTIONS,
   type DataSenseOptions,
   type IntakeSheet,
   type RowVerdict,
 } from '../types/dataSense.types';
 import { mapRow, senseSheet } from './sense.engine';
-import { findDuplicates, validateRow } from './validate.engine';
-import { buildTransferPlan } from './transfer.planner';
 import { executeTransfer } from './transfer.executor';
+import { buildTransferPlan } from './transfer.planner';
+import { findDuplicates, validateRow } from './validate.engine';
 
 export class DataSenseService {
   /**
    * ग्राहक की एक sheet को समझो, जाँचो और preview बनाओ।
    * companyId ज़रूरी है — हर नतीजा उसी कंपनी का होता है (tenant सुरक्षा)।
    */
-  analyze(companyId: string, sheet: IntakeSheet, options?: Partial<DataSenseOptions>): AnalyzeResult {
+  analyze(
+    companyId: string,
+    sheet: IntakeSheet,
+    options?: Partial<DataSenseOptions>
+  ): AnalyzeResult {
     // मालिक के तय defaults; UI का toggle सिर्फ़ इन्हें ऊपर से बदलता है
     const opts: DataSenseOptions = { ...DEFAULT_OPTIONS, ...options };
     if (!companyId) {
@@ -58,7 +62,12 @@ export class DataSenseService {
     }
 
     const verdicts: RowVerdict[] = sheet.rows.map((row, i) =>
-      validateRow(mapRow(row, sense.mappings), sense.group as NonNullable<typeof sense.group>, i + 1, opts),
+      validateRow(
+        mapRow(row, sense.mappings),
+        sense.group as NonNullable<typeof sense.group>,
+        i + 1,
+        opts
+      )
     );
 
     const duplicateGroups = findDuplicates(verdicts, sense.group);
@@ -98,7 +107,12 @@ export class DataSenseService {
    * मंज़ूरी के बाद असल TRANSFER — importable हो तो ही GREEN rows चढ़ती हैं।
    * importable न हो तो blocked=true — कुछ नहीं चढ़ता (कोई झूठा आधा-import नहीं)।
    */
-  async transfer(companyId: string, sheet: IntakeSheet, options?: Partial<DataSenseOptions>, userId?: string) {
+  async transfer(
+    companyId: string,
+    sheet: IntakeSheet,
+    options?: Partial<DataSenseOptions>,
+    userId?: string
+  ) {
     const analysis = this.analyze(companyId, sheet, options);
     if (!analysis.importable) {
       return {
@@ -113,7 +127,12 @@ export class DataSenseService {
         transferred: null,
       };
     }
-    const transferred = await executeTransfer(companyId, analysis.transferPlan, userId);
+    const transferred = await executeTransfer(
+      companyId,
+      analysis.transferPlan,
+      userId,
+      analysis.sheetName
+    );
     return { ...analysis, blocked: false, reason: null, transferred };
   }
 }

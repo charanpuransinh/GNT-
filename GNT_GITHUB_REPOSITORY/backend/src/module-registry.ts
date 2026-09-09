@@ -188,10 +188,9 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
       m19.registerSecurityEventHandlers();
       return m19.securityRoutes;
     } },
-  // M21 — SENSE/MAP/VALIDATE/PREVIEW चालू (Claude, 2026-09-03)। TRANSFER अभी बाक़ी:
-  // owner के 3 फ़ैसले चाहिए (tips/reviewer-ai/SPEC-REVIEW-M20-M21.md)।
-  { code: 'M21', path: '/api/v1/data-sense', mounted: true,
-    load: async () => (await import('./modules/m21-data-sense')).dataSenseRoutes },
+  // M21 (Data Sense) हटा दिया — owner फ़ैसला 2026-09-08। उसका पूरा pipeline अब
+  // M11 (Payment) के अंदर `data-sense/` sub-module है और M11 router के नीचे
+  // `/api/v1/payments/data-sense` पर चढ़ता है (अलग registry entry नहीं)।
   { code: 'M20', path: '/api/v1/trade',         mounted: true,
     load: async () => (await import('./modules/m20-international-trade')).tradeRoutes },
   { code: 'M22', path: '/api/v1/subscriptions', mounted: true,

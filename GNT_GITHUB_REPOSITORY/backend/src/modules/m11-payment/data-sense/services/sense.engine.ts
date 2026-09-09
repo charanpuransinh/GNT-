@@ -26,7 +26,15 @@ export const GROUP_SPECS: Readonly<Record<DataGroup, GroupSpec>> = {
   party: {
     required: ['name'],
     fields: {
-      name: ['name', 'partyname', 'customername', 'suppliername', 'ledgername', 'accountname', 'partiesname'],
+      name: [
+        'name',
+        'partyname',
+        'customername',
+        'suppliername',
+        'ledgername',
+        'accountname',
+        'partiesname',
+      ],
       gstin: ['gstin', 'gstno', 'gstnumber', 'gstinuin', 'gstidentificationnumber'],
       phone: ['phone', 'mobile', 'contact', 'contactno', 'mobileno', 'phoneno'],
       email: ['email', 'emailid', 'mail'],
@@ -83,6 +91,8 @@ export const GROUP_SPECS: Readonly<Record<DataGroup, GroupSpec>> = {
       debit: ['debit', 'dr', 'debitamount'],
       credit: ['credit', 'cr', 'creditamount'],
       narration: ['narration', 'remarks', 'note', 'description'],
+      // owner/फ़ाइल का shak़ी निशान — 'doubtful'/'disputed'/'hold' → on-hold सूची, auto-apply नहीं
+      flag: ['flag', 'tag', 'holdflag', 'reviewflag', 'paymentstatus'],
     },
   },
   export: {
@@ -114,7 +124,10 @@ export const GROUP_SPECS: Readonly<Record<DataGroup, GroupSpec>> = {
 };
 
 /** एक header किस field से मिलता है — नाम/उपनाम के आधार पर */
-function matchColumn(header: string, spec: GroupSpec): { field: string | null; confidence: number; basis: ColumnMapping['basis'] } {
+function matchColumn(
+  header: string,
+  spec: GroupSpec
+): { field: string | null; confidence: number; basis: ColumnMapping['basis'] } {
   const h = norm(header);
   if (!h) return { field: null, confidence: 0, basis: 'unmatched' };
 
@@ -132,13 +145,18 @@ function matchColumn(header: string, spec: GroupSpec): { field: string | null; c
 }
 
 /** एक group के लिए sheet का score (0..1) */
-function scoreGroup(headers: string[], spec: GroupSpec): { score: number; mappings: ColumnMapping[] } {
+function scoreGroup(
+  headers: string[],
+  spec: GroupSpec
+): { score: number; mappings: ColumnMapping[] } {
   const mappings: ColumnMapping[] = headers.map((header) => {
     const m = matchColumn(header, spec);
     return { sourceColumn: header, targetField: m.field, confidence: m.confidence, basis: m.basis };
   });
 
-  const matchedFields = new Set(mappings.filter((m) => m.targetField).map((m) => m.targetField as string));
+  const matchedFields = new Set(
+    mappings.filter((m) => m.targetField).map((m) => m.targetField as string)
+  );
   const requiredHit = spec.required.filter((f) => matchedFields.has(f)).length;
   const requiredScore = spec.required.length ? requiredHit / spec.required.length : 0;
   const coverage = headers.length ? matchedFields.size / headers.length : 0;
@@ -162,14 +180,21 @@ export function senseSheet(sheet: IntakeSheet): SenseResult {
       group: null,
       confidence: best ? Number(best.score.toFixed(2)) : 0,
       ownerModule: null,
-      mappings: sheet.headers.map((h) => ({ sourceColumn: h, targetField: null, confidence: 0, basis: 'unmatched' as const })),
+      mappings: sheet.headers.map((h) => ({
+        sourceColumn: h,
+        targetField: null,
+        confidence: 0,
+        basis: 'unmatched' as const,
+      })),
       unmatchedColumns: [...sheet.headers],
       missingRequiredFields: [],
     };
   }
 
   const spec = GROUP_SPECS[best.group];
-  const matchedFields = new Set(best.mappings.filter((m) => m.targetField).map((m) => m.targetField as string));
+  const matchedFields = new Set(
+    best.mappings.filter((m) => m.targetField).map((m) => m.targetField as string)
+  );
 
   return {
     group: best.group,
@@ -182,7 +207,10 @@ export function senseSheet(sheet: IntakeSheet): SenseResult {
 }
 
 /** MAP — एक कच्ची पंक्ति को GNT fields में बदलो */
-export function mapRow(row: Record<string, unknown>, mappings: ColumnMapping[]): Record<string, unknown> {
+export function mapRow(
+  row: Record<string, unknown>,
+  mappings: ColumnMapping[]
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const m of mappings) {
     if (!m.targetField) continue;

@@ -4,7 +4,13 @@
 export type DataSenseStatus = 'GREEN' | 'ORANGE' | 'RED';
 
 export type DataGroup =
-  | 'party' | 'item' | 'sales' | 'purchase' | 'accounting' | 'export' | 'scheme';
+  | 'party'
+  | 'item'
+  | 'sales'
+  | 'purchase'
+  | 'accounting'
+  | 'export'
+  | 'scheme';
 
 /** कौन सा समूह किस module का है — यही routing की तालिका है (spec §16) */
 export const DATA_GROUP_OWNER: Readonly<Record<DataGroup, string>> = {
