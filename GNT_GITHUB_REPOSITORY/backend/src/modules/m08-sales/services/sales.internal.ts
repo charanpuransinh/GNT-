@@ -5,15 +5,15 @@
  */
 
 import {
-  SalesInvoiceItemDTO,
-  SalesInvoiceDTO,
-  QuotationItemDTO,
-  QuotationDTO,
-  SalesOrderItemDTO,
-  SalesOrderDTO,
-  SalesReturnItemDTO,
-  SalesReturnDTO,
   PrintTemplate,
+  QuotationDTO,
+  QuotationItemDTO,
+  SalesInvoiceDTO,
+  SalesInvoiceItemDTO,
+  SalesOrderDTO,
+  SalesOrderItemDTO,
+  SalesReturnDTO,
+  SalesReturnItemDTO,
 } from '../types/sales.types';
 
 // ─── CALCULATION ENGINE ───
@@ -128,9 +128,11 @@ export function calculateReturnTotals(items: SalesReturnItemDTO[]): CalculatedTo
     const qty = Number(item.quantity);
     const rate = Number(item.rate);
     const taxRate = Number(item.taxRate ?? 0);
-    if (!Number.isFinite(qty) || qty <= 0) throw new Error('Return quantity must be greater than 0');
+    if (!Number.isFinite(qty) || qty <= 0)
+      throw new Error('Return quantity must be greater than 0');
     if (!Number.isFinite(rate) || rate < 0) throw new Error('Return rate cannot be negative');
-    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error('Return tax rate must be between 0 and 100');
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100)
+      throw new Error('Return tax rate must be between 0 and 100');
     const amount = qty * rate;
     const taxAmount = (amount * taxRate) / 100;
     const netAmount = amount + taxAmount;
@@ -213,7 +215,12 @@ export interface PrintData {
   notes: string;
 }
 
-export function preparePrintData(invoice: SalesInvoiceDTO, customer: any, company: any, items: any[]): PrintData {
+export function preparePrintData(
+  invoice: SalesInvoiceDTO,
+  customer: any,
+  company: any,
+  items: any[]
+): PrintData {
   return {
     companyName: company?.name || '',
     companyAddress: company?.address || '',

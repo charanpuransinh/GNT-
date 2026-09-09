@@ -28,3 +28,15 @@ export const checkUpdateQuerySchema = z.object({
   platform: z.enum(['ios', 'android', 'windows', 'macos', 'linux', 'web']),
   version: z.string().regex(/^\d+\.\d+\.\d+$/),
 });
+
+export const publishReleaseSchema = z.object({
+  platform: z.enum(['ios', 'android', 'windows', 'macos', 'linux', 'web']),
+  version: z.string().regex(/^\d+\.\d+\.\d+$/),
+  releaseNotes: z.array(z.string().max(500)).max(50).optional(),
+  minSupported: z
+    .string()
+    .regex(/^\d+\.\d+\.\d+$/)
+    .nullish(),
+  downloadUrl: z.string().url().max(500).nullish(),
+  isPublished: z.boolean().optional(),
+});

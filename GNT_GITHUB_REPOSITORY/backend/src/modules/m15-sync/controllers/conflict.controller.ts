@@ -1,11 +1,11 @@
-import { Request, Response } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
+import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middleware/tenant.middleware';
 import { ConflictService } from '../services/conflict.service';
 import {
+  bulkConflictResolutionSchema,
   conflictResolutionSchema,
-  bulkConflictResolutionSchema
 } from '../validators/sync.validators';
-import { AuthenticatedRequest } from '../middleware/tenant.middleware';
 
 export class ConflictController {
   constructor(private conflictService: ConflictService) {}
@@ -17,7 +17,7 @@ export class ConflictController {
         page: 1,
         limit: limit ? parseInt(String(limit)) : 20,
         status: status as string | undefined,
-        entityType: entityType as string | undefined
+        entityType: entityType as string | undefined,
       });
       res.json({ success: true, data: result.conflicts, meta: result.meta });
     } catch (error: any) {
@@ -36,7 +36,10 @@ export class ConflictController {
 
   async getConflict(req: AuthenticatedRequest, res: Response) {
     try {
-      const conflict = await this.conflictService.getConflictById(requireTenant(req).companyId, String(req.params.id));
+      const conflict = await this.conflictService.getConflictById(
+        requireTenant(req).companyId,
+        String(req.params.id)
+      );
       if (!conflict) return res.status(404).json({ success: false, error: 'Conflict not found' });
       res.json({ success: true, data: conflict });
     } catch (error: any) {
@@ -67,7 +70,13 @@ export class ConflictController {
         await this.conflictService.resolveConflict(
           requireTenant(req).companyId,
           conflictId,
-          { resolution: parsed.resolution as 'INTERNAL_WINS' | 'EXTERNAL_WINS' | 'MERGED' | 'MANUAL' },
+          {
+            resolution: parsed.resolution as
+              | 'INTERNAL_WINS'
+              | 'EXTERNAL_WINS'
+              | 'MERGED'
+              | 'MANUAL',
+          },
           parsed.resolvedBy
         );
         resolved.push(conflictId);
@@ -85,11 +94,16 @@ export class ConflictController {
       const conflicts = await this.conflictService.getAllConflicts(requireTenant(req).companyId, {
         page: 1,
         limit: 1000,
-        status: 'PENDING'
+        status: 'PENDING',
       });
       let resolved = 0;
       for (const c of conflicts.conflicts) {
-        await this.conflictService.resolveConflict(requireTenant(req).companyId, c.id, { resolution: 'INTERNAL_WINS' }, 'system');
+        await this.conflictService.resolveConflict(
+          requireTenant(req).companyId,
+          c.id,
+          { resolution: 'INTERNAL_WINS' },
+          'system'
+        );
         resolved++;
       }
       res.json({ success: true, data: { jobId, resolved } });

@@ -18,13 +18,13 @@ export const errorHandler = (err: any, req: any, res: any, next: any) => {
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,
-      error: { code: err.code, message: err.message, details: err.details }
+      error: { code: err.code, message: err.message, details: err.details },
     });
   }
 
   console.error('Unhandled error:', err);
   return res.status(500).json({
     success: false,
-    error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' }
+    error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
   });
 };

@@ -4,8 +4,9 @@
  * Handles: Quotation CRUD + Convert to Order
  */
 
-import { Quotation, SalesOrder } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { Quotation, SalesOrder } from '@prisma/client';
+import { eventBus } from '../../../core/event-bus';
 import { quotationRepository } from '../repositories/quotation.repository';
 import { salesRepository } from '../repositories/sales.repository';
 import {
@@ -17,17 +18,16 @@ import {
 } from '../types/sales.types';
 import {
   calculateQuotationTotals,
-  generateQuotationNumber,
   generateOrderNumber,
+  generateQuotationNumber,
 } from './sales.internal';
-import { eventBus } from '../../../core/event-bus';
-
 
 export class QuotationService {
   // ─── CREATE QUOTATION ───
   async createQuotation(dto: QuotationDTO): Promise<Quotation> {
     const totals = calculateQuotationTotals(dto.items);
-    const quotationNumber = dto.quotationNumber || await quotationRepository.getNextQuotationNumber(dto.companyId);
+    const quotationNumber =
+      dto.quotationNumber || (await quotationRepository.getNextQuotationNumber(dto.companyId));
 
     const quotationData = {
       companyId: dto.companyId,
@@ -79,12 +79,19 @@ export class QuotationService {
   }
 
   // ─── GET QUOTATION BY ID ───
-  async getQuotationById(id: string, companyId: string): Promise<Quotation & { items: any[] } | null> {
+  async getQuotationById(
+    id: string,
+    companyId: string
+  ): Promise<(Quotation & { items: any[] }) | null> {
     return quotationRepository.getQuotationById(id, companyId);
   }
 
   // ─── UPDATE QUOTATION ───
-  async updateQuotation(id: string, companyId: string, dto: Partial<QuotationDTO>): Promise<Quotation> {
+  async updateQuotation(
+    id: string,
+    companyId: string,
+    dto: Partial<QuotationDTO>
+  ): Promise<Quotation> {
     const existing = await quotationRepository.getQuotationById(id, companyId);
     if (!existing) throw new Error('Quotation not found');
     if (existing.status === 'converted') throw new Error('Cannot update converted quotation');
@@ -145,7 +152,11 @@ export class QuotationService {
   }
 
   // ─── CONVERT QUOTATION TO ORDER ───
-  async convertQuotationToOrder(id: string, companyId: string, dto?: Partial<SalesOrderDTO>): Promise<SalesOrder> {
+  async convertQuotationToOrder(
+    id: string,
+    companyId: string,
+    dto?: Partial<SalesOrderDTO>
+  ): Promise<SalesOrder> {
     const quotation = await quotationRepository.getQuotationById(id, companyId);
     if (!quotation) throw new Error('Quotation not found');
     if (quotation.status === 'converted') throw new Error('Quotation already converted');

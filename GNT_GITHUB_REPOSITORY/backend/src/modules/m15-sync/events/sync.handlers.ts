@@ -21,7 +21,8 @@ export class SyncEventSubscriber {
     // M11 payment.completed → active PAYMENT sync configs trigger (tenant-scoped)
     eventBus.subscribe('payment.completed', (event: unknown) => {
       void SyncEventSubscriber.handlePaymentChange(event).catch((e) =>
-        console.error('[M15] payment sync trigger failed:', e));
+        console.error('[M15] payment sync trigger failed:', e)
+      );
     });
 
     console.log('[M15] Event subscriber initialized (in-process bus)');

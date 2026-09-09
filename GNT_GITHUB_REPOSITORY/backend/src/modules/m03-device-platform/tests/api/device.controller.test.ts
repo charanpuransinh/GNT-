@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import request from 'supertest';
 import express from 'express';
+import request from 'supertest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deviceController } from '../../controllers/device.controller';
 import { deviceService } from '../../services/device.service';
 
@@ -38,9 +38,7 @@ describe('M03 - Device API Endpoints', () => {
         },
       ] as any);
 
-      const response = await request(app)
-        .get('/api/v1/device/sessions')
-        .expect(200);
+      const response = await request(app).get('/api/v1/device/sessions').expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(1);
@@ -52,9 +50,7 @@ describe('M03 - Device API Endpoints', () => {
     it('should terminate session', async () => {
       vi.mocked(deviceService.terminateSession).mockResolvedValue();
 
-      const response = await request(app)
-        .delete('/api/v1/device/sessions/session-1')
-        .expect(200);
+      const response = await request(app).delete('/api/v1/device/sessions/session-1').expect(200);
 
       expect(response.body.data.terminated).toBe(true);
     });

@@ -3,17 +3,16 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { salesService } from '../../services/sales.service';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { quotationService } from '../../services/quotation.service';
 import { returnService } from '../../services/return.service';
-import { SalesInvoiceDTO, QuotationDTO, SalesReturnDTO } from '../../types/sales.types';
+import { salesService } from '../../services/sales.service';
+import { QuotationDTO, SalesInvoiceDTO, SalesReturnDTO } from '../../types/sales.types';
 
 const prisma = new PrismaClient();
 
-describe.runIf(process.env.TEST_DB === '1')(
-'Sales Integration Tests', () => {
+describe.runIf(process.env.TEST_DB === '1')('Sales Integration Tests', () => {
   const companyId = 'comp-test-001';
   const branchId = 'branch-test-001';
   const customerId = 'cust-test-001';
@@ -70,9 +69,7 @@ describe.runIf(process.env.TEST_DB === '1')(
       customerId,
       quotationDate: new Date(),
       expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      items: [
-        { productId: 'prod-003', quantity: 5, rate: 50, taxRate: 5 },
-      ],
+      items: [{ productId: 'prod-003', quantity: 5, rate: 50, taxRate: 5 }],
     };
 
     const quotation = await quotationService.createQuotation(quotationDto);
@@ -97,9 +94,7 @@ describe.runIf(process.env.TEST_DB === '1')(
       customerId,
       invoiceDate: new Date(),
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      items: [
-        { productId: 'prod-004', quantity: 3, rate: 100, taxRate: 18 },
-      ],
+      items: [{ productId: 'prod-004', quantity: 3, rate: 100, taxRate: 18 }],
     };
     const invoice = await salesService.createInvoice(invoiceDto);
 
@@ -109,9 +104,7 @@ describe.runIf(process.env.TEST_DB === '1')(
       customerId,
       returnDate: new Date(),
       reason: 'Damaged goods',
-      items: [
-        { productId: 'prod-004', quantity: 1, rate: 100 },
-      ],
+      items: [{ productId: 'prod-004', quantity: 1, rate: 100 }],
     };
 
     const salesReturn = await returnService.createReturn(returnDto);
@@ -130,9 +123,7 @@ describe.runIf(process.env.TEST_DB === '1')(
       customerId,
       invoiceDate: new Date(),
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      items: [
-        { productId: 'prod-005', quantity: 1, rate: 500, taxRate: 18 },
-      ],
+      items: [{ productId: 'prod-005', quantity: 1, rate: 500, taxRate: 18 }],
     };
     const invoice = await salesService.createInvoice(invoiceDto);
     // recordPayment सिर्फ़ approved/posted invoice पर चलता है — पहले approve करो

@@ -3,14 +3,14 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { Request, Response } from 'express';
 import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
+import { Request, Response } from 'express';
 import { salesService } from '../services/sales.service';
 import {
-  salesInvoiceSchema,
-  invoiceQuerySchema,
   invoicePaymentSchema,
+  invoiceQuerySchema,
   printRequestSchema,
+  salesInvoiceSchema,
   shareRequestSchema,
 } from '../validators/sales.schema';
 
@@ -18,7 +18,10 @@ export class SalesController {
   // ─── CREATE INVOICE ───
   async createInvoice(req: Request, res: Response): Promise<void> {
     try {
-      const dto = { ...salesInvoiceSchema.parse(req.body), companyId: requireTenant(req).companyId };
+      const dto = {
+        ...salesInvoiceSchema.parse(req.body),
+        companyId: requireTenant(req).companyId,
+      };
       const invoice = await salesService.createInvoice(dto);
       res.status(201).json({ success: true, data: invoice });
     } catch (error: any) {
@@ -29,9 +32,18 @@ export class SalesController {
   // ─── GET INVOICES ───
   async getInvoices(req: Request, res: Response): Promise<void> {
     try {
-      const query = invoiceQuerySchema.parse({ ...req.query, companyId: requireTenant(req).companyId });
+      const query = invoiceQuerySchema.parse({
+        ...req.query,
+        companyId: requireTenant(req).companyId,
+      });
       const result = await salesService.getInvoices(query);
-      res.status(200).json({ success: true, data: result.data, meta: { total: result.total, page: query.page, limit: query.limit } });
+      res
+        .status(200)
+        .json({
+          success: true,
+          data: result.data,
+          meta: { total: result.total, page: query.page, limit: query.limit },
+        });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
     }
@@ -126,7 +138,10 @@ export class SalesController {
     try {
       const id = String(req.params.id);
       const companyId = requireTenant(req).companyId as string;
-      const { template } = printRequestSchema.parse({ template: req.query.template || 'a4', invoiceId: id });
+      const { template } = printRequestSchema.parse({
+        template: req.query.template || 'a4',
+        invoiceId: id,
+      });
       const html = await salesService.generatePrint(id, companyId, template);
       res.setHeader('Content-Type', 'text/html');
       res.status(200).send(html);
@@ -141,7 +156,13 @@ export class SalesController {
       const id = String(req.params.id);
       const companyId = requireTenant(req).companyId as string;
       const { method, recipient, message } = shareRequestSchema.parse(req.body);
-      const result = await salesService.shareInvoice(id, companyId, method, recipient);
+      const result = await salesService.shareInvoice(
+        id,
+        companyId,
+        method,
+        recipient,
+        req.user?.id
+      );
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });

@@ -1,13 +1,8 @@
-import { deviceRepository } from '../repositories/device.repository';
-import { deviceInternal } from './device.internal';
-import { Prisma } from '@prisma/client';
-import {
-  DeviceSession,
-  DeviceInfo,
-  UpdateInfo,
-  DeploymentSettings,
-} from '../types/device.types';
 import { AppError } from '@/common/errors/error-classes';
+import { Prisma } from '@prisma/client';
+import { deviceRepository } from '../repositories/device.repository';
+import { DeploymentSettings, DeviceInfo, DeviceSession, UpdateInfo } from '../types/device.types';
+import { deviceInternal } from './device.internal';
 
 // Prisma DB rows (snake_case) → API DTOs (camelCase) mapping
 type SessionRow = Prisma.active_sessionGetPayload<{}>;
@@ -113,26 +108,76 @@ export const deviceService = {
   },
 
   async checkForUpdate(platform: string, currentVersion: string): Promise<UpdateInfo> {
-    const latestVersion = await deviceInternal.getLatestVersion(platform);
-    const hasUpdate = deviceInternal.compareVersions(currentVersion, latestVersion) < 0;
+    // असली published release से — कोई हार्डकोडेड version नहीं।
+    const release = await deviceRepository.getLatestPublishedRelease(platform);
 
-    let severity: UpdateInfo['severity'] = 'patch';
-    if (hasUpdate) {
-      severity = await deviceInternal.getUpdateSeverity(currentVersion, latestVersion);
+    // इस platform के लिए कोई release publish नहीं हुई → ईमानदार जवाब,
+    // नक़ली "2.1.0 available" नहीं।
+    if (!release) {
+      return {
+        currentVersion,
+        latestVersion: currentVersion,
+        hasUpdate: false,
+        severity: 'patch',
+        releaseNotes: undefined,
+        forceUpdate: false,
+      };
     }
+
+    const latestVersion = release.version;
+    const hasUpdate = deviceInternal.compareVersions(currentVersion, latestVersion) < 0;
+    const severity: UpdateInfo['severity'] = hasUpdate
+      ? await deviceInternal.getUpdateSeverity(currentVersion, latestVersion)
+      : 'patch';
+
+    // min_supported से नीचे → forced (या critical severity)
+    const belowMin =
+      !!release.min_supported &&
+      deviceInternal.compareVersions(currentVersion, release.min_supported) < 0;
 
     return {
       currentVersion,
       latestVersion,
       hasUpdate,
       severity,
-      releaseNotes: hasUpdate ? await deviceInternal.getReleaseNotes(latestVersion) : undefined,
-      forceUpdate: severity === 'critical',
+      releaseNotes: hasUpdate ? (release.release_notes ?? []) : undefined,
+      forceUpdate: belowMin || severity === 'critical',
     };
   },
 
   async getDownloadUrl(version: string): Promise<string> {
+    // release में download_url हो तो वही; वरना env-based fallback
+    const platforms = ['ios', 'android', 'windows', 'macos', 'linux', 'web'];
+    for (const p of platforms) {
+      const r = await deviceRepository.getLatestPublishedRelease(p);
+      if (r?.version === version && r.download_url) return r.download_url;
+    }
     return deviceInternal.generateDownloadUrl(version);
+  },
+
+  /** owner/admin — नई app release publish करना */
+  async publishRelease(input: {
+    platform: string;
+    version: string;
+    releaseNotes?: string[];
+    minSupported?: string | null;
+    downloadUrl?: string | null;
+    isPublished?: boolean;
+    createdBy?: string;
+  }) {
+    return deviceRepository.upsertRelease({
+      platform: input.platform,
+      version: input.version,
+      release_notes: input.releaseNotes ?? [],
+      min_supported: input.minSupported ?? null,
+      download_url: input.downloadUrl ?? null,
+      is_published: input.isPublished ?? true,
+      created_by: input.createdBy ?? null,
+    });
+  },
+
+  async listReleases(platform?: string) {
+    return deviceRepository.listReleases(platform);
   },
 
   async getDeploymentSettings(companyId: string): Promise<DeploymentSettings> {

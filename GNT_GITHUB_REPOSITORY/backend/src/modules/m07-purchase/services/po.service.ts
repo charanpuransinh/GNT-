@@ -3,16 +3,16 @@
 // ============================================================================
 
 import { PrismaClient } from '@prisma/client';
-import { PurchaseOrderRepository } from '../repositories/po.repository';
-import { calculatePOTotals } from './purchase.internal';
-import { PurchaseEventHandlers } from '../events/purchase.handlers';
 import { PURCHASE_EVENTS } from '../events/purchase.events';
+import { PurchaseEventHandlers } from '../events/purchase.handlers';
+import { PurchaseOrderRepository } from '../repositories/po.repository';
 import {
   CreatePurchaseOrderDTO,
-  UpdatePurchaseOrderDTO,
-  PurchaseOrderQueryDTO,
   PurchaseOrderCreatedEvent,
+  PurchaseOrderQueryDTO,
+  UpdatePurchaseOrderDTO,
 } from '../types/purchase.types';
+import { calculatePOTotals } from './purchase.internal';
 
 export class PurchaseOrderService {
   private repository: PurchaseOrderRepository;
@@ -20,7 +20,7 @@ export class PurchaseOrderService {
   constructor(
     private prisma: PrismaClient,
     private eventHandlers: PurchaseEventHandlers,
-    private eventBus: { publish: (event: string, payload: unknown) => Promise<void> },
+    private eventBus: { publish: (event: string, payload: unknown) => Promise<void> }
   ) {
     this.repository = new PurchaseOrderRepository(prisma);
   }
@@ -42,15 +42,15 @@ export class PurchaseOrderService {
     let runningTax = 0;
     let runningNet = 0;
 
-    const finalItems = dto.items.map(item => {
+    const finalItems = dto.items.map((item) => {
       const qty = item.quantity;
       const rate = item.rate;
       const discountPercent = item.discount_percent || 0;
       const taxRate = item.tax_rate || 0;
       const gross = qty * rate;
-      const discount = item.discount_amount || (gross * discountPercent / 100);
+      const discount = item.discount_amount || (gross * discountPercent) / 100;
       const afterDiscount = gross - discount;
-      const tax = afterDiscount * taxRate / 100;
+      const tax = (afterDiscount * taxRate) / 100;
       const net = afterDiscount + tax;
 
       runningTotal += gross;
@@ -83,7 +83,7 @@ export class PurchaseOrderService {
       company_id: po.company_id,
       total_amount: Number(po.net_amount) || 0,
       delivery_date: po.delivery_date,
-      items: finalItems.map(item => ({
+      items: finalItems.map((item) => ({
         product_id: item.product_id,
         quantity: item.quantity,
         rate: item.rate,
@@ -126,15 +126,15 @@ export class PurchaseOrderService {
       let runningTax = 0;
       let runningNet = 0;
 
-      const finalItems = dto.items.map(item => {
+      const finalItems = dto.items.map((item) => {
         const qty = item.quantity;
         const rate = item.rate;
         const discountPercent = item.discount_percent || 0;
         const taxRate = item.tax_rate || 0;
         const gross = qty * rate;
-        const discount = item.discount_amount || (gross * discountPercent / 100);
+        const discount = item.discount_amount || (gross * discountPercent) / 100;
         const afterDiscount = gross - discount;
-        const tax = afterDiscount * taxRate / 100;
+        const tax = (afterDiscount * taxRate) / 100;
         const net = afterDiscount + tax;
 
         runningTotal += gross;
@@ -172,7 +172,11 @@ export class PurchaseOrderService {
     const result = await this.repository.sendPO(id, company_id);
     if (result.count === 0) throw new Error('Failed to send PO');
 
-    await this.eventBus.publish(PURCHASE_EVENTS.ORDER_SENT, { po_id: id, company_id, sent_at: new Date() });
+    await this.eventBus.publish(PURCHASE_EVENTS.ORDER_SENT, {
+      po_id: id,
+      company_id,
+      sent_at: new Date(),
+    });
     return { success: true, message: 'Purchase order sent to supplier' };
   }
 
@@ -185,9 +189,9 @@ export class PurchaseOrderService {
 
     const result = await this.repository.receivePO(id, company_id, receivedQuantities);
 
-    await this.eventBus.publish(PURCHASE_EVENTS.ORDER_RECEIVED, { 
-      po_id: id, 
-      company_id, 
+    await this.eventBus.publish(PURCHASE_EVENTS.ORDER_RECEIVED, {
+      po_id: id,
+      company_id,
       received_quantities: receivedQuantities,
       received_at: new Date(),
     });
@@ -213,7 +217,7 @@ export class PurchaseOrderService {
     }
 
     // Convert PO items to invoice items
-    const invoiceItems = po.items.map(item => ({
+    const invoiceItems = po.items.map((item) => ({
       product_id: item.product_id,
       quantity: Number(item.quantity),
       rate: Number(item.rate),

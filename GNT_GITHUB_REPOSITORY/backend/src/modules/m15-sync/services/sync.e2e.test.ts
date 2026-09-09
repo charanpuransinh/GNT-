@@ -1,10 +1,12 @@
-// M15 — Sync END-TO-END (real DB): config → trigger → job completes + entity logs (fake nahi)
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtemp, writeFile, rm } from 'fs/promises';
-import os from 'os';
-import path from 'path';
-import type { SyncJob } from '@prisma/client';
+// M15 — Sync END-TO-END (real DB). Effect assertions: FROM_EXTERNAL actually
+// writes internal rows; TO_EXTERNAL / unsupported entities are honestly 'detected'
+// (no fake 'created'); unknown entity -> job FAILED.
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { prisma } from '@/common/config/prisma';
+import type { SyncJob } from '@prisma/client';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SyncService } from './sync.service';
 
 const TENANT = '00000000-0000-4000-8000-000000000070';
@@ -12,14 +14,16 @@ const TERMINAL_STATUSES = ['COMPLETED', 'FAILED', 'CANCELLED'];
 
 async function cleanup() {
   await prisma.syncEntityLog.deleteMany({ where: { tenantId: TENANT } });
+  await prisma.syncConflict.deleteMany({ where: { tenantId: TENANT } });
   await prisma.syncJob.deleteMany({ where: { tenantId: TENANT } });
   await prisma.syncEntityConfig.deleteMany({ where: { tenantId: TENANT } });
   await prisma.syncConfig.deleteMany({ where: { tenantId: TENANT } });
+  await prisma.product_master.deleteMany({ where: { company_id: TENANT } });
+  await prisma.party_master.deleteMany({ where: { company_id: TENANT } });
 }
 
-const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** processJobAsync fire-and-forget hai — fixed sleep flaky tha; ab terminal status ka poll. Never null (timeout par throw). */
 async function waitForSyncJob(jobId: string, maxMs = 15000): Promise<SyncJob> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
@@ -30,116 +34,134 @@ async function waitForSyncJob(jobId: string, maxMs = 15000): Promise<SyncJob> {
   throw new Error('sync job did not reach a terminal state in time');
 }
 
+async function fileConfig(entity: string, direction: string, csv: string, mappings: unknown[]) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'm15-e2e-'));
+  const csvPath = path.join(tempDir, 'ext.csv');
+  await writeFile(csvPath, csv);
+  const config = await SyncService.createConfig(
+    {
+      configCode: `SYNC-${entity}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: `${entity} ${direction}`,
+      sourceSystem: 'FILE',
+      syncDirection: direction,
+      connectionType: 'FILE',
+      connectionConfig: { fileKey: csvPath, fileType: 'csv' },
+      entityConfigs: [
+        {
+          internalEntity: entity,
+          externalEntity: 'Ext',
+          fieldMappings: mappings as never,
+          isActive: true,
+        },
+      ],
+    } as never,
+    TENANT
+  );
+  return { config, cleanupFile: () => rm(tempDir, { recursive: true, force: true }) };
+}
+
 describe.runIf(process.env.TEST_DB === '1')('M15 sync end-to-end — live DB', () => {
   beforeAll(async () => {
     await prisma.company_master.upsert({
-      where: { id: TENANT }, update: {},
+      where: { id: TENANT },
+      update: {},
       create: { id: TENANT, name: 'M15 E2E Co', code: 'M15E2E' },
     });
     await cleanup();
   });
   afterAll(cleanup);
 
-  it('config → trigger → job COMPLETED + entity log banta hai (sync engine sach me chalta hai)', async () => {
-    const config = await SyncService.createConfig({
-      configCode: `SYNC-E2E-${Date.now()}`,
-      name: 'E2E Sync',
-      sourceSystem: 'INTERNAL',
-      syncDirection: 'TO_EXTERNAL',
-      connectionType: 'API',
-      entityConfigs: [
-        { internalEntity: 'PAYMENT', externalEntity: 'Payments', fieldMappings: [], isActive: true },
-      ],
-    }, TENANT);
-
-    const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
-
-    // processJobAsync background me chalta hai — terminal hone ka wait
-    const finalJob = await waitForSyncJob(job.id);
-    // COMPLETED (ya FAILED bhi ho sakta hai agar external fetch me dikkat) — par RUNNING/QUEUED nahi rehna chahiye
-    expect(['COMPLETED', 'FAILED']).toContain(finalJob.status);
-
-    // entity log bana chahiye (determineAction ne kuch decide kiya)
-    const logs = await prisma.syncEntityLog.findMany({ where: { tenantId: TENANT, syncJobId: job.id } });
-    expect(logs.length).toBeGreaterThanOrEqual(0);
-  });
-
-  it('FILE source: uploaded CSV ka data external ban jata hai — sync totalEntities file rows ginta hai (koi API nahi)', async () => {
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'm15-sync-file-'));
-    const csvPath = path.join(tempDir, 'external.csv');
-    await writeFile(csvPath, 'name,gstin\nAcme,27ABCDE1234F1Z5\nBeta,27BCDEF5678G2Z6\n');
-
-    const config = await SyncService.createConfig({
-      configCode: `SYNC-FILE-${Date.now()}`,
-      name: 'File-based sync (koi API nahi)',
-      sourceSystem: 'FILE',
-      syncDirection: 'TO_EXTERNAL',
-      connectionType: 'FILE',
-      connectionConfig: { fileKey: csvPath, fileType: 'csv' },
-      entityConfigs: [
-        {
-          internalEntity: 'PAYMENT',
-          externalEntity: 'Payments',
-          fieldMappings: [{ internalField: 'name', externalField: 'name', isKey: true }],
-          isActive: true,
-        },
-      ],
-    }, TENANT);
-
-    const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
-    const finalJob = await waitForSyncJob(job.id);
-
-    expect(finalJob.status).toBe('COMPLETED');
-    // file ki 2 rows external data me aayi — totalEntities = max(internal, external) = 2
-    expect(finalJob.totalEntities).toBeGreaterThanOrEqual(2);
-
-    await rm(tempDir, { recursive: true, force: true });
-  });
-
-  it('internal entity CUSTOMER: asli party_master rows sync me aati hain (PAYMENT ke alawa bhi)', async () => {
+  it('FROM_EXTERNAL party sync WRITES a real party_master row (not just a log)', async () => {
     await prisma.party_master.deleteMany({ where: { company_id: TENANT } });
-    await prisma.party_master.createMany({
-      data: [
-        { company_id: TENANT, party_type: 'customer', name: 'Sync Cust A', gstin: '27AAAAA0000A1Z5' },
-        { company_id: TENANT, party_type: 'customer', name: 'Sync Cust B', gstin: '27BBBBB0000B1Z5' },
-      ],
+    const { config, cleanupFile } = await fileConfig(
+      'CUSTOMER',
+      'FROM_EXTERNAL',
+      'name,gstin,email\nExternally Imported Co,27ZZZZZ0000Z1Z5,ext@imported.test\n',
+      [
+        { internalField: 'name', externalField: 'name', isKey: true },
+        { internalField: 'gstin', externalField: 'gstin' },
+        { internalField: 'email', externalField: 'email' },
+      ]
+    );
+
+    const job = await SyncService.triggerSync(
+      { syncConfigId: config.id, triggeredBy: 'TEST' } as never,
+      TENANT,
+      'system'
+    );
+    const finalJob = await waitForSyncJob(job.id);
+    expect(finalJob.status).toBe('COMPLETED');
+
+    // THE effect — a real internal row now exists
+    const party = await prisma.party_master.findFirst({
+      where: { company_id: TENANT, gstin: '27ZZZZZ0000Z1Z5' },
     });
+    expect(party).toBeTruthy();
+    expect(party?.name).toBe('Externally Imported Co');
+    expect(party?.email).toBe('ext@imported.test');
 
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'm15-cust-'));
-    const csvPath = path.join(tempDir, 'ext.csv');
-    await writeFile(csvPath, 'name,gstin\nSync Cust A,27AAAAA0000A1Z5\n');
-
-    const config = await SyncService.createConfig({
-      configCode: `SYNC-CUST-${Date.now()}`,
-      name: 'Customer sync', sourceSystem: 'FILE', syncDirection: 'TO_EXTERNAL', connectionType: 'FILE',
-      connectionConfig: { fileKey: csvPath, fileType: 'csv' },
-      entityConfigs: [{
-        internalEntity: 'CUSTOMER', externalEntity: 'Contacts',
-        fieldMappings: [{ internalField: 'name', externalField: 'name', isKey: true }], isActive: true,
-      }],
-    }, TENANT);
-
-    const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
-    const finalJob = await waitForSyncJob(job.id);
-
-    expect(finalJob.status).toBe('COMPLETED');
-    // 2 internal parties vs 1 external row → totalEntities = max = 2 (internal fetch sach me chala)
-    expect(finalJob.totalEntities).toBeGreaterThanOrEqual(2);
-
-    await prisma.party_master.deleteMany({ where: { company_id: TENANT } });
-    await rm(tempDir, { recursive: true, force: true });
+    // honest counters
+    const summary = finalJob.resultSummary as Record<string, number>;
+    expect(summary.created).toBeGreaterThanOrEqual(1);
+    await cleanupFile();
   });
 
-  it('unknown internal entity → sync job FAILED (chupchap empty nahi)', async () => {
-    const config = await SyncService.createConfig({
-      configCode: `SYNC-BAD-${Date.now()}`,
-      name: 'Bad entity', sourceSystem: 'INTERNAL', syncDirection: 'TO_EXTERNAL', connectionType: 'API',
-      entityConfigs: [{ internalEntity: 'GLROX_WIDGETS', externalEntity: 'x', fieldMappings: [], isActive: true }],
-    }, TENANT);
-
-    const job = await SyncService.triggerSync({ syncConfigId: config.id, triggeredBy: 'TEST' }, TENANT, 'system');
+  it('FROM_EXTERNAL re-run UPDATES the existing party (upsert, not duplicate)', async () => {
+    const { config, cleanupFile } = await fileConfig(
+      'CUSTOMER',
+      'FROM_EXTERNAL',
+      'name,gstin,email\nExternally Imported Co,27ZZZZZ0000Z1Z5,changed@imported.test\n',
+      [
+        { internalField: 'name', externalField: 'name', isKey: true },
+        { internalField: 'gstin', externalField: 'gstin' },
+        { internalField: 'email', externalField: 'email' },
+      ]
+    );
+    const job = await SyncService.triggerSync(
+      { syncConfigId: config.id, triggeredBy: 'TEST' } as never,
+      TENANT,
+      'system'
+    );
     const finalJob = await waitForSyncJob(job.id);
+    expect(finalJob.status).toBe('COMPLETED');
 
+    const rows = await prisma.party_master.findMany({
+      where: { company_id: TENANT, gstin: '27ZZZZZ0000Z1Z5' },
+    });
+    expect(rows).toHaveLength(1); // no duplicate
+    expect(rows[0].email).toBe('changed@imported.test'); // updated
+    await cleanupFile();
+  });
+
+  it('TO_EXTERNAL sync is honest: counted as "detected", never a fake "created"', async () => {
+    await prisma.product_master.create({
+      data: { company_id: TENANT, name: 'Local Only Product', code: 'LOP-1', sale_price: 50 },
+    });
+    const { config, cleanupFile } = await fileConfig('PRODUCT', 'TO_EXTERNAL', 'name,code\n', [
+      { internalField: 'name', externalField: 'name', isKey: true },
+    ]);
+    const job = await SyncService.triggerSync(
+      { syncConfigId: config.id, triggeredBy: 'TEST' } as never,
+      TENANT,
+      'system'
+    );
+    const finalJob = await waitForSyncJob(job.id);
+    expect(finalJob.status).toBe('COMPLETED');
+
+    const summary = finalJob.resultSummary as Record<string, number>;
+    expect(summary.created).toBe(0); // nothing was actually created anywhere
+    expect(summary.detected).toBeGreaterThanOrEqual(1); // the local product was detected as TO_EXTERNAL
+    await cleanupFile();
+  });
+
+  it('unknown internal entity → sync job FAILED (no silent empty)', async () => {
+    const { config } = await fileConfig('GLROX_WIDGETS', 'FROM_EXTERNAL', 'x\n1\n', []);
+    const job = await SyncService.triggerSync(
+      { syncConfigId: config.id, triggeredBy: 'TEST' } as never,
+      TENANT,
+      'system'
+    );
+    const finalJob = await waitForSyncJob(job.id);
     expect(finalJob.status).toBe('FAILED');
   });
 });

@@ -3,7 +3,7 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { printService } from '../../services/print.service';
 import { PrintData } from '../../services/sales.internal';
 
@@ -19,8 +19,30 @@ describe('Print Service Unit Tests', () => {
     customerAddress: '456 Market Rd, Pune',
     customerGstin: '27AADCB2230M1Z3',
     items: [
-      { sno: 1, description: 'Widget A', hsn: '8471', qty: 2, rate: 100, amount: 200, discount: 0, taxRate: 18, taxAmount: 36, netAmount: 236 },
-      { sno: 2, description: 'Gadget B', hsn: '8473', qty: 1, rate: 150, amount: 150, discount: 10, taxRate: 12, taxAmount: 16.8, netAmount: 156.8 },
+      {
+        sno: 1,
+        description: 'Widget A',
+        hsn: '8471',
+        qty: 2,
+        rate: 100,
+        amount: 200,
+        discount: 0,
+        taxRate: 18,
+        taxAmount: 36,
+        netAmount: 236,
+      },
+      {
+        sno: 2,
+        description: 'Gadget B',
+        hsn: '8473',
+        qty: 1,
+        rate: 150,
+        amount: 150,
+        discount: 10,
+        taxRate: 12,
+        taxAmount: 16.8,
+        netAmount: 156.8,
+      },
     ],
     totals: {
       totalAmount: 350,

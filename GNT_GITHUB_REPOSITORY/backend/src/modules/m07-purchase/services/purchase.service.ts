@@ -4,22 +4,22 @@
 // ============================================================================
 
 import { PrismaClient } from '@prisma/client';
-import { PurchaseRepository } from '../repositories/purchase.repository';
-import { calculateInvoiceTotals, calculateReturnTotals, numberToWords } from './purchase.internal';
-import { InvoiceCalculationResult } from '../types/purchase.types';
-import { OCRService, TesseractOCRProvider } from './ocr.service';
-import { PurchaseEventHandlers } from '../events/purchase.handlers';
 import { PURCHASE_EVENTS } from '../events/purchase.events';
+import { PurchaseEventHandlers } from '../events/purchase.handlers';
+import { PurchaseRepository } from '../repositories/purchase.repository';
+import { InvoiceCalculationResult } from '../types/purchase.types';
 import {
   CreatePurchaseInvoiceDTO,
-  UpdatePurchaseInvoiceDTO,
-  PurchaseInvoiceItemDTO,
-  PurchaseInvoiceQueryDTO,
   CreatePurchaseReturnDTO,
-  PurchaseInvoiceApprovedEvent,
   OCRResultDTO,
   OCRReviewDTO,
+  PurchaseInvoiceApprovedEvent,
+  PurchaseInvoiceItemDTO,
+  PurchaseInvoiceQueryDTO,
+  UpdatePurchaseInvoiceDTO,
 } from '../types/purchase.types';
+import { OCRService, TesseractOCRProvider } from './ocr.service';
+import { calculateInvoiceTotals, calculateReturnTotals, numberToWords } from './purchase.internal';
 
 export class PurchaseService {
   private repository: PurchaseRepository;
@@ -28,10 +28,12 @@ export class PurchaseService {
   constructor(
     private prisma: PrismaClient,
     private eventHandlers: PurchaseEventHandlers,
-    private eventBus: { publish: (event: string, payload: unknown) => Promise<void> },
+    private eventBus: { publish: (event: string, payload: unknown) => Promise<void> }
   ) {
     this.repository = new PurchaseRepository(prisma);
-    this.ocrService = new OCRService(new TesseractOCRProvider(process.env.TESSERACT_BIN || 'tesseract'));
+    this.ocrService = new OCRService(
+      new TesseractOCRProvider(process.env.TESSERACT_BIN || 'tesseract')
+    );
   }
 
   // ─── PUBLIC API: createPurchaseInvoice ───
@@ -94,8 +96,16 @@ export class PurchaseService {
       }));
     }
 
-    const updateData = enrichedItems 
-      ? { ...dto, items: enrichedItems, total_amount: calc!.total_amount, total_tax: calc!.total_tax, total_discount: calc!.total_discount, net_amount: calc!.net_amount, grand_total: calc!.grand_total }
+    const updateData = enrichedItems
+      ? {
+          ...dto,
+          items: enrichedItems,
+          total_amount: calc!.total_amount,
+          total_tax: calc!.total_tax,
+          total_discount: calc!.total_discount,
+          net_amount: calc!.net_amount,
+          grand_total: calc!.grand_total,
+        }
       : dto;
 
     return this.repository.updateInvoice(id, company_id, updateData);
@@ -125,7 +135,7 @@ export class PurchaseService {
       total_amount: Number(existing.total_amount) || 0,
       tax_amount: Number(existing.total_tax) || 0,
       grand_total: Number(existing.grand_total) || 0,
-      items: existing.items.map(item => ({
+      items: existing.items.map((item) => ({
         product_id: item.product_id,
         quantity: Number(item.quantity),
         rate: Number(item.rate),
@@ -164,7 +174,7 @@ export class PurchaseService {
       total_amount: Number(existing.total_amount) || 0,
       tax_amount: Number(existing.total_tax) || 0,
       grand_total: Number(existing.grand_total) || 0,
-      items: existing.items.map(item => ({
+      items: existing.items.map((item) => ({
         product_id: item.product_id,
         quantity: Number(item.quantity),
         rate: Number(item.rate),
@@ -188,13 +198,17 @@ export class PurchaseService {
     if (result.count === 0) throw new Error('Failed to post invoice after side effects completed');
 
     await this.eventBus.publish(PURCHASE_EVENTS.INVOICE_POSTED, eventPayload);
-    return { success: true, message: 'Invoice posted successfully — stock, GST, and ledger updated' };
+    return {
+      success: true,
+      message: 'Invoice posted successfully — stock, GST, and ledger updated',
+    };
   }
 
   async cancelPurchaseInvoice(id: string, company_id: string) {
     const existing = await this.repository.getInvoiceById(id, company_id);
     if (!existing) throw new Error('Purchase invoice not found');
-    if (existing.status === 'posted') throw new Error('Posted invoices cannot be cancelled — use purchase return instead');
+    if (existing.status === 'posted')
+      throw new Error('Posted invoices cannot be cancelled — use purchase return instead');
 
     return this.repository.cancelInvoice(id, company_id);
   }
@@ -228,7 +242,12 @@ export class PurchaseService {
     }
 
     // Update invoice with accepted OCR data
-    await this.repository.updateOCRData(invoice_id, company_id, ocr_data, ocr_data.overall_confidence);
+    await this.repository.updateOCRData(
+      invoice_id,
+      company_id,
+      ocr_data,
+      ocr_data.overall_confidence
+    );
 
     return { success: true, message: 'OCR data accepted and saved' };
   }
@@ -271,13 +290,15 @@ export class PurchaseService {
     return this.repository.getReturnById(id, company_id);
   }
 
+  // audit 2026-09-09: पहले repository.postReturn() (status बदलना) *पहले* होता था, फिर
+  // handleReturnPosted() जिसका M10 adapter unconditionally throw करता था → route हमेशा
+  // 500, return DB में 'posted' पर stuck, कोई voucher नहीं। अब: side-effects पहले
+  // (M06 stock deduct + M10 debit-note voucher), फिर status — postPurchaseInvoice जैसा।
   async postPurchaseReturn(id: string, company_id: string, posted_by: string) {
     const existing = await this.repository.getReturnById(id, company_id);
     if (!existing) throw new Error('Purchase return not found');
-    if (existing.status !== 'approved') throw new Error('Purchase return must be approved before posting');
-
-    const result = await this.repository.postReturn(id, company_id);
-    if (result.count === 0) throw new Error('Failed to post purchase return');
+    if (existing.status !== 'approved')
+      throw new Error('Purchase return must be approved before posting');
 
     const eventPayload = {
       return_id: id,
@@ -285,7 +306,7 @@ export class PurchaseService {
       supplier_id: existing.supplier_id,
       total_amount: Number(existing.total_amount) || 0,
       tax_amount: Number(existing.tax_amount) || 0,
-      items: existing.items.map(item => ({
+      items: existing.items.map((item) => ({
         product_id: item.product_id,
         quantity: Number(item.quantity),
         rate: Number(item.rate),
@@ -294,6 +315,7 @@ export class PurchaseService {
       posted_at: new Date(),
     };
 
+    // 1. side-effects — अगर फटे तो return 'approved' ही रहे (ईमानदार failure)
     await this.eventHandlers.handleReturnPosted({
       event: PURCHASE_EVENTS.RETURN_POSTED,
       payload: eventPayload,
@@ -301,6 +323,11 @@ export class PurchaseService {
       source: 'm07-purchase',
       trace_id: `trace-${Date.now()}`,
     });
+
+    // 2. status → posted
+    const result = await this.repository.postReturn(id, company_id);
+    if (result.count === 0) throw new Error('Failed to post purchase return');
+
     await this.eventBus.publish(PURCHASE_EVENTS.RETURN_POSTED, eventPayload);
     return this.repository.getReturnById(id, company_id);
   }

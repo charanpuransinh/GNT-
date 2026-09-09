@@ -5,91 +5,42 @@
  * RULE: All side effects go through Central Transaction Engine
  */
 
-import { SalesInvoice, SalesInvoiceItem, Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { CompanyRepository } from '@/modules/m04-company-management';
+import { partyService as m05PartyService } from '@/modules/m05-party-management';
+import { InvoiceLedgerService } from '@/modules/m10-accounting';
+import { notificationService as m16NotificationService } from '@/modules/m16-notification';
+import { Prisma, SalesInvoice, SalesInvoiceItem } from '@prisma/client';
+import { eventBus } from '../../../core/event-bus';
 import { salesRepository } from '../repositories/sales.repository';
 import {
+  InvoicePaymentDTO,
+  InvoiceQueryParams,
+  PaymentReceivedEvent,
+  SalesInvoiceCreatedEvent,
   SalesInvoiceDTO,
   SalesInvoiceItemDTO,
-  InvoiceQueryParams,
-  InvoicePaymentDTO,
-  SalesInvoiceCreatedEvent,
-  PaymentReceivedEvent,
 } from '../types/sales.types';
-import {
-  calculateInvoiceTotals,
-  generateInvoiceNumber,
-  preparePrintData,
-} from './sales.internal';
 import { printService } from './print.service';
-import { eventBus } from '../../../core/event-bus';
-import { InvoiceLedgerService } from '@/modules/m10-accounting';
+import { calculateInvoiceTotals, generateInvoiceNumber, preparePrintData } from './sales.internal';
 
 // M10 accrual entry — invoice post होते ही double-entry ledger (मालिक P0, 2026-09-06).
 // DI (injectDependencies) कभी wire नहीं होती थी; यह direct है, हमेशा चलती है।
 const invoiceLedgerService = new InvoiceLedgerService(prisma);
+// print/share के लिए भी direct wiring (injectDependencies पर निर्भरता हटाई — audit 2026-09-09):
+const companyRepo = new CompanyRepository(prisma);
 
-
-// ─── M05/M06/M09/M10/M11 PUBLIC CONTRACT INTERFACES (Design-Expansion stubs) ───
-interface PartyService {
-  getCustomerById(id: string): Promise<any>;
-  checkCreditLimit(customerId: string, amount: number): Promise<{ allowed: boolean; limit: number; used: number }>;
-}
-// टास्क #007 Step 4 — company M04 की चीज़ है, M05 से नहीं (getCompanyById हटाया)
-interface CompanyService {
-  getProfile(companyId: string): Promise<any>;
-}
-interface StockService {
-  checkAvailability(productId: string, branchId: string, quantity: number): Promise<{ available: boolean; stock: number }>;
-  deductStock(items: Array<{ productId: string; batchId?: string; quantity: number }>, branchId: string): Promise<void>;
-  addBackStock(items: Array<{ productId: string; quantity: number }>, branchId: string): Promise<void>;
-}
-interface GstService {
-  calculateTax(items: Array<{ hsnCode: string; amount: number; taxRate: number }>, customerState: string, companyState: string): Promise<any>;
-}
-interface LedgerService {
-  createEntry(entry: any): Promise<void>;
-}
-interface PaymentService {
-  getInvoicePayments(invoiceId: string): Promise<any[]>;
-  createDue(invoiceId: string, amount: number, dueDate: Date): Promise<void>;
-}
-interface NotificationService {
-  sendInvoice(invoice: any, method: 'whatsapp' | 'email', recipient: string): Promise<void>;
-}
-
-// These will be injected via dependency container in production
-let partyService: PartyService;
-let companyService: CompanyService;
-let stockService: StockService;
-let gstService: GstService;
-let ledgerService: LedgerService;
-let paymentService: PaymentService;
-let notificationService: NotificationService | undefined;
-
-export function injectDependencies(deps: {
-  partyService: PartyService;
-  companyService: CompanyService;
-  stockService: StockService;
-  gstService: GstService;
-  ledgerService: LedgerService;
-  paymentService: PaymentService;
-  notificationService?: NotificationService;
-}) {
-  partyService = deps.partyService;
-  companyService = deps.companyService;
-  stockService = deps.stockService;
-  gstService = deps.gstService;
-  ledgerService = deps.ledgerService;
-  paymentService = deps.paymentService;
-  notificationService = deps.notificationService;
-}
+// audit 2026-09-09: injectDependencies() + let-DI vars हटाए गए — production में कभी
+// inject नहीं होते थे, हर उन पर टिकी method 500 देती थी। हर cross-module call अब
+// direct public API से (M05 partyService, M04 companyRepo, M16 notificationService,
+// M10 invoiceLedgerService)।
 
 export class SalesService {
   // ─── CREATE INVOICE (DRAFT) ───
   async createInvoice(dto: SalesInvoiceDTO): Promise<SalesInvoice> {
     const totals = calculateInvoiceTotals(dto.items);
-    const invoiceNumber = dto.invoiceNumber || await salesRepository.getNextInvoiceNumber(dto.companyId);
+    const invoiceNumber =
+      dto.invoiceNumber || (await salesRepository.getNextInvoiceNumber(dto.companyId));
 
     const invoiceData: Prisma.SalesInvoiceUncheckedCreateInput = {
       companyId: dto.companyId,
@@ -114,32 +65,34 @@ export class SalesService {
       createdBy: dto.createdBy || null,
     };
 
-    const itemsData: Prisma.SalesInvoiceItemCreateManySalesInvoiceInput[] = dto.items.map((item, idx) => {
-      const calc = totals; // We recalc per item for precision
-      const qty = Number(item.quantity);
-      const rate = Number(item.rate);
-      const discPercent = Number(item.discountPercent || 0);
-      const gross = qty * rate;
-      const discountAmount = (gross * discPercent) / 100;
-      const amount = gross - discountAmount;
-      const taxRate = Number(item.taxRate || 0);
-      const taxAmount = (amount * taxRate) / 100;
-      const netAmount = amount + taxAmount;
+    const itemsData: Prisma.SalesInvoiceItemCreateManySalesInvoiceInput[] = dto.items.map(
+      (item, idx) => {
+        const calc = totals; // We recalc per item for precision
+        const qty = Number(item.quantity);
+        const rate = Number(item.rate);
+        const discPercent = Number(item.discountPercent || 0);
+        const gross = qty * rate;
+        const discountAmount = (gross * discPercent) / 100;
+        const amount = gross - discountAmount;
+        const taxRate = Number(item.taxRate || 0);
+        const taxAmount = (amount * taxRate) / 100;
+        const netAmount = amount + taxAmount;
 
-      return {
-        productId: item.productId,
-        batchId: item.batchId || null,
-        quantity: qty,
-        rate,
-        discountPercent: discPercent,
-        discountAmount,
-        amount,
-        taxRate,
-        taxAmount,
-        netAmount,
-        hsnCode: item.hsnCode || null,
-      };
-    });
+        return {
+          productId: item.productId,
+          batchId: item.batchId || null,
+          quantity: qty,
+          rate,
+          discountPercent: discPercent,
+          discountAmount,
+          amount,
+          taxRate,
+          taxAmount,
+          netAmount,
+          hsnCode: item.hsnCode || null,
+        };
+      }
+    );
 
     const invoice = await salesRepository.createInvoice({ ...invoiceData, items: itemsData });
     return invoice;
@@ -151,12 +104,19 @@ export class SalesService {
   }
 
   // ─── GET INVOICE BY ID ───
-  async getInvoiceById(id: string, companyId: string): Promise<SalesInvoice & { items: SalesInvoiceItem[] } | null> {
+  async getInvoiceById(
+    id: string,
+    companyId: string
+  ): Promise<(SalesInvoice & { items: SalesInvoiceItem[] }) | null> {
     return salesRepository.getInvoiceById(id, companyId);
   }
 
   // ─── UPDATE INVOICE (DRAFT ONLY) ───
-  async updateInvoice(id: string, companyId: string, dto: Partial<SalesInvoiceDTO>): Promise<SalesInvoice> {
+  async updateInvoice(
+    id: string,
+    companyId: string,
+    dto: Partial<SalesInvoiceDTO>
+  ): Promise<SalesInvoice> {
     const existing = await salesRepository.getInvoiceById(id, companyId);
     if (!existing) throw new Error('Invoice not found');
     if (existing.status !== 'draft') throw new Error('Only draft invoices can be updated');
@@ -239,21 +199,21 @@ export class SalesService {
     if (!invoice) throw new Error('Invoice not found');
     if (invoice.status !== 'approved') throw new Error('Invoice must be approved before posting');
 
-    // optional — inject होने पर ही (अभी कहीं inject नहीं होता, इसलिए skip; blocking नहीं)
-    if (partyService) {
-      const creditCheck = await partyService.checkCreditLimit(invoice.customerId, Number(invoice.grandTotal));
-      if (!creditCheck.allowed) {
-        throw new Error(`Credit limit exceeded. Limit: ${creditCheck.limit}, Used: ${creditCheck.used}`);
-      }
+    // credit-limit जाँच — M05 से असली (M05 की `checkCreditLimit` अभी outstanding 0
+    // मानती है, वह M05 का अपना TODO#016 है; यहाँ का wiring सही है)।
+    // party मौजूद न हो → यह createInvoice की जाँच है, post को block नहीं करती।
+    const creditCheck = await m05PartyService.checkCreditLimit(
+      invoice.customerId,
+      companyId,
+      Number(invoice.grandTotal)
+    );
+    if (!creditCheck.allowed && creditCheck.reason !== 'Party not found') {
+      throw new Error(
+        `Credit limit exceeded. Limit: ${creditCheck.limit}, Used: ${creditCheck.used}`
+      );
     }
-    if (stockService) {
-      for (const item of invoice.items) {
-        const stockCheck = await stockService.checkAvailability(item.productId, invoice.branchId, Number(item.quantity));
-        if (!stockCheck.available) {
-          throw new Error(`Insufficient stock for product ${item.productId}. Available: ${stockCheck.stock}`);
-        }
-      }
-    }
+    // stock deduction on-post: owner ने अलग रखा — sale पर stock delivery-challan
+    // के रास्ते घटता है (M08 challan flow), invoice-post पर नहीं।
 
     // पहले M10 accrual entry, फिर status 'posted' — अगर ledger फटा तो invoice
     // 'approved' ही रहता है (books के बिना कभी "posted" नहीं दिखता)। M10 खुद
@@ -287,12 +247,18 @@ export class SalesService {
   }
 
   // ─── RECORD PAYMENT ───
-  async recordPayment(id: string, companyId: string, payment: InvoicePaymentDTO): Promise<SalesInvoice> {
+  async recordPayment(
+    id: string,
+    companyId: string,
+    payment: InvoicePaymentDTO
+  ): Promise<SalesInvoice> {
     const invoice = await salesRepository.getInvoiceById(id, companyId);
     if (!invoice) throw new Error('Invoice not found');
 
-    if (!Number.isFinite(payment.amount) || payment.amount <= 0) throw new Error('Payment amount must be greater than 0');
-    if (invoice.status === 'cancelled' || invoice.status === 'draft') throw new Error('Payments can only be recorded for approved or posted invoices');
+    if (!Number.isFinite(payment.amount) || payment.amount <= 0)
+      throw new Error('Payment amount must be greater than 0');
+    if (invoice.status === 'cancelled' || invoice.status === 'draft')
+      throw new Error('Payments can only be recorded for approved or posted invoices');
     const currentPaid = Number(invoice.amountPaid) + payment.amount;
     const grandTotal = Number(invoice.grandTotal);
     if (currentPaid > grandTotal) throw new Error('Payment exceeds invoice balance');
@@ -304,31 +270,62 @@ export class SalesService {
   }
 
   // ─── GENERATE PRINT ───
-  async generatePrint(invoiceId: string, companyId: string, template: 'thermal-2inch' | 'thermal-3inch' | 'a4'): Promise<string> {
+  // पहले injectDependencies() पर टिकी थी (जो कभी call नहीं होती) → हमेशा 500।
+  // अब M05 partyService + M04 companyRepo सीधे — endpoint असल में चलता है।
+  async generatePrint(
+    invoiceId: string,
+    companyId: string,
+    template: 'thermal-2inch' | 'thermal-3inch' | 'a4'
+  ): Promise<string> {
     const invoice = await salesRepository.getInvoiceById(invoiceId, companyId);
     if (!invoice) throw new Error('Invoice not found');
 
-    if (!partyService || !companyService) throw new Error('Party/company service is not wired');
-    const customer = await partyService.getCustomerById(invoice.customerId);
-    const company = await companyService.getProfile(invoice.companyId);
-    if (!customer || !company) throw new Error('Customer or company master data not found');
+    const customer = await m05PartyService.getCustomerById(invoice.customerId, companyId);
+    const company = await companyRepo.findById(companyId);
+    if (!company) throw new Error('Company master data not found');
 
-    const printData = preparePrintData(invoice as any, customer, company, invoice.items as any);
+    const printData = preparePrintData(
+      invoice as any,
+      customer ? { ...customer, address: (customer as any).billing_address } : null,
+      company,
+      invoice.items as any
+    );
     return printService.generatePrint(template, printData);
   }
 
   // ─── SHARE INVOICE ───
-  async shareInvoice(invoiceId: string, companyId: string, method: 'whatsapp' | 'email', recipient: string): Promise<{ success: boolean; message: string }> {
+  // पहले notificationService (DI) कभी wire नहीं होती → हमेशा 500।
+  // अब M16 notificationService.sendNotification() सीधे।
+  async shareInvoice(
+    invoiceId: string,
+    companyId: string,
+    method: 'whatsapp' | 'email',
+    recipient: string,
+    userId?: string
+  ): Promise<{ success: boolean; message: string }> {
     const invoice = await salesRepository.getInvoiceById(invoiceId, companyId);
     if (!invoice) throw new Error('Invoice not found');
+    if (!recipient?.trim()) throw new Error('recipient (phone/email) is required');
 
-    if (!notificationService) throw new Error('Notification service is not wired');
-    await notificationService.sendInvoice(invoice, method, recipient);
-    return { success: true, message: `${method} invoice notification sent` };
+    const res = await m16NotificationService.sendNotification({
+      userId: userId ?? invoice.createdBy ?? 'system',
+      companyId,
+      title: `Invoice ${invoice.invoiceNumber}`,
+      message: `Invoice ${invoice.invoiceNumber} for ₹${Number(invoice.grandTotal).toFixed(2)}`,
+      type: method === 'email' ? 'email' : 'whatsapp',
+      entityType: 'sales_invoice',
+      entityId: invoiceId,
+      toAddress: recipient.trim(),
+    });
+    return { success: true, message: `${method} invoice notification queued (${res.status})` };
   }
 
   // ─── CONVERT ORDER TO INVOICE ───
-  async convertOrderToInvoice(orderId: string, companyId: string, dto: Partial<SalesInvoiceDTO>): Promise<SalesInvoice> {
+  async convertOrderToInvoice(
+    orderId: string,
+    companyId: string,
+    dto: Partial<SalesInvoiceDTO>
+  ): Promise<SalesInvoice> {
     const order = await prisma.salesOrder.findFirst({
       where: { id: orderId, companyId },
       include: { items: true },
@@ -379,7 +376,12 @@ export class SalesService {
     if (currentPaid >= grandTotal) paymentStatus = 'paid';
     else if (currentPaid > 0) paymentStatus = 'partial';
 
-    await salesRepository.updatePaymentStatus(event.invoiceId, event.companyId, paymentStatus, currentPaid);
+    await salesRepository.updatePaymentStatus(
+      event.invoiceId,
+      event.companyId,
+      paymentStatus,
+      currentPaid
+    );
   }
 }
 

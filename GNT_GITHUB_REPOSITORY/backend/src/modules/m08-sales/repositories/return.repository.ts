@@ -3,14 +3,17 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { SalesReturn, SalesReturnItem, ReturnStatus, Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { Prisma, ReturnStatus, SalesReturn, SalesReturnItem } from '@prisma/client';
 import { ReturnQueryParams } from '../types/sales.types';
-
 
 export class ReturnRepository {
   // ─── CREATE ───
-  async createReturn(data: Prisma.SalesReturnCreateInput & { items: Prisma.SalesReturnItemCreateManySalesReturnInput[] }): Promise<SalesReturn> {
+  async createReturn(
+    data: Prisma.SalesReturnCreateInput & {
+      items: Prisma.SalesReturnItemCreateManySalesReturnInput[];
+    }
+  ): Promise<SalesReturn> {
     return prisma.salesReturn.create({
       data: {
         ...data,
@@ -21,7 +24,10 @@ export class ReturnRepository {
   }
 
   // ─── READ ───
-  async getReturnById(id: string, companyId: string): Promise<SalesReturn & { items: SalesReturnItem[] } | null> {
+  async getReturnById(
+    id: string,
+    companyId: string
+  ): Promise<(SalesReturn & { items: SalesReturnItem[] }) | null> {
     return prisma.salesReturn.findFirst({
       where: { id, companyId },
       include: { items: true, salesInvoice: true },
@@ -48,9 +54,16 @@ export class ReturnRepository {
 
   // ─── UPDATE ───
   // वही सुधार जो quotation में — ग़लत status अब compile पर ही रुकेगा
-  async updateReturnStatus(id: string, companyId: string, status: ReturnStatus): Promise<SalesReturn> {
+  async updateReturnStatus(
+    id: string,
+    companyId: string,
+    status: ReturnStatus
+  ): Promise<SalesReturn> {
     await prisma.salesReturn.updateMany({ where: { id, companyId }, data: { status } });
-    return prisma.salesReturn.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
+    return prisma.salesReturn.findUnique({
+      where: { id },
+      include: { items: true },
+    }) as Promise<any>;
   }
 
   // ─── HELPERS ───

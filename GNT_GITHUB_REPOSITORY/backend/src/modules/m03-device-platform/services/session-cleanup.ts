@@ -27,7 +27,9 @@ export async function runSessionCleanupOnce(now: Date = new Date()): Promise<num
   return result.count;
 }
 
-export function startSessionCleanupJob(intervalMs: number = SESSION_CLEANUP_INTERVAL_MS): NodeJS.Timeout {
+export function startSessionCleanupJob(
+  intervalMs: number = SESSION_CLEANUP_INTERVAL_MS
+): NodeJS.Timeout {
   const run = async () => {
     try {
       const count = await runSessionCleanupOnce();

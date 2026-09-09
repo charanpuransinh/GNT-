@@ -1,13 +1,13 @@
-import { Request, Response } from 'express';
 import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
+import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middleware/tenant.middleware';
 import { SyncService } from '../services/sync.service';
 import {
   createSyncConfigSchema,
-  updateSyncConfigSchema,
+  syncEntitySchema,
   triggerSyncSchema,
-  syncEntitySchema
+  updateSyncConfigSchema,
 } from '../validators/sync.validators';
-import { AuthenticatedRequest } from '../middleware/tenant.middleware';
 
 export class SyncController {
   // ── Config CRUD ───────────────────────────────────────────
@@ -24,7 +24,10 @@ export class SyncController {
 
   static async getConfig(req: AuthenticatedRequest, res: Response) {
     try {
-      const config = await SyncService.getConfig(String(req.params.id), requireTenant(req).companyId);
+      const config = await SyncService.getConfig(
+        String(req.params.id),
+        requireTenant(req).companyId
+      );
       if (!config) return res.status(404).json({ success: false, error: 'Config not found' });
       res.json({ success: true, data: config });
     } catch (error: any) {
@@ -37,7 +40,7 @@ export class SyncController {
       const { sourceSystem, status } = req.query;
       const configs = await SyncService.listConfigs(requireTenant(req).companyId, {
         sourceSystem: sourceSystem as string,
-        status: status as string
+        status: status as string,
       });
       res.json({ success: true, data: configs });
     } catch (error: any) {
@@ -48,7 +51,11 @@ export class SyncController {
   static async updateConfig(req: AuthenticatedRequest, res: Response) {
     try {
       const parsed = updateSyncConfigSchema.parse(req.body);
-      const config = await SyncService.updateConfig(String(req.params.id), requireTenant(req).companyId, parsed);
+      const config = await SyncService.updateConfig(
+        String(req.params.id),
+        requireTenant(req).companyId,
+        parsed
+      );
       res.json({ success: true, data: config });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -69,7 +76,11 @@ export class SyncController {
   static async triggerSync(req: AuthenticatedRequest, res: Response) {
     try {
       const parsed = triggerSyncSchema.parse(req.body);
-      const job = await SyncService.triggerSync(parsed, requireTenant(req).companyId, requireUser(req).id);
+      const job = await SyncService.triggerSync(
+        parsed,
+        requireTenant(req).companyId,
+        requireUser(req).id
+      );
       res.status(202).json({ success: true, data: job });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -78,7 +89,10 @@ export class SyncController {
 
   static async previewSync(req: AuthenticatedRequest, res: Response) {
     try {
-      const preview = await SyncService.previewSync(String(req.params.id), requireTenant(req).companyId);
+      const preview = await SyncService.previewSync(
+        String(req.params.id),
+        requireTenant(req).companyId
+      );
       res.json({ success: true, data: preview });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -88,7 +102,11 @@ export class SyncController {
   static async syncEntity(req: AuthenticatedRequest, res: Response) {
     try {
       const parsed = syncEntitySchema.parse(req.body);
-      const job = await SyncService.syncEntity(parsed, requireTenant(req).companyId, requireUser(req).id);
+      const job = await SyncService.syncEntity(
+        parsed,
+        requireTenant(req).companyId,
+        requireUser(req).id
+      );
       res.status(202).json({ success: true, data: job });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
@@ -97,7 +115,10 @@ export class SyncController {
 
   static async getJobStatus(req: AuthenticatedRequest, res: Response) {
     try {
-      const job = await SyncService.getJobStatus(String(req.params.id), requireTenant(req).companyId);
+      const job = await SyncService.getJobStatus(
+        String(req.params.id),
+        requireTenant(req).companyId
+      );
       if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
       res.json({ success: true, data: job });
     } catch (error: any) {
@@ -111,7 +132,7 @@ export class SyncController {
       const jobs = await SyncService.listJobs(requireTenant(req).companyId, {
         syncConfigId: syncConfigId as string,
         status: status as string,
-        limit: limit ? parseInt(limit as string) : undefined
+        limit: limit ? parseInt(limit as string) : undefined,
       });
       res.json({ success: true, data: jobs });
     } catch (error: any) {
@@ -130,7 +151,10 @@ export class SyncController {
 
   static async getJobProgress(req: AuthenticatedRequest, res: Response) {
     try {
-      const progress = await SyncService.getJobProgress(String(req.params.id), requireTenant(req).companyId);
+      const progress = await SyncService.getJobProgress(
+        String(req.params.id),
+        requireTenant(req).companyId
+      );
       if (!progress) return res.status(404).json({ success: false, error: 'Job not found' });
       res.json({ success: true, data: progress });
     } catch (error: any) {
@@ -150,7 +174,11 @@ export class SyncController {
       const unsubscribe = SyncService.onProgress((progress) => {
         if (progress.jobId === jobId) {
           res.write(`data: ${JSON.stringify(progress)}\n\n`);
-          if (progress.status === 'COMPLETED' || progress.status === 'FAILED' || progress.status === 'CANCELLED') {
+          if (
+            progress.status === 'COMPLETED' ||
+            progress.status === 'FAILED' ||
+            progress.status === 'CANCELLED'
+          ) {
             unsubscribe();
             res.end();
           }

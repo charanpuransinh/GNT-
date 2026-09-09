@@ -3,14 +3,15 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { Quotation, QuotationItem, QuotationStatus, Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { Prisma, Quotation, QuotationItem, QuotationStatus } from '@prisma/client';
 import { QuotationQueryParams } from '../types/sales.types';
-
 
 export class QuotationRepository {
   // ─── CREATE ───
-  async createQuotation(data: Prisma.QuotationCreateInput & { items: Prisma.QuotationItemCreateManyQuotationInput[] }): Promise<Quotation> {
+  async createQuotation(
+    data: Prisma.QuotationCreateInput & { items: Prisma.QuotationItemCreateManyQuotationInput[] }
+  ): Promise<Quotation> {
     return prisma.quotation.create({
       data: {
         ...data,
@@ -21,7 +22,10 @@ export class QuotationRepository {
   }
 
   // ─── READ ───
-  async getQuotationById(id: string, companyId: string): Promise<Quotation & { items: QuotationItem[] } | null> {
+  async getQuotationById(
+    id: string,
+    companyId: string
+  ): Promise<(Quotation & { items: QuotationItem[] }) | null> {
     return prisma.quotation.findFirst({
       where: { id, companyId },
       include: { items: true },
@@ -47,14 +51,22 @@ export class QuotationRepository {
   }
 
   // ─── UPDATE ───
-  async updateQuotation(id: string, companyId: string, data: Prisma.QuotationUpdateInput): Promise<Quotation> {
+  async updateQuotation(
+    id: string,
+    companyId: string,
+    data: Prisma.QuotationUpdateInput
+  ): Promise<Quotation> {
     await prisma.quotation.updateMany({ where: { id, companyId }, data });
     return prisma.quotation.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
   }
 
   // पहले status `string` था और `as any` से enum column में डाल दिया जाता था —
   // कोई भी ग़लत शब्द compile पर निकल जाता, चलते वक़्त फ़ेल होता। अब enum ही लेगा।
-  async updateQuotationStatus(id: string, companyId: string, status: QuotationStatus): Promise<Quotation> {
+  async updateQuotationStatus(
+    id: string,
+    companyId: string,
+    status: QuotationStatus
+  ): Promise<Quotation> {
     await prisma.quotation.updateMany({ where: { id, companyId }, data: { status } });
     return prisma.quotation.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
   }

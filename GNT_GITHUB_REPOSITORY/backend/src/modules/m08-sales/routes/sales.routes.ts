@@ -4,13 +4,13 @@
  * Base: /api/v1/sales
  */
 
-import { Router } from 'express';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
 import { requireTenant } from '@/common/middleware/require-tenant';
-import { salesController } from '../controllers/sales.controller';
+import { Prisma } from '@prisma/client';
+import { Router } from 'express';
 import { quotationController } from '../controllers/quotation.controller';
 import { returnController } from '../controllers/return.controller';
+import { salesController } from '../controllers/sales.controller';
 
 const router = Router();
 
@@ -32,7 +32,10 @@ router.get('/quotations', quotationController.getQuotations.bind(quotationContro
 router.get('/quotations/:id', quotationController.getQuotationById.bind(quotationController));
 router.put('/quotations/:id', quotationController.updateQuotation.bind(quotationController));
 router.post('/quotations/:id/send', quotationController.sendQuotation.bind(quotationController));
-router.post('/quotations/:id/convert', quotationController.convertQuotationToOrder.bind(quotationController));
+router.post(
+  '/quotations/:id/convert',
+  quotationController.convertQuotationToOrder.bind(quotationController)
+);
 router.delete('/quotations/:id', quotationController.deleteQuotation.bind(quotationController));
 
 // ─── SALES ORDER ───
@@ -56,7 +59,9 @@ router.post('/challans', async (req, res) => {
     // भेजकर)। असली company हमेशा tenant middleware/token से आती है, body से कभी नहीं।
     const companyId = requireTenant(req).companyId as string;
     const { salesOrderId, customerId, challanDate, notes, items } = req.body;
-    const salesOrder = await prisma.salesOrder.findFirst({ where: { id: salesOrderId, companyId } });
+    const salesOrder = await prisma.salesOrder.findFirst({
+      where: { id: salesOrderId, companyId },
+    });
     if (!salesOrder) {
       res.status(404).json({ success: false, error: 'Sales order not found for this company' });
       return;
@@ -66,7 +71,10 @@ router.post('/challans', async (req, res) => {
     const yy = date.getFullYear().toString().slice(-2);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const challanNumber = `CHL-${yy}${mm}-${String(count + 1).padStart(5, '0')}`;
-    const totalQuantity = items.reduce((sum: number, i: { quantity: number }) => sum + Number(i.quantity), 0);
+    const totalQuantity = items.reduce(
+      (sum: number, i: { quantity: number }) => sum + Number(i.quantity),
+      0
+    );
     const challan = await prisma.deliveryChallan.create({
       data: {
         companyId,
@@ -77,7 +85,14 @@ router.post('/challans', async (req, res) => {
         status: 'draft',
         totalQuantity,
         notes: notes || null,
-        items: { createMany: { data: items.map((i: { productId: string; quantity: number }) => ({ productId: i.productId, quantity: Number(i.quantity) })) } },
+        items: {
+          createMany: {
+            data: items.map((i: { productId: string; quantity: number }) => ({
+              productId: i.productId,
+              quantity: Number(i.quantity),
+            })),
+          },
+        },
       },
       include: { items: true },
     });
@@ -104,7 +119,9 @@ router.get('/challans', async (req, res) => {
       }),
       prisma.deliveryChallan.count({ where }),
     ]);
-    res.status(200).json({ success: true, data, meta: { total, page: Number(page), limit: Number(limit) } });
+    res
+      .status(200)
+      .json({ success: true, data, meta: { total, page: Number(page), limit: Number(limit) } });
   } catch (error: any) {
     res.status(400).json({ success: false, error: error.message });
   }

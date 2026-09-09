@@ -3,10 +3,10 @@
 // की जगह असली API पर नए node:test tests; DB की जगह सादे mock objects)
 // ============================================================================
 
-import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
-import { ConflictService } from './conflict.service';
+import { describe, it } from 'vitest';
 import type { SyncConflict } from '../types/sync.types';
+import { ConflictService } from './conflict.service';
 
 function makeConflict(overrides: Partial<SyncConflict> = {}): SyncConflict {
   return {
@@ -52,7 +52,10 @@ function makeMocks() {
       },
     },
   };
-  const emitter = { emit: (name: string, payload: Record<string, unknown>) => void calls.push(`emit:${name}:${JSON.stringify(payload)}`) };
+  const emitter = {
+    emit: (name: string, payload: Record<string, unknown>) =>
+      void calls.push(`emit:${name}:${JSON.stringify(payload)}`),
+  };
   return { prisma, emitter, calls };
 }
 
@@ -80,13 +83,15 @@ describe('ConflictService.resolveConflict', () => {
       'tenant-1',
       'conflict-1',
       { resolution: 'INTERNAL_WINS' } as never,
-      'user-1',
+      'user-1'
     );
 
     assert.equal(updated.status, 'RESOLVED');
     assert.ok(calls.some((c) => c.startsWith('update:') && c.includes('"status":"RESOLVED"')));
     assert.ok(calls.some((c) => c.startsWith('queue:') && c.includes('"operation":"push"')));
-    assert.ok(calls.some((c) => c.startsWith('emit:conflict.resolved') && c.includes('conflict-1')));
+    assert.ok(
+      calls.some((c) => c.startsWith('emit:conflict.resolved') && c.includes('conflict-1'))
+    );
   });
 
   it('MANUAL बिना mergedValue → 400', async () => {
@@ -94,8 +99,14 @@ describe('ConflictService.resolveConflict', () => {
     const service = new ConflictService(prisma as never, emitter as never);
 
     await assert.rejects(
-      () => service.resolveConflict('tenant-1', 'conflict-1', { resolution: 'MANUAL', mergedValue: undefined } as never, 'user-1'),
-      (err: unknown) => (err as { statusCode?: number }).statusCode === 400,
+      () =>
+        service.resolveConflict(
+          'tenant-1',
+          'conflict-1',
+          { resolution: 'MANUAL', mergedValue: undefined } as never,
+          'user-1'
+        ),
+      (err: unknown) => (err as { statusCode?: number }).statusCode === 400
     );
   });
 
@@ -105,8 +116,14 @@ describe('ConflictService.resolveConflict', () => {
     const service = new ConflictService(prisma as never, emitter as never);
 
     await assert.rejects(
-      () => service.resolveConflict('tenant-1', 'ghost', { resolution: 'INTERNAL_WINS' } as never, 'user-1'),
-      (err: unknown) => (err as { statusCode?: number }).statusCode === 404,
+      () =>
+        service.resolveConflict(
+          'tenant-1',
+          'ghost',
+          { resolution: 'INTERNAL_WINS' } as never,
+          'user-1'
+        ),
+      (err: unknown) => (err as { statusCode?: number }).statusCode === 404
     );
   });
 });

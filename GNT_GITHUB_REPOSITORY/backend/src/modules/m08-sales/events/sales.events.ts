@@ -9,4 +9,4 @@ export const SALES_EVENTS = {
   RETURN_CREATED: 'sales.return.created',
 } as const;
 
-export type SalesEventType = typeof SALES_EVENTS[keyof typeof SALES_EVENTS];
+export type SalesEventType = (typeof SALES_EVENTS)[keyof typeof SALES_EVENTS];

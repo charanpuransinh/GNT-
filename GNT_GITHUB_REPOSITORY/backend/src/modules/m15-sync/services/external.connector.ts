@@ -35,7 +35,9 @@ async function fetchFileExternal(cc: Record<string, unknown>): Promise<Record<st
   try {
     return await parseByType(fileKey, ft);
   } catch (err) {
-    throw new Error(`File external fetch failed (${ft}): ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(
+      `File external fetch failed (${ft}): ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 }
 
@@ -47,7 +49,7 @@ export function fetchExternalEntities(
   config: { sourceSystem?: string | null; connectionConfig?: unknown },
   entityConfig: { externalEntity?: string | null; internalEntity?: string | null },
   // file already tenant ke upload ka hai — signature cross-module flow se consistent rakhne ko hai
-  _tenantId: string,
+  _tenantId: string
 ): Promise<Record<string, unknown>[]> {
   const src = (config.sourceSystem ?? '').toUpperCase();
   const entity = entityConfig.externalEntity ?? entityConfig.internalEntity ?? '';

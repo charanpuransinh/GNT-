@@ -119,19 +119,56 @@ export const ocrReviewSchema = z.object({
   invoice_id: z.string().uuid(),
   action: z.enum(['accept', 'reject']),
   ocr_data: z.object({
-    supplier_name: z.object({ field: z.string(), value: z.union([z.string(), z.number(), z.date()]), confidence: z.number(), accepted: z.boolean() }).optional(),
-    invoice_number: z.object({ field: z.string(), value: z.union([z.string(), z.number(), z.date()]), confidence: z.number(), accepted: z.boolean() }).optional(),
-    invoice_date: z.object({ field: z.string(), value: z.union([z.string(), z.number(), z.date()]), confidence: z.number(), accepted: z.boolean() }).optional(),
-    total_amount: z.object({ field: z.string(), value: z.union([z.string(), z.number(), z.date()]), confidence: z.number(), accepted: z.boolean() }).optional(),
-    total_tax: z.object({ field: z.string(), value: z.union([z.string(), z.number(), z.date()]), confidence: z.number(), accepted: z.boolean() }).optional(),
-    items: z.array(z.object({
-      product_name: z.string(),
-      quantity: z.number(),
-      rate: z.number(),
-      amount: z.number(),
-      confidence: z.number(),
-      accepted: z.boolean(),
-    })),
+    supplier_name: z
+      .object({
+        field: z.string(),
+        value: z.union([z.string(), z.number(), z.date()]),
+        confidence: z.number(),
+        accepted: z.boolean(),
+      })
+      .optional(),
+    invoice_number: z
+      .object({
+        field: z.string(),
+        value: z.union([z.string(), z.number(), z.date()]),
+        confidence: z.number(),
+        accepted: z.boolean(),
+      })
+      .optional(),
+    invoice_date: z
+      .object({
+        field: z.string(),
+        value: z.union([z.string(), z.number(), z.date()]),
+        confidence: z.number(),
+        accepted: z.boolean(),
+      })
+      .optional(),
+    total_amount: z
+      .object({
+        field: z.string(),
+        value: z.union([z.string(), z.number(), z.date()]),
+        confidence: z.number(),
+        accepted: z.boolean(),
+      })
+      .optional(),
+    total_tax: z
+      .object({
+        field: z.string(),
+        value: z.union([z.string(), z.number(), z.date()]),
+        confidence: z.number(),
+        accepted: z.boolean(),
+      })
+      .optional(),
+    items: z.array(
+      z.object({
+        product_name: z.string(),
+        quantity: z.number(),
+        rate: z.number(),
+        amount: z.number(),
+        confidence: z.number(),
+        accepted: z.boolean(),
+      })
+    ),
     overall_confidence: z.number(),
   }),
 });

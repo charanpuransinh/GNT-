@@ -2,12 +2,12 @@
 // M07 PURCHASE MANAGEMENT — Purchase Invoice Repository (INTERNAL)
 // ============================================================================
 
-import { PrismaClient, purchase_invoice, purchase_invoice_item, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient, purchase_invoice, purchase_invoice_item } from '@prisma/client';
 import {
   CreatePurchaseInvoiceDTO,
-  UpdatePurchaseInvoiceDTO,
-  PurchaseInvoiceQueryDTO,
   CreatePurchaseReturnDTO,
+  PurchaseInvoiceQueryDTO,
+  UpdatePurchaseInvoiceDTO,
 } from '../types/purchase.types';
 
 export class PurchaseRepository {
@@ -15,19 +15,29 @@ export class PurchaseRepository {
 
   // ─── Purchase Invoice CRUD ───
 
-  async createInvoice(data: CreatePurchaseInvoiceDTO & { total_amount: number; total_tax: number; total_discount: number; net_amount: number; grand_total: number }) {
+  async createInvoice(
+    data: CreatePurchaseInvoiceDTO & {
+      total_amount: number;
+      total_tax: number;
+      total_discount: number;
+      net_amount: number;
+      grand_total: number;
+    }
+  ) {
     const { items, ...invoiceData } = data;
     return this.prisma.purchase_invoice.create({
       data: {
         ...invoiceData,
         status: 'draft',
         items: {
-          create: items.map(item => ({
+          create: items.map((item) => ({
             product_id: item.product_id,
             batch_id: item.batch_id || null,
             quantity: new Prisma.Decimal(item.quantity),
             rate: new Prisma.Decimal(item.rate),
-            discount_percent: item.discount_percent ? new Prisma.Decimal(item.discount_percent) : null,
+            discount_percent: item.discount_percent
+              ? new Prisma.Decimal(item.discount_percent)
+              : null,
             discount_amount: item.discount_amount ? new Prisma.Decimal(item.discount_amount) : null,
             amount: item.amount ? new Prisma.Decimal(item.amount) : null,
             tax_rate: item.tax_rate ? new Prisma.Decimal(item.tax_rate) : null,
@@ -74,12 +84,25 @@ export class PurchaseRepository {
     });
   }
 
-  async updateInvoice(id: string, company_id: string, data: UpdatePurchaseInvoiceDTO & { total_amount?: number; total_tax?: number; total_discount?: number; net_amount?: number; grand_total?: number }) {
+  async updateInvoice(
+    id: string,
+    company_id: string,
+    data: UpdatePurchaseInvoiceDTO & {
+      total_amount?: number;
+      total_tax?: number;
+      total_discount?: number;
+      net_amount?: number;
+      grand_total?: number;
+    }
+  ) {
     const { items, ...invoiceData } = data;
 
     return this.prisma.$transaction(async (tx) => {
       // वही छेद जो PO में था: company_id लिया जाता था, कहीं लगाया नहीं जाता था
-      const apna = await tx.purchase_invoice.findFirst({ where: { id, company_id }, select: { id: true } });
+      const apna = await tx.purchase_invoice.findFirst({
+        where: { id, company_id },
+        select: { id: true },
+      });
       if (!apna) throw new Error('Purchase invoice not found');
 
       // Delete existing items if new items provided
@@ -91,23 +114,29 @@ export class PurchaseRepository {
         where: { id },
         data: {
           ...invoiceData,
-          ...(items && items.length > 0 ? {
-            items: {
-              create: items.map(item => ({
-                product_id: item.product_id,
-                batch_id: item.batch_id || null,
-                quantity: new Prisma.Decimal(item.quantity),
-                rate: new Prisma.Decimal(item.rate),
-                discount_percent: item.discount_percent ? new Prisma.Decimal(item.discount_percent) : null,
-                discount_amount: item.discount_amount ? new Prisma.Decimal(item.discount_amount) : null,
-                amount: item.amount ? new Prisma.Decimal(item.amount) : null,
-                tax_rate: item.tax_rate ? new Prisma.Decimal(item.tax_rate) : null,
-                tax_amount: item.tax_amount ? new Prisma.Decimal(item.tax_amount) : null,
-                net_amount: item.net_amount ? new Prisma.Decimal(item.net_amount) : null,
-                hsn_code: item.hsn_code || null,
-              })),
-            },
-          } : {}),
+          ...(items && items.length > 0
+            ? {
+                items: {
+                  create: items.map((item) => ({
+                    product_id: item.product_id,
+                    batch_id: item.batch_id || null,
+                    quantity: new Prisma.Decimal(item.quantity),
+                    rate: new Prisma.Decimal(item.rate),
+                    discount_percent: item.discount_percent
+                      ? new Prisma.Decimal(item.discount_percent)
+                      : null,
+                    discount_amount: item.discount_amount
+                      ? new Prisma.Decimal(item.discount_amount)
+                      : null,
+                    amount: item.amount ? new Prisma.Decimal(item.amount) : null,
+                    tax_rate: item.tax_rate ? new Prisma.Decimal(item.tax_rate) : null,
+                    tax_amount: item.tax_amount ? new Prisma.Decimal(item.tax_amount) : null,
+                    net_amount: item.net_amount ? new Prisma.Decimal(item.net_amount) : null,
+                    hsn_code: item.hsn_code || null,
+                  })),
+                },
+              }
+            : {}),
         },
         include: { items: true },
       });
@@ -144,20 +173,25 @@ export class PurchaseRepository {
   async updateOCRData(id: string, company_id: string, ocr_data: unknown, ocr_confidence: number) {
     return this.prisma.purchase_invoice.updateMany({
       where: { id, company_id },
-      data: { ocr_data: ocr_data as Prisma.InputJsonValue, ocr_confidence: new Prisma.Decimal(ocr_confidence) },
+      data: {
+        ocr_data: ocr_data as Prisma.InputJsonValue,
+        ocr_confidence: new Prisma.Decimal(ocr_confidence),
+      },
     });
   }
 
   // ─── Purchase Return CRUD ───
 
-  async createReturn(data: CreatePurchaseReturnDTO & { total_amount: number; tax_amount: number; net_amount: number }) {
+  async createReturn(
+    data: CreatePurchaseReturnDTO & { total_amount: number; tax_amount: number; net_amount: number }
+  ) {
     const { items, ...returnData } = data;
     return this.prisma.purchase_return.create({
       data: {
         ...returnData,
         status: 'draft',
         items: {
-          create: items.map(item => ({
+          create: items.map((item) => ({
             product_id: item.product_id,
             quantity: new Prisma.Decimal(item.quantity),
             rate: new Prisma.Decimal(item.rate),

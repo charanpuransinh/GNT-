@@ -1,11 +1,11 @@
+import { createHash } from 'crypto';
+import os from 'os';
+import path from 'path';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 /**
  * M15 — Backup service (asli local-file backup) ki jaanch — nakli prisma + temp dir.
  */
-import { test, beforeAll, afterAll, expect } from 'vitest';
-import { mkdtemp, readFile, rm } from 'fs/promises';
-import os from 'os';
-import path from 'path';
-import { createHash } from 'crypto';
+import { afterAll, beforeAll, expect, test } from 'vitest';
 import { BackupService } from './backup.service';
 
 let tmpDir: string;
@@ -26,11 +26,23 @@ function makePrisma() {
     backupJob: {
       create: async ({ data }: any) => ({ id: 'b1', tenantId: 'c1', ...data }),
       findFirst: async () => ({
-        id: 'b1', tenantId: 'c1', name: 't', status: 'scheduled', storageType: 'local',
-        tablesIncluded: [], retentionDays: 30, expiresAt: new Date(), createdAt: new Date(),
-        storagePath: null, fileSize: null, checksum: null,
+        id: 'b1',
+        tenantId: 'c1',
+        name: 't',
+        status: 'scheduled',
+        storageType: 'local',
+        tablesIncluded: [],
+        retentionDays: 30,
+        expiresAt: new Date(),
+        createdAt: new Date(),
+        storagePath: null,
+        fileSize: null,
+        checksum: null,
       }),
-      update: async ({ data }: any) => { updates.push(data); return { id: 'b1', ...data }; },
+      update: async ({ data }: any) => {
+        updates.push(data);
+        return { id: 'b1', ...data };
+      },
     },
     syncConfig: { findMany },
     syncJob: { findMany },
@@ -46,7 +58,12 @@ test('M15 backup: asli file likhta hai, real checksum + real size', async () => 
   const { prisma, updates } = makePrisma();
   const svc = new BackupService(prisma, { emit: () => {} } as any);
 
-  await svc.createBackup('c1', { name: 't', backupType: 'full', storageType: 'local', tablesIncluded: [] });
+  await svc.createBackup('c1', {
+    name: 't',
+    backupType: 'full',
+    storageType: 'local',
+    tablesIncluded: [],
+  });
 
   // async executeBackup पूरा होने तक wait
   await new Promise((r) => setTimeout(r, 80));

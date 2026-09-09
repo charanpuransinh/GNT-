@@ -6,8 +6,8 @@
 // असली हालत: main app, /api/v1/sync, बिना token 401।
 // ============================================================================
 
-import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import { describe, expect, it } from 'vitest';
 import { app } from '../../../app';
 
 describe('M15 /api/v1/sync — auth द्वार', () => {

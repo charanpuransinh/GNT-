@@ -1,6 +1,6 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/env-config';
 import { logger } from '@/common/logging/logger';
+import { Prisma } from '@prisma/client';
 
 export const deviceRepository = {
   async getActiveSessionsByUserId(userId: string) {
@@ -85,10 +85,44 @@ export const deviceRepository = {
     return prisma.deployment_settings.create({ data });
   },
 
-  async updateDeploymentSettings(companyId: string, data: Prisma.deployment_settingsUncheckedUpdateInput) {
+  async updateDeploymentSettings(
+    companyId: string,
+    data: Prisma.deployment_settingsUncheckedUpdateInput
+  ) {
     return prisma.deployment_settings.update({
       where: { company_id: companyId },
       data,
+    });
+  },
+
+  // ─── App releases (M03) — असली version store, हार्डकोडेड की जगह ───
+
+  async getLatestPublishedRelease(platform: string) {
+    return prisma.app_release.findFirst({
+      where: { platform, is_published: true },
+      orderBy: { released_at: 'desc' },
+    });
+  },
+
+  async listReleases(platform?: string) {
+    return prisma.app_release.findMany({
+      where: platform ? { platform } : {},
+      orderBy: [{ platform: 'asc' }, { released_at: 'desc' }],
+      take: 200,
+    });
+  },
+
+  async upsertRelease(data: Prisma.app_releaseUncheckedCreateInput) {
+    return prisma.app_release.upsert({
+      where: { platform_version: { platform: data.platform, version: data.version } },
+      create: data,
+      update: {
+        release_notes: data.release_notes,
+        min_supported: data.min_supported,
+        download_url: data.download_url,
+        is_published: data.is_published ?? true,
+        released_at: data.released_at ?? new Date(),
+      },
     });
   },
 };
