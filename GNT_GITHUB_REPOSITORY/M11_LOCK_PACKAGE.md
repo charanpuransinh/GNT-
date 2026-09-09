@@ -12,14 +12,30 @@
 SENSE → MAP → VALIDATE → PREVIEW → (on approval) TRANSFER into the owning module via its **public API**
 (party→M05, item→M06, purchase→M07, sales→M08, accounting→M10, export→M20). It owns no master data.
 - **Routes (`/api/v1/payments/data-sense`):** `POST /analyze`, `POST /transfer`, `GET /field-map`, `GET /options` — all under M11's `payment` permission.
-- **Owner decision #3 (bank receipts) — both paths now REAL** (were `pending-adapter`):
-  - `direct-ledger-credit` (default) → **M10**: credits the party's ledger account directly.
-  - `fifo-invoice-settlement` → **M11**: the receipt settles that party's oldest open `SalesInvoice`s
-    in order — writes a real `PaymentTransaction` (`IN`/`COMPLETED`) + `PaymentAllocation` rows and
-    updates each invoice's `amountPaid` / `paymentStatus` (full → `paid`, partial → `partial`);
-    leftover is reported as advance. If the tenant has no active payment method a `BANK_TRANSFER` one
-    is auto-created. No open bill ⇒ the row is skipped (suspense), not silently lost.
-- **Tests:** `data-sense/tests/unit/*` — 28 existing (sense/validate/decisions/transfer-db/export/sales) all green after the move + `bank.fifo.db.test.ts` (full settle, partial, no-open-bill skip).
+- **Owner decision #3 (bank receipts):**
+  - `fifo-invoice-settlement` → **M11** (implemented): settles the customer's oldest **approved/posted**
+    open `SalesInvoice`s in FIFO order. Real, idempotent, tenant-scoped:
+    - customer resolved by **exact** tenant-scoped name (`customer`/`both`); 0 or >1 matches → suspense,
+      **never auto-creates a party**, never settles the wrong one
+    - the whole thing runs in one `$transaction`; each invoice update is a conditional `updateMany`
+      that must affect exactly one row (guards against a concurrent payment on the same invoice)
+    - the **full** receipt is captured as the `PaymentTransaction` `amount`; the unallocated remainder
+      is a `PaymentAllocation` (`targetType: 'ACCOUNT'`) so allocations sum to the receipt
+    - idempotency key (`providerRef = 'DS-' + sha256(company|party|amount|date|narration)`) — the same
+      receipt re-imported is skipped
+    - `BANK_TRANSFER` payment method resolved by code (created if absent, P2002-safe)
+    - a balanced M11 audit-ledger pair (Dr `CASH_BANK` / Cr `ACCOUNTS_RECEIVABLE`) via `LedgerRepository`
+    - **deliberately does not post a fresh M10 voucher** — for a historical bulk import that would
+      double-count against migrated opening balances; M08 invoice balances are updated, M11 records the
+      settlement + its own audit ledger
+  - `direct-ledger-credit` (default) → **`pending-adapter`**: a single-sided M10 ledger credit needs the
+    owner's bank/receivable account mapping; until then use Option B or post the entry manually.
+- **Dates:** all imported dates parsed by a shared strict parser (`date.util.ts`) — day-first
+  `dd/mm/yyyy` + ISO, real-calendar validation (`31/02/2026` rejected); used by `validate.engine` and
+  every executor adapter.
+- **Tests:** `data-sense/tests/unit/*` — 28 relocated + `bank.fifo.db.test.ts` (8: full/partial settle,
+  advance remainder, draft-invoice excluded, unknown payer → suspense, same-name customers → suspense,
+  day-first date, invalid date blocked, idempotent re-import).
 
 ## Database Ownership
 `PaymentTransaction`, `PaymentMethod`, `PaymentAllocation`, `PaymentSchedule`, `PaymentInstallment`,
@@ -85,7 +101,7 @@ non-existent party is rejected (tested).
 - [x] Integration Contract (M10 voucher bridge contract; M05 party validation; event payloads)
 - [x] Security Contract — token-only identity, tenant-scoped, DI prisma, Decimal money, audit identity server-side
 - [x] Test Report — 17/17 live-DB (33/33 combined with M16); auth gates, per-entity CRUD, M05 validation, M10 double-entry voucher (both directions), tenant isolation read+write
-- [x] Change Log — 2026-09-08: full cert pass. **2026-09-08 #2:** absorbed the former standalone M21 as the `data-sense/` sub-module (owner decision); implemented owner decision #3 — bank-receipt `settle-invoices-fifo` executor branch (real `PaymentTransaction` + `PaymentAllocation` + invoice `amountPaid`/`paymentStatus` update) and `credit-ledger` → M10; removed M21's `module-registry` + `permission-catalog` entries. Earlier (Claude): real M10 ledger bridge, M05 party validation, direction-from-party-type fix
+- [x] Change Log — 2026-09-08: full cert pass. **2026-09-08 #2:** absorbed the former standalone M21 as the `data-sense/` sub-module (owner decision); implemented owner decision #3 — bank-receipt `settle-invoices-fifo` executor branch; removed M21's `module-registry` + `permission-catalog` entries. **2026-09-09 (Qodo review — 12 findings):** hardened `settleInvoicesFifo` — exact customer lookup (no auto-create, no wrong-party), approved/posted invoices only (not draft), full receipt captured with advance allocation, single-`$transaction` conditional invoice updates, `sha256` idempotency key, `BANK_TRANSFER`-by-code method, balanced M11 audit-ledger pair, collision-safe txn number; `credit-ledger` reverted to `pending-adapter` (needs owner account mapping); shared strict day-first date parser (`date.util.ts`); fixed stale `m21-data-sense` refs in `tests/m20-m21.deterministic.test.ts` + `backend/package.json`. Earlier (Claude): real M10 ledger bridge, M05 party validation, direction-from-party-type fix
 - [x] Version: 1.0.0
 - [ ] Lock Status: **PENDING OWNER SIGN-OFF**
 

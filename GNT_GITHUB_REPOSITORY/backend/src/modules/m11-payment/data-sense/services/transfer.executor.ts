@@ -5,19 +5,26 @@
 // यह किसी master का मालिक नहीं बनता — यह सिर्फ़ सही module को सौंपता है।
 //
 // जुड़े adapters (सब REAL): party→M05, item→M06, export→M20, sales→M08,
-// purchase→M07, accounting→M10, बैंक-receipt→M10 (credit-ledger, default) या
-// M11 (settle-invoices-fifo — owner फ़ैसला #3 Option B: पुराने open बिल क्रम से चुकता)।
-// सिर्फ़ 'scheme' (trade scheme/rate, SPEC-B) अभी pending-adapter।
+// purchase→M07, accounting→M10 (journal 'create'), बैंक-receipt → M11
+// (settle-invoices-fifo — owner फ़ैसला #3 Option B: पुराने बकाया बिल क्रम से चुकता)।
+//
+// pending-adapter (अभी auto-post नहीं): 'scheme' (trade rate), और
+// 'credit-ledger' (फ़ैसला #3 default — M10 में सीधे party-ledger credit के लिए
+// owner का bank/receivable account mapping चाहिए; तब तक Option B या manual)।
 // ============================================================================
 
+import { createHash, randomBytes } from 'node:crypto';
 import { prisma } from '@/common/config/prisma';
 import { partyService } from '@/modules/m05-party-management';
 import type { CreatePartyDTO } from '@/modules/m05-party-management';
 import { ProductService } from '@/modules/m06-inventory';
 import type { ProductDTO } from '@/modules/m06-inventory';
+import { LedgerRepository } from '@/modules/m11-payment/repositories/ledger.repository';
 import { TradeService } from '@/modules/m20-international-trade';
 import { EventBus } from '@/shared/events/event-bus';
+import { Decimal } from '@prisma/client/runtime/library';
 import type { TransferPlanItem } from '../types/dataSense.types';
+import { parseImportDate } from './date.util';
 
 export interface TransferRowResult {
   rowNumber: number;
@@ -117,24 +124,53 @@ async function resolveProductId(
   return product.id;
 }
 
-// बैंक-receipt import के लिए एक भुगतान-विधि चाहिए; tenant के पास कोई सक्रिय
-// विधि न हो तो एक BANK_TRANSFER बना देते हैं (owner बाद में rename कर सकता है)।
-async function getOrCreateReceiptMethod(companyId: string, userId: string): Promise<string> {
+const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+
+// बैंक-receipt import के लिए tenant की **BANK_TRANSFER** भुगतान-विधि चाहिए (कोई भी
+// active विधि नहीं — cash/card/wallet बैंक-receipt नहीं होते)। न मिले तो बना देते हैं।
+async function getOrCreateBankTransferMethod(companyId: string, userId: string): Promise<string> {
   const existing = await prisma.paymentMethod.findFirst({
-    where: { tenantId: companyId, isActive: true },
-    orderBy: [{ code: 'asc' }],
+    where: { tenantId: companyId, code: 'BANK_TRANSFER' },
   });
   if (existing) return existing.id;
-  const created = await prisma.paymentMethod.create({
-    data: {
-      code: 'BANK_TRANSFER',
-      name: 'Bank Transfer',
-      tenantId: companyId,
-      createdBy: userId,
-      updatedBy: userId,
+  try {
+    const created = await prisma.paymentMethod.create({
+      data: {
+        code: 'BANK_TRANSFER',
+        name: 'Bank Transfer',
+        tenantId: companyId,
+        createdBy: userId,
+        updatedBy: userId,
+      },
+    });
+    return created.id;
+  } catch {
+    // P2002 race — किसी और request ने बना दी; दोबारा ढूँढो
+    const again = await prisma.paymentMethod.findFirst({
+      where: { tenantId: companyId, code: 'BANK_TRANSFER' },
+    });
+    if (again) return again.id;
+    throw new Error('BANK_TRANSFER payment method नहीं बन सका');
+  }
+}
+
+// नाम से एक ही customer — substring/GST/phone match नहीं, बस tenant-scoped exact नाम।
+// 0 या 1 से ज़्यादा मिले → null (row suspense में जाएगी, गलत party पर पैसा नहीं लगेगा)।
+async function findExactCustomer(
+  companyId: string,
+  name: string
+): Promise<{ id: string; name: string } | null> {
+  const hits = await prisma.party_master.findMany({
+    where: {
+      company_id: companyId,
+      is_active: true,
+      party_type: { in: ['customer', 'both'] },
+      name: { equals: name, mode: 'insensitive' },
     },
+    select: { id: true, name: true },
+    take: 2,
   });
-  return created.id;
+  return hits.length === 1 ? hits[0] : null;
 }
 
 interface FifoResult {
@@ -143,85 +179,150 @@ interface FifoResult {
   note: string;
 }
 
-// owner फ़ैसला #3 Option B — बैंक में आई रक़म को उसी पार्टी के सबसे पुराने open
-// invoice से क्रम में (FIFO) चुकता करना। M11 का PaymentTransaction + Allocation
-// लिखता है और settled invoice का amountPaid/paymentStatus अपडेट करता है।
+// owner फ़ैसला #3 Option B — बैंक में आई रक़म को उसी customer के सबसे पुराने बकाया
+// (approved/posted) invoice से क्रम में (FIFO) चुकता करना।
+//
+// यह एक real, idempotent M11 settlement है:
+//  • customer exact नाम से (auto-create नहीं) — न मिला/एक से ज़्यादा → suspense
+//  • सिर्फ़ approved/posted बिल (draft नहीं)
+//  • पूरा receipt एक PaymentTransaction (IN/COMPLETED) — बचत advance allocation में
+//  • हर invoice update conditional (बीच में कोई और चुका दे तो rollback)
+//  • same receipt दोबारा import → providerRef key से पहचान कर skip
+//  • balanced M11 audit-ledger pair (Dr Bank / Cr Receivable)
+//
+// जान-बूझकर दायरे से बाहर: इस import path से M10 में ताज़ा voucher **नहीं** बनता
+// (migrated opening balances के साथ double-count से बचने के लिए) — यह
+// M11 का settlement record + M11 audit ledger है, M08 invoice balance update करता है।
 async function settleInvoicesFifo(
   companyId: string,
   rowNumber: number,
   payload: Record<string, unknown>,
   userId: string
 ): Promise<FifoResult> {
-  const receipt = num(payload.credit) ?? 0;
+  const receiptRaw = num(payload.credit) ?? 0;
+  const receipt = round2(receiptRaw);
   if (receipt <= 0) return { status: 'skipped', note: 'जमा राशि 0 — कुछ नहीं किया' };
 
   const partyName = str(payload.ledgerName);
-  const partyId = await resolvePartyId(companyId, partyName, userId, 'customer');
+  if (!partyName) return { status: 'skipped', note: 'party नाम नहीं — suspense में' };
 
-  const open = await prisma.salesInvoice.findMany({
-    where: { companyId, customerId: partyId, paymentStatus: { in: ['unpaid', 'partial'] } },
-    orderBy: [{ invoiceDate: 'asc' }, { invoiceNumber: 'asc' }],
-  });
-  if (open.length === 0) {
+  const customer = await findExactCustomer(companyId, partyName);
+  if (!customer) {
     return {
       status: 'skipped',
-      note: `'${partyName ?? partyId}' का कोई बकाया बिल नहीं — receipt suspense में`,
+      note: `'${partyName}' नाम का एक customer नहीं मिला (0 या एक से ज़्यादा) — suspense में`,
     };
   }
 
-  const dateStr = str(payload.voucherDate);
-  const valueDate = dateStr ? new Date(dateStr) : new Date();
-  const methodId = await getOrCreateReceiptMethod(companyId, userId);
+  const valueDate = payload.voucherDate ? parseImportDate(payload.voucherDate) : new Date();
+  const narration = str(payload.narration) ?? 'Data Sense — बैंक receipt FIFO settlement';
 
-  let remaining = receipt;
-  const allocations: Array<{
-    targetId: string;
-    targetNumber: string;
-    allocatedAmount: number;
-    isFullPayment: boolean;
-  }> = [];
-  const invoiceUpdates: Array<{ id: string; newPaid: number; status: 'partial' | 'paid' }> = [];
+  // idempotency — वही (company, party, राशि, तारीख़, narration) दोबारा आए तो एक ही बार
+  const receiptKey =
+    'DS-' +
+    createHash('sha256')
+      .update(
+        `${companyId}|${customer.id}|${receipt.toFixed(2)}|${valueDate.toISOString().slice(0, 10)}|${narration}`
+      )
+      .digest('hex')
+      .slice(0, 48);
+  const dup = await prisma.paymentTransaction.findFirst({
+    where: { tenantId: companyId, providerRef: receiptKey },
+    select: { transactionNumber: true },
+  });
+  if (dup) {
+    return {
+      status: 'skipped',
+      note: `यह receipt पहले import हो चुकी (txn ${dup.transactionNumber})`,
+    };
+  }
 
-  for (const inv of open) {
-    if (remaining <= 0.00001) break;
-    const grand = Number(inv.grandTotal);
-    const already = Number(inv.amountPaid);
-    const balance = Math.max(grand - already, 0);
-    if (balance <= 0) continue;
-    const alloc = Math.min(remaining, balance);
-    remaining -= alloc;
-    const newPaid = already + alloc;
-    const full = newPaid >= grand - 0.00001;
-    allocations.push({
-      targetId: inv.id,
-      targetNumber: inv.invoiceNumber,
-      allocatedAmount: alloc,
-      isFullPayment: full,
+  const methodId = await getOrCreateBankTransferMethod(companyId, userId);
+  const txnNumber = `TXN-${Date.now()}-${rowNumber}-${randomBytes(3).toString('hex')}`;
+
+  const outcome = await prisma.$transaction(async (tx) => {
+    const open = await tx.salesInvoice.findMany({
+      where: {
+        companyId,
+        customerId: customer.id,
+        status: { in: ['approved', 'posted'] },
+        paymentStatus: { in: ['unpaid', 'partial'] },
+      },
+      orderBy: [{ invoiceDate: 'asc' }, { invoiceNumber: 'asc' }],
     });
-    invoiceUpdates.push({ id: inv.id, newPaid, status: full ? 'paid' : 'partial' });
-  }
 
-  if (allocations.length === 0) {
-    return { status: 'skipped', note: 'सभी बकाया बिल पहले से चुकता — कुछ allocate नहीं हुआ' };
-  }
+    let remaining = receipt;
+    const allocations: Array<{
+      targetType: string;
+      targetId: string;
+      targetNumber: string | null;
+      allocatedAmount: number;
+      isFullPayment: boolean;
+    }> = [];
 
-  const settledAmount = receipt - remaining;
-  const txnId = await prisma.$transaction(async (tx) => {
+    for (const inv of open) {
+      if (remaining <= 0.00001) break;
+      const grand = Number(inv.grandTotal);
+      const already = Number(inv.amountPaid);
+      const balance = round2(grand - already);
+      if (balance <= 0) continue;
+      const alloc = round2(Math.min(remaining, balance));
+      const newPaid = round2(already + alloc);
+      const full = newPaid >= grand - 0.00001;
+      // conditional — बीच में कोई और payment इसी invoice पर लगा दे तो count 0 → rollback
+      const upd = await tx.salesInvoice.updateMany({
+        where: { id: inv.id, amountPaid: inv.amountPaid },
+        data: { amountPaid: newPaid, paymentStatus: full ? 'paid' : 'partial' },
+      });
+      if (upd.count !== 1) {
+        throw new Error(`invoice ${inv.invoiceNumber} बीच में बदल गई — import दोबारा चलाएँ`);
+      }
+      remaining = round2(remaining - alloc);
+      allocations.push({
+        targetType: 'INVOICE',
+        targetId: inv.id,
+        targetNumber: inv.invoiceNumber,
+        allocatedAmount: alloc,
+        isFullPayment: full,
+      });
+    }
+
+    const settled = round2(receipt - remaining);
+    if (allocations.length === 0) {
+      return { txnId: null as string | null, settled: 0, advance: 0, invoiceCount: 0 };
+    }
+
+    // बची हुई रक़म — पूरा receipt record हो, इसलिए advance allocation
+    if (remaining > 0.00001) {
+      allocations.push({
+        targetType: 'ACCOUNT',
+        targetId: customer.id,
+        targetNumber: null,
+        allocatedAmount: remaining,
+        isFullPayment: false,
+      });
+    }
+
     const txn = await tx.paymentTransaction.create({
       data: {
-        transactionNumber: `TXN-${Date.now()}-${rowNumber}`,
+        transactionNumber: txnNumber,
         partyType: 'CUSTOMER',
-        partyId,
-        partyName: partyName ?? 'बिना-नाम',
-        amount: settledAmount,
-        baseAmount: settledAmount,
+        partyId: customer.id,
+        partyName: customer.name,
+        amount: receipt,
+        baseAmount: receipt,
         direction: 'IN',
         status: 'COMPLETED',
         paymentMethodId: methodId,
         referenceType: 'INVOICE',
         referenceId: allocations[0].targetId,
-        referenceNumber: allocations.map((a) => a.targetNumber).join(', '),
-        narration: str(payload.narration) ?? 'Data Sense — बैंक receipt FIFO settlement',
+        referenceNumber:
+          allocations
+            .filter((a) => a.targetNumber)
+            .map((a) => a.targetNumber)
+            .join(', ') || null,
+        providerRef: receiptKey,
+        narration,
         transactionDate: valueDate,
         valueDate,
         settledAt: new Date(),
@@ -234,7 +335,7 @@ async function settleInvoicesFifo(
       await tx.paymentAllocation.create({
         data: {
           transactionId: txn.id,
-          targetType: 'INVOICE',
+          targetType: a.targetType,
           targetId: a.targetId,
           targetNumber: a.targetNumber,
           allocatedAmount: a.allocatedAmount,
@@ -243,20 +344,49 @@ async function settleInvoicesFifo(
         },
       });
     }
-    for (const u of invoiceUpdates) {
-      await tx.salesInvoice.update({
-        where: { id: u.id },
-        data: { amountPaid: u.newPaid, paymentStatus: u.status },
-      });
-    }
-    return txn.id;
+    // balanced M11 audit ledger (M11 का अपना संक्षिप्त ledger — payment.service जैसा)
+    await new LedgerRepository(tx).create(
+      [
+        {
+          transactionId: txn.id,
+          accountCode: 'CASH_BANK',
+          debitAmount: new Decimal(receipt),
+          creditAmount: new Decimal(0),
+          narration: `Receipt ${txnNumber}`,
+          entryDate: valueDate,
+        },
+        {
+          transactionId: txn.id,
+          accountCode: 'ACCOUNTS_RECEIVABLE',
+          debitAmount: new Decimal(0),
+          creditAmount: new Decimal(receipt),
+          narration: `Receipt ${txnNumber}`,
+          entryDate: valueDate,
+        },
+      ],
+      companyId,
+      userId
+    );
+
+    return {
+      txnId: txn.id as string | null,
+      settled,
+      advance: remaining,
+      invoiceCount: allocations.filter((a) => a.targetType === 'INVOICE').length,
+    };
   });
 
+  if (!outcome.txnId) {
+    return {
+      status: 'skipped',
+      note: `'${partyName}' का कोई बकाया approved बिल नहीं — receipt suspense में`,
+    };
+  }
   const note =
-    remaining > 0.00001
-      ? `${allocations.length} बिल चुकता; ₹${remaining.toFixed(2)} advance बची`
-      : `${allocations.length} बिल पूरे/आंशिक चुकता`;
-  return { status: 'created', id: txnId, note };
+    outcome.advance > 0.00001
+      ? `${outcome.invoiceCount} बिल में ₹${outcome.settled.toFixed(2)}; ₹${outcome.advance.toFixed(2)} advance जमा`
+      : `${outcome.invoiceCount} बिल पूरे/आंशिक चुकता`;
+  return { status: 'created', id: outcome.txnId, note };
 }
 
 export async function executeTransfer(
@@ -295,14 +425,17 @@ export async function executeTransfer(
         continue;
       }
 
-      // 'credit-ledger' (फ़ैसला #3 default) targetModule 'm10-accounting' है —
-      // नीचे वाला m10 case ही credit/debit से ledger entry बना देता है।
-      if (item.operation !== 'create' && item.operation !== 'credit-ledger') {
+      if (item.operation !== 'create') {
+        // 'credit-ledger' यहीं रुकती है — M10 direct party-ledger credit के लिए
+        // owner का bank/receivable account mapping चाहिए (ऊपर header देखें)।
         summary.pendingAdapter++;
         rows.push({
           ...base,
           status: 'pending-adapter',
-          note: `${item.operation} का असली चालान अगले increment में`,
+          note:
+            item.operation === 'credit-ledger'
+              ? 'बैंक receipt का सीधा M10 ledger-credit — owner account mapping के बाद (तब तक Option B/manual)'
+              : `${item.operation} का असली चालान अगले increment में`,
         });
         continue;
       }
@@ -352,8 +485,9 @@ export async function executeTransfer(
           const taxable = num(item.payload.taxableValue) ?? 0;
           const tax = num(item.payload.gstAmount) ?? 0;
           const total = num(item.payload.invoiceTotal) ?? taxable + tax;
-          const dateStr = str(item.payload.invoiceDate);
-          const date = dateStr ? new Date(dateStr) : new Date();
+          const date = item.payload.invoiceDate
+            ? parseImportDate(item.payload.invoiceDate)
+            : new Date();
           const invoice = await prisma.salesInvoice.create({
             data: {
               companyId,
@@ -401,8 +535,9 @@ export async function executeTransfer(
           const taxable = num(item.payload.taxableValue) ?? 0;
           const tax = num(item.payload.gstAmount) ?? 0;
           const total = num(item.payload.invoiceTotal) ?? taxable + tax;
-          const dateStr = str(item.payload.invoiceDate);
-          const date = dateStr ? new Date(dateStr) : new Date();
+          const date = item.payload.invoiceDate
+            ? parseImportDate(item.payload.invoiceDate)
+            : new Date();
           const invoice = await prisma.purchase_invoice.create({
             data: {
               company_id: companyId,
@@ -446,8 +581,9 @@ export async function executeTransfer(
           if (!account) throw new Error(`Account '${ledgerName}' not found`);
           const debit = num(item.payload.debit) ?? 0;
           const credit = num(item.payload.credit) ?? 0;
-          const dateStr = str(item.payload.voucherDate);
-          const date = dateStr ? new Date(dateStr) : new Date();
+          const date = item.payload.voucherDate
+            ? parseImportDate(item.payload.voucherDate)
+            : new Date();
           const entry = await prisma.ledger.create({
             data: {
               company_id: companyId,

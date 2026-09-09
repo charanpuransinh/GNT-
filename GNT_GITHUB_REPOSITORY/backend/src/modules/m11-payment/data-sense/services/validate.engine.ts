@@ -11,6 +11,7 @@
  */
 import type { DataGroup, DataSenseStatus } from '../types/dataGroup';
 import { DEFAULT_OPTIONS, type DataSenseOptions, type RowVerdict } from '../types/dataSense.types';
+import { tryParseImportDate } from './date.util';
 import { GROUP_SPECS } from './sense.engine';
 
 /** भारत का GSTIN: 2 अंक राज्य + 10 अंक PAN + 1 इकाई + Z + 1 checksum */
@@ -27,18 +28,9 @@ const isNumeric = (v: unknown): boolean => {
   return Number.isFinite(n);
 };
 
-const isDate = (v: unknown): boolean => {
-  if (isBlank(v)) return false;
-  const s = String(v).trim();
-  // dd/mm/yyyy और dd-mm-yyyy — भारत में यही सबसे आम
-  const dmy = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(s);
-  if (dmy) {
-    const d = Number(dmy[1]);
-    const m = Number(dmy[2]);
-    return d >= 1 && d <= 31 && m >= 1 && m <= 12;
-  }
-  return !Number.isNaN(Date.parse(s));
-};
+// तारीख़ वही मानी जाए जो transfer के वक़्त भी उसी तरह पढ़ी जाएगी (date.util) —
+// यानी दिन-पहले dd/mm/yyyy या ISO, और असली कैलेंडर तारीख़ (31/02 अमान्य)।
+const isDate = (v: unknown): boolean => !isBlank(v) && tryParseImportDate(v) !== null;
 
 /** एक पंक्ति की जाँच */
 export function validateRow(

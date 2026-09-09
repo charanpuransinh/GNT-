@@ -4,3 +4,7 @@ tips/reviewer-ai/keepalive.log
 .env
 *.env
 .git-credentials
+
+# Node deps (worktree की असली node_modules root पर बन जाती है — कभी commit नहीं)
+node_modules/
+**/node_modules/
