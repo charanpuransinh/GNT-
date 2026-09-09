@@ -2,15 +2,15 @@
 // M07 PURCHASE MANAGEMENT — Purchase Invoice & Return Controller
 // ============================================================================
 
-import { Request, Response } from 'express';
 import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
+import { Request, Response } from 'express';
 import { PurchaseService } from '../services/purchase.service';
 import {
   createPurchaseInvoiceSchema,
-  updatePurchaseInvoiceSchema,
   createPurchaseReturnSchema,
   ocrReviewSchema,
   purchaseInvoiceQuerySchema,
+  updatePurchaseInvoiceSchema,
 } from '../validators/purchase.schema';
 
 export class PurchaseController {
@@ -24,7 +24,11 @@ export class PurchaseController {
       const company_id = requireTenant(req).companyId;
       // created_by कभी body से नहीं — schema उसे स्वीकार करती है (पुराने callers के लिए),
       // पर असली पहचान हमेशा token से ओवरराइट होती है, वरना कोई और के नाम पर बना सकता था।
-      const invoice = await this.purchaseService.createPurchaseInvoice({ ...validated, company_id, created_by: requireUser(req).id });
+      const invoice = await this.purchaseService.createPurchaseInvoice({
+        ...validated,
+        company_id,
+        created_by: requireUser(req).id,
+      });
       res.status(201).json({ success: true, data: invoice });
     } catch (error: any) {
       res.status(400).json({ success: false, message: error.message || 'Validation failed' });
@@ -33,7 +37,10 @@ export class PurchaseController {
 
   getInvoices = async (req: Request, res: Response) => {
     try {
-      const validated = purchaseInvoiceQuerySchema.parse({ ...req.query, company_id: requireTenant(req).companyId });
+      const validated = purchaseInvoiceQuerySchema.parse({
+        ...req.query,
+        company_id: requireTenant(req).companyId,
+      });
       const result = await this.purchaseService.getPurchaseInvoices(validated);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {

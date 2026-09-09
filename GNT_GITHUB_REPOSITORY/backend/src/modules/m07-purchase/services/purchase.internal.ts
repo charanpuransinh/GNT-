@@ -2,20 +2,25 @@
 // M07 PURCHASE MANAGEMENT — Internal Services (Calculation, Parser, Utils)
 // ============================================================================
 
-import { PurchaseInvoiceItemDTO, PurchaseOrderItemDTO, PurchaseReturnItemDTO, InvoiceCalculationResult } from '../types/purchase.types';
+import {
+  InvoiceCalculationResult,
+  PurchaseInvoiceItemDTO,
+  PurchaseOrderItemDTO,
+  PurchaseReturnItemDTO,
+} from '../types/purchase.types';
 
 // ─── Invoice Calculation Engine ───
 
 export function calculateInvoiceTotals(
   items: PurchaseInvoiceItemDTO[],
-  round_off: number = 0,
+  round_off: number = 0
 ): InvoiceCalculationResult {
   let total_amount = 0;
   let total_discount = 0;
   let total_tax = 0;
   let net_amount = 0;
 
-  const calculatedItems = items.map(item => {
+  const calculatedItems = items.map((item) => {
     const qty = item.quantity;
     const rate = item.rate;
     const discountPercent = item.discount_percent || 0;
@@ -25,11 +30,11 @@ export function calculateInvoiceTotals(
     const grossAmount = qty * rate;
 
     // Discount
-    const discountAmount = item.discount_amount || (grossAmount * discountPercent / 100);
+    const discountAmount = item.discount_amount || (grossAmount * discountPercent) / 100;
     const amountAfterDiscount = grossAmount - discountAmount;
 
     // Tax
-    const taxAmount = amountAfterDiscount * taxRate / 100;
+    const taxAmount = (amountAfterDiscount * taxRate) / 100;
     const itemNetAmount = amountAfterDiscount + taxAmount;
 
     total_amount += grossAmount;
@@ -63,16 +68,16 @@ export function calculatePOTotals(items: PurchaseOrderItemDTO[]) {
   let total_tax = 0;
   let net_amount = 0;
 
-  items.forEach(item => {
+  items.forEach((item) => {
     const qty = item.quantity;
     const rate = item.rate;
     const discountPercent = item.discount_percent || 0;
     const taxRate = item.tax_rate || 0;
 
     const grossAmount = qty * rate;
-    const discountAmount = item.discount_amount || (grossAmount * discountPercent / 100);
+    const discountAmount = item.discount_amount || (grossAmount * discountPercent) / 100;
     const amountAfterDiscount = grossAmount - discountAmount;
-    const taxAmount = amountAfterDiscount * taxRate / 100;
+    const taxAmount = (amountAfterDiscount * taxRate) / 100;
     const itemNetAmount = amountAfterDiscount + taxAmount;
 
     total_amount += grossAmount;
@@ -96,12 +101,15 @@ export function calculateReturnTotals(items: PurchaseReturnItemDTO[]) {
   let net_amount = 0;
 
   for (const item of items) {
-    if (!Number.isFinite(item.quantity) || item.quantity <= 0) throw new Error('Return quantity must be greater than 0');
-    if (!Number.isFinite(item.rate) || item.rate < 0) throw new Error('Return rate cannot be negative');
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0)
+      throw new Error('Return quantity must be greater than 0');
+    if (!Number.isFinite(item.rate) || item.rate < 0)
+      throw new Error('Return rate cannot be negative');
     const amount = item.quantity * item.rate;
     const tax = item.tax_amount ?? 0;
-    const net = item.net_amount ?? (amount + tax);
-    if (!Number.isFinite(tax) || tax < 0 || !Number.isFinite(net) || net < 0) throw new Error('Invalid return tax/net amount');
+    const net = item.net_amount ?? amount + tax;
+    if (!Number.isFinite(tax) || tax < 0 || !Number.isFinite(net) || net < 0)
+      throw new Error('Invalid return tax/net amount');
     total_amount += amount;
     tax_amount += tax;
     net_amount += net;
@@ -117,7 +125,18 @@ export function calculateReturnTotals(items: PurchaseReturnItemDTO[]) {
 // ─── Number to Words (Indian Format) ───
 
 const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+const teens = [
+  'Ten',
+  'Eleven',
+  'Twelve',
+  'Thirteen',
+  'Fourteen',
+  'Fifteen',
+  'Sixteen',
+  'Seventeen',
+  'Eighteen',
+  'Nineteen',
+];
 const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
 function convertLessThanOneThousand(n: number): string {
@@ -127,7 +146,11 @@ function convertLessThanOneThousand(n: number): string {
   if (n < 100) {
     return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
   }
-  return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convertLessThanOneThousand(n % 100) : '');
+  return (
+    ones[Math.floor(n / 100)] +
+    ' Hundred' +
+    (n % 100 !== 0 ? ' and ' + convertLessThanOneThousand(n % 100) : '')
+  );
 }
 
 export function numberToWords(num: number): string {
@@ -182,7 +205,10 @@ export interface ParsedOCRData {
 export function parseOCRText(rawText: string): ParsedOCRData {
   // Deterministic parser for OCR text. Missing fields remain empty so downstream
   // review/validation can reject incomplete extraction instead of inventing data.
-  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = rawText
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   let supplier_name = '';
   let invoice_number = '';

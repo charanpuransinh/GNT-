@@ -2,24 +2,43 @@
 // M07 PURCHASE MANAGEMENT — Purchase Order Repository (INTERNAL)
 // ============================================================================
 
-import { PrismaClient, purchase_order, purchase_order_item, Prisma, GRNStatus } from '@prisma/client';
-import { CreatePurchaseOrderDTO, UpdatePurchaseOrderDTO, PurchaseOrderQueryDTO } from '../types/purchase.types';
+import {
+  GRNStatus,
+  Prisma,
+  PrismaClient,
+  purchase_order,
+  purchase_order_item,
+} from '@prisma/client';
+import {
+  CreatePurchaseOrderDTO,
+  PurchaseOrderQueryDTO,
+  UpdatePurchaseOrderDTO,
+} from '../types/purchase.types';
 
 export class PurchaseOrderRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async createPO(data: CreatePurchaseOrderDTO & { total_amount: number; total_tax: number; total_discount: number; net_amount: number }) {
+  async createPO(
+    data: CreatePurchaseOrderDTO & {
+      total_amount: number;
+      total_tax: number;
+      total_discount: number;
+      net_amount: number;
+    }
+  ) {
     const { items, ...poData } = data;
     return this.prisma.purchase_order.create({
       data: {
         ...poData,
         status: 'draft',
         items: {
-          create: items.map(item => ({
+          create: items.map((item) => ({
             product_id: item.product_id,
             quantity: new Prisma.Decimal(item.quantity),
             rate: new Prisma.Decimal(item.rate),
-            discount_percent: item.discount_percent ? new Prisma.Decimal(item.discount_percent) : null,
+            discount_percent: item.discount_percent
+              ? new Prisma.Decimal(item.discount_percent)
+              : null,
             discount_amount: item.discount_amount ? new Prisma.Decimal(item.discount_amount) : null,
             amount: item.amount ? new Prisma.Decimal(item.amount) : null,
             tax_rate: item.tax_rate ? new Prisma.Decimal(item.tax_rate) : null,
@@ -60,13 +79,25 @@ export class PurchaseOrderRepository {
     });
   }
 
-  async updatePO(id: string, company_id: string, data: UpdatePurchaseOrderDTO & { total_amount?: number; total_tax?: number; total_discount?: number; net_amount?: number }) {
+  async updatePO(
+    id: string,
+    company_id: string,
+    data: UpdatePurchaseOrderDTO & {
+      total_amount?: number;
+      total_tax?: number;
+      total_discount?: number;
+      net_amount?: number;
+    }
+  ) {
     const { items, ...poData } = data;
 
     return this.prisma.$transaction(async (tx) => {
       // company_id पहले सिर्फ़ parameter था। मालिकाना जाँचे बिना items मिटा दिए
       // जाते थे — यानी दूसरी company का PO भेजने पर उसकी lines पहले ही उड़ जातीं।
-      const apna = await tx.purchase_order.findFirst({ where: { id, company_id }, select: { id: true } });
+      const apna = await tx.purchase_order.findFirst({
+        where: { id, company_id },
+        select: { id: true },
+      });
       if (!apna) throw new Error('Purchase order not found');
 
       if (items && items.length > 0) {
@@ -77,21 +108,27 @@ export class PurchaseOrderRepository {
         where: { id },
         data: {
           ...poData,
-          ...(items && items.length > 0 ? {
-            items: {
-              create: items.map(item => ({
-                product_id: item.product_id,
-                quantity: new Prisma.Decimal(item.quantity),
-                rate: new Prisma.Decimal(item.rate),
-                discount_percent: item.discount_percent ? new Prisma.Decimal(item.discount_percent) : null,
-                discount_amount: item.discount_amount ? new Prisma.Decimal(item.discount_amount) : null,
-                amount: item.amount ? new Prisma.Decimal(item.amount) : null,
-                tax_rate: item.tax_rate ? new Prisma.Decimal(item.tax_rate) : null,
-                tax_amount: item.tax_amount ? new Prisma.Decimal(item.tax_amount) : null,
-                net_amount: item.net_amount ? new Prisma.Decimal(item.net_amount) : null,
-              })),
-            },
-          } : {}),
+          ...(items && items.length > 0
+            ? {
+                items: {
+                  create: items.map((item) => ({
+                    product_id: item.product_id,
+                    quantity: new Prisma.Decimal(item.quantity),
+                    rate: new Prisma.Decimal(item.rate),
+                    discount_percent: item.discount_percent
+                      ? new Prisma.Decimal(item.discount_percent)
+                      : null,
+                    discount_amount: item.discount_amount
+                      ? new Prisma.Decimal(item.discount_amount)
+                      : null,
+                    amount: item.amount ? new Prisma.Decimal(item.amount) : null,
+                    tax_rate: item.tax_rate ? new Prisma.Decimal(item.tax_rate) : null,
+                    tax_amount: item.tax_amount ? new Prisma.Decimal(item.tax_amount) : null,
+                    net_amount: item.net_amount ? new Prisma.Decimal(item.net_amount) : null,
+                  })),
+                },
+              }
+            : {}),
         },
         include: { items: true },
       });
@@ -113,14 +150,17 @@ export class PurchaseOrderRepository {
       });
 
       if (!po) throw new Error('Purchase order not found');
-      if (Object.keys(receivedQuantities).length === 0) throw new Error('At least one received quantity is required');
+      if (Object.keys(receivedQuantities).length === 0)
+        throw new Error('At least one received quantity is required');
 
       for (const [itemId, qty] of Object.entries(receivedQuantities)) {
-        if (!Number.isFinite(qty) || qty <= 0) throw new Error(`Invalid received quantity for item ${itemId}`);
-        const item = po.items.find(candidate => candidate.id === itemId);
+        if (!Number.isFinite(qty) || qty <= 0)
+          throw new Error(`Invalid received quantity for item ${itemId}`);
+        const item = po.items.find((candidate) => candidate.id === itemId);
         if (!item) throw new Error(`Purchase order item ${itemId} does not belong to this order`);
         const newReceived = new Prisma.Decimal(item.received_qty).plus(new Prisma.Decimal(qty));
-        if (newReceived.gt(item.quantity)) throw new Error(`Received quantity exceeds ordered quantity for item ${itemId}`);
+        if (newReceived.gt(item.quantity))
+          throw new Error(`Received quantity exceeds ordered quantity for item ${itemId}`);
         await tx.purchase_order_item.update({
           where: { id: itemId },
           data: { received_qty: newReceived },
@@ -128,7 +168,9 @@ export class PurchaseOrderRepository {
         item.received_qty = newReceived;
       }
 
-      const allReceived = po.items.every(item => new Prisma.Decimal(item.received_qty).gte(item.quantity));
+      const allReceived = po.items.every((item) =>
+        new Prisma.Decimal(item.received_qty).gte(item.quantity)
+      );
 
       return tx.purchase_order.update({
         where: { id },
@@ -144,7 +186,14 @@ export class PurchaseOrderRepository {
     });
   }
 
-  async createGRN(data: { company_id: string; purchase_order_id: string; grn_number?: string; grn_date: Date; received_by?: string; status: GRNStatus }) {
+  async createGRN(data: {
+    company_id: string;
+    purchase_order_id: string;
+    grn_number?: string;
+    grn_date: Date;
+    received_by?: string;
+    status: GRNStatus;
+  }) {
     return this.prisma.grn.create({ data });
   }
 }

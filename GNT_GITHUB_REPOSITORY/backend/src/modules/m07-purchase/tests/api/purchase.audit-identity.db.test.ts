@@ -9,12 +9,12 @@
 // असली column में हमेशा token वाले असली user की id ही जाती है।
 // ============================================================================
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import request from 'supertest';
-import { app, registerModules } from '../../../../app';
 import { prisma } from '@/common/config/prisma';
 import { TEST_COMPANY_ID, TEST_USER_ID, mintBearer } from '@/tests/helpers/auth';
+import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { app, registerModules } from '../../../../app';
 
 describe.runIf(process.env.TEST_DB === '1')('M07 — असली पहचान token से, body से कभी नहीं', () => {
   const branchId = randomUUID();
@@ -33,19 +33,26 @@ describe.runIf(process.env.TEST_DB === '1')('M07 — असली पहचा�
   });
 
   afterAll(async () => {
-    await prisma.purchase_invoice.deleteMany({ where: { company_id: TEST_COMPANY_ID, invoice_number: { contains: `AUD-${stamp}` } } });
-    await prisma.purchase_order.deleteMany({ where: { company_id: TEST_COMPANY_ID, po_number: { contains: `AUD-${stamp}` } } });
+    await prisma.purchase_invoice.deleteMany({
+      where: { company_id: TEST_COMPANY_ID, invoice_number: { contains: `AUD-${stamp}` } },
+    });
+    await prisma.purchase_order.deleteMany({
+      where: { company_id: TEST_COMPANY_ID, po_number: { contains: `AUD-${stamp}` } },
+    });
   });
 
   it('POST /purchase/invoices: भेजा गया created_by अनदेखा होता है, token वाला user लिखा जाता है', async () => {
-    const res = await request(app).post('/api/v1/purchase/invoices').set('Authorization', mintBearer()).send({
-      branch_id: branchId,
-      supplier_id: supplierId,
-      invoice_number: `AUD-${stamp}-1`,
-      invoice_date: '2024-04-01',
-      created_by: impersonatedId, // छेड़ने की कोशिश — schema अब इसे स्वीकार ही नहीं करती
-      items: [{ product_id: productId, quantity: 1, rate: 100 }],
-    });
+    const res = await request(app)
+      .post('/api/v1/purchase/invoices')
+      .set('Authorization', mintBearer())
+      .send({
+        branch_id: branchId,
+        supplier_id: supplierId,
+        invoice_number: `AUD-${stamp}-1`,
+        invoice_date: '2024-04-01',
+        created_by: impersonatedId, // छेड़ने की कोशिश — schema अब इसे स्वीकार ही नहीं करती
+        items: [{ product_id: productId, quantity: 1, rate: 100 }],
+      });
 
     expect(res.status).toBe(201);
     const row = await prisma.purchase_invoice.findUnique({ where: { id: res.body.data.id } });
@@ -54,13 +61,16 @@ describe.runIf(process.env.TEST_DB === '1')('M07 — असली पहचा�
   });
 
   it('POST /purchase/invoices/{id}/approve: भेजा गया approved_by अनदेखा होता है', async () => {
-    const created = await request(app).post('/api/v1/purchase/invoices').set('Authorization', mintBearer()).send({
-      branch_id: branchId,
-      supplier_id: supplierId,
-      invoice_number: `AUD-${stamp}-2`,
-      invoice_date: '2024-04-01',
-      items: [{ product_id: productId, quantity: 1, rate: 100 }],
-    });
+    const created = await request(app)
+      .post('/api/v1/purchase/invoices')
+      .set('Authorization', mintBearer())
+      .send({
+        branch_id: branchId,
+        supplier_id: supplierId,
+        invoice_number: `AUD-${stamp}-2`,
+        invoice_date: '2024-04-01',
+        items: [{ product_id: productId, quantity: 1, rate: 100 }],
+      });
 
     const res = await request(app)
       .post(`/api/v1/purchase/invoices/${created.body.data.id}/approve`)
@@ -74,14 +84,17 @@ describe.runIf(process.env.TEST_DB === '1')('M07 — असली पहचा�
   });
 
   it('POST /purchase/orders: भेजा गया created_by अनदेखा होता है', async () => {
-    const res = await request(app).post('/api/v1/purchase/orders').set('Authorization', mintBearer()).send({
-      branch_id: branchId,
-      supplier_id: supplierId,
-      po_number: `AUD-${stamp}-PO1`,
-      po_date: '2024-04-01',
-      created_by: impersonatedId,
-      items: [{ product_id: productId, quantity: 1, rate: 100 }],
-    });
+    const res = await request(app)
+      .post('/api/v1/purchase/orders')
+      .set('Authorization', mintBearer())
+      .send({
+        branch_id: branchId,
+        supplier_id: supplierId,
+        po_number: `AUD-${stamp}-PO1`,
+        po_date: '2024-04-01',
+        created_by: impersonatedId,
+        items: [{ product_id: productId, quantity: 1, rate: 100 }],
+      });
 
     expect(res.status).toBe(201);
     const row = await prisma.purchase_order.findUnique({ where: { id: res.body.data.id } });

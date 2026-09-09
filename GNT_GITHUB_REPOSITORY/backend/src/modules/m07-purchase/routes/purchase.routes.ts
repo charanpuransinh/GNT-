@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { PurchaseController } from '../controllers/purchase.controller';
 import { PurchaseOrderController } from '../controllers/purchase-order.controller';
+import { PurchaseController } from '../controllers/purchase.controller';
 
-export function createPurchaseRouter(controller: PurchaseController, poController: PurchaseOrderController): Router {
+export function createPurchaseRouter(
+  controller: PurchaseController,
+  poController: PurchaseOrderController
+): Router {
   const router = Router();
   router.get('/invoices', controller.getInvoices);
   router.post('/invoices', controller.createInvoice);

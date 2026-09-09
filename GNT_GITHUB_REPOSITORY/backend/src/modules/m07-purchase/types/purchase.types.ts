@@ -2,8 +2,13 @@
 // M07 PURCHASE MANAGEMENT — TypeScript DTOs
 // ============================================================================
 
+import {
+  GRNStatus,
+  PurchaseInvoiceStatus,
+  PurchaseOrderStatus,
+  PurchaseReturnStatus,
+} from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { PurchaseInvoiceStatus, PurchaseOrderStatus, PurchaseReturnStatus, GRNStatus } from '@prisma/client';
 
 // ─── Purchase Invoice DTOs ───
 

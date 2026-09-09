@@ -13,7 +13,7 @@ export const PURCHASE_EVENTS = {
   RETURN_POSTED: 'purchase.return.posted',
 } as const;
 
-export type PurchaseEventType = typeof PURCHASE_EVENTS[keyof typeof PURCHASE_EVENTS];
+export type PurchaseEventType = (typeof PURCHASE_EVENTS)[keyof typeof PURCHASE_EVENTS];
 
 export interface EventPayload<T = unknown> {
   event: PurchaseEventType;

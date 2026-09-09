@@ -17,11 +17,11 @@
 // की rows **सच में अनछुई** रहीं।
 // ============================================================================
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { TEST_COMPANY_ID } from '@/tests/helpers/auth';
 import { PrismaClient } from '@prisma/client';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PurchaseOrderRepository } from '../../repositories/po.repository';
 import { PurchaseRepository } from '../../repositories/purchase.repository';
-import { TEST_COMPANY_ID } from '@/tests/helpers/auth';
 
 const prisma = new PrismaClient();
 const poRepo = new PurchaseOrderRepository(prisma);
@@ -43,7 +43,11 @@ describe.runIf(process.env.TEST_DB === '1')('M07 — company की सीमा
       // code unique है — M07 अपना अलग code रखे, वरना दूसरे modules की tests से टकराव
       [DUSRI_COMPANY_ID, 'Dusri Company', 'M07OTHER'],
     ] as const) {
-      await prisma.company_master.upsert({ where: { id }, update: { name }, create: { id, name, code } });
+      await prisma.company_master.upsert({
+        where: { id },
+        update: { name },
+        create: { id, name, code },
+      });
     }
 
     const dusriPo = await prisma.purchase_order.create({
@@ -72,8 +76,12 @@ describe.runIf(process.env.TEST_DB === '1')('M07 — company की सीमा
   });
 
   afterAll(async () => {
-    await prisma.purchase_invoice.deleteMany({ where: { company_id: { in: [TEST_COMPANY_ID, DUSRI_COMPANY_ID] } } });
-    await prisma.purchase_order.deleteMany({ where: { company_id: { in: [TEST_COMPANY_ID, DUSRI_COMPANY_ID] } } });
+    await prisma.purchase_invoice.deleteMany({
+      where: { company_id: { in: [TEST_COMPANY_ID, DUSRI_COMPANY_ID] } },
+    });
+    await prisma.purchase_order.deleteMany({
+      where: { company_id: { in: [TEST_COMPANY_ID, DUSRI_COMPANY_ID] } },
+    });
     await prisma.$disconnect();
   });
 
@@ -96,7 +104,9 @@ describe.runIf(process.env.TEST_DB === '1')('M07 — company की सीमा
       } as any)
     ).rejects.toThrow(/not found/i);
 
-    const lines = await prisma.purchase_order_item.count({ where: { purchase_order_id: dusriPoId } });
+    const lines = await prisma.purchase_order_item.count({
+      where: { purchase_order_id: dusriPoId },
+    });
     expect(lines).toBe(1);
   });
 
@@ -117,7 +127,9 @@ describe.runIf(process.env.TEST_DB === '1')('M07 — company की सीमा
       } as any)
     ).rejects.toThrow(/not found/i);
 
-    const lines = await prisma.purchase_invoice_item.count({ where: { purchase_invoice_id: dusriInvoiceId } });
+    const lines = await prisma.purchase_invoice_item.count({
+      where: { purchase_invoice_id: dusriInvoiceId },
+    });
     expect(lines).toBe(1);
   });
 
