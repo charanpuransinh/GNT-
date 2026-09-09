@@ -7,8 +7,8 @@
 // database चालू होगा)। झूठे pass नहीं — shape ही जाँचा जाता है।
 // ============================================================================
 
-import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
+import { describe, it } from 'vitest';
 import { SyncService } from './sync.service';
 
 describe('SyncService (shape — DB चालू होने तक)', () => {

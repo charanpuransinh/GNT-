@@ -206,10 +206,10 @@ export interface RestoreJob {
 // WEBHOOK TYPES
 // ───────────────────────────────────────────────
 
-export type WebhookEvent = 
-  | 'sync.completed' 
-  | 'sync.failed' 
-  | 'backup.completed' 
+export type WebhookEvent =
+  | 'sync.completed'
+  | 'sync.failed'
+  | 'backup.completed'
   | 'backup.failed'
   | 'conflict.created'
   | 'restore.completed'
@@ -306,7 +306,12 @@ export interface SyncEntityConfigInput {
   internalEntity: string;
   externalEntity?: string;
   syncDirection?: string;
-  fieldMappings?: Array<{ internalField: string; externalField: string; isKey?: boolean; transform?: string }>;
+  fieldMappings?: Array<{
+    internalField: string;
+    externalField: string;
+    isKey?: boolean;
+    transform?: string;
+  }>;
   sourceFilter?: Record<string, unknown> | null;
   targetFilter?: Record<string, unknown> | null;
   conflictResolution?: string;

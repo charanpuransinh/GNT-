@@ -1,6 +1,6 @@
+import { prisma } from '@/common/config/prisma';
 import { ExternalIntegration } from '@prisma/client';
 import axios from 'axios';
-import { prisma } from '@/common/config/prisma';
 
 export class IntegrationService {
   static async createIntegration(data: {
@@ -22,8 +22,8 @@ export class IntegrationService {
         ...data,
         authConfig: data.authConfig as never,
         endpoints: data.endpoints as never,
-        rateLimitConfig: data.rateLimitConfig as never
-      }
+        rateLimitConfig: data.rateLimitConfig as never,
+      },
     });
   }
 
@@ -31,22 +31,32 @@ export class IntegrationService {
     return prisma.externalIntegration.findFirst({ where: { id, tenantId } });
   }
 
-  static async getIntegrationByCode(integrationCode: string, tenantId: string): Promise<ExternalIntegration | null> {
+  static async getIntegrationByCode(
+    integrationCode: string,
+    tenantId: string
+  ): Promise<ExternalIntegration | null> {
     return prisma.externalIntegration.findFirst({ where: { integrationCode, tenantId } });
   }
 
-  static async listIntegrations(tenantId: string, filters?: { provider?: string; status?: string }): Promise<ExternalIntegration[]> {
+  static async listIntegrations(
+    tenantId: string,
+    filters?: { provider?: string; status?: string }
+  ): Promise<ExternalIntegration[]> {
     return prisma.externalIntegration.findMany({
       where: {
         tenantId,
         ...(filters?.provider && { provider: filters.provider }),
-        ...(filters?.status && { status: filters.status })
+        ...(filters?.status && { status: filters.status }),
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  static async updateIntegration(id: string, tenantId: string, data: Partial<ExternalIntegration>): Promise<ExternalIntegration> {
+  static async updateIntegration(
+    id: string,
+    tenantId: string,
+    data: Partial<ExternalIntegration>
+  ): Promise<ExternalIntegration> {
     const result = await prisma.externalIntegration.updateMany({
       where: { id, tenantId },
       data: {
@@ -58,8 +68,8 @@ export class IntegrationService {
         ...(data.endpoints && { endpoints: data.endpoints as never }),
         ...(data.status && { status: data.status }),
         ...(data.rateLimitConfig && { rateLimitConfig: data.rateLimitConfig as never }),
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
     if (result.count === 0) throw new Error('Integration not found');
     const integration = await prisma.externalIntegration.findFirst({ where: { id, tenantId } });
@@ -74,7 +84,10 @@ export class IntegrationService {
     return existing;
   }
 
-  static async healthCheck(integrationId: string, tenantId: string): Promise<{
+  static async healthCheck(
+    integrationId: string,
+    tenantId: string
+  ): Promise<{
     integrationId: string;
     status: 'HEALTHY' | 'DEGRADED' | 'DOWN';
     latencyMs: number;
@@ -82,7 +95,7 @@ export class IntegrationService {
     checkedAt: string;
   }> {
     const integration = await prisma.externalIntegration.findFirst({
-      where: { id: integrationId, tenantId }
+      where: { id: integrationId, tenantId },
     });
     if (!integration) throw new Error('Integration not found');
 
@@ -95,7 +108,7 @@ export class IntegrationService {
         // Attempt a lightweight health check
         await axios.get(integration.baseUrl, {
           timeout: 10000,
-          validateStatus: () => true
+          validateStatus: () => true,
         });
         status = 'HEALTHY';
       } else {
@@ -113,8 +126,8 @@ export class IntegrationService {
       where: { id: integrationId },
       data: {
         lastHealthCheck: new Date(),
-        healthStatus: status
-      }
+        healthStatus: status,
+      },
     });
 
     return {
@@ -122,23 +135,21 @@ export class IntegrationService {
       status,
       latencyMs,
       lastError,
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
     };
   }
 
   static async healthCheckAll(tenantId: string) {
     const integrations = await prisma.externalIntegration.findMany({
-      where: { tenantId, status: 'ACTIVE' }
+      where: { tenantId, status: 'ACTIVE' },
     });
 
-    return Promise.all(
-      integrations.map(i => this.healthCheck(i.id, tenantId))
-    );
+    return Promise.all(integrations.map((i) => this.healthCheck(i.id, tenantId)));
   }
 
   static async getAuthToken(integrationId: string, tenantId: string): Promise<string | null> {
     const integration = await prisma.externalIntegration.findFirst({
-      where: { id: integrationId, tenantId }
+      where: { id: integrationId, tenantId },
     });
     if (!integration) return null;
 
@@ -188,7 +199,7 @@ export class IntegrationService {
 
       const res = await axios.post(authConfig.tokenUrl, params, {
         timeout: 10000,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
 
       const newToken = res.data?.access_token ?? res.data?.accessToken;
@@ -203,12 +214,12 @@ export class IntegrationService {
         ...(newRefreshToken ? { refreshToken: newRefreshToken } : {}),
         ...(expiresIn > 0
           ? { expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString() }
-          : {})
+          : {}),
       };
 
       await prisma.externalIntegration.update({
         where: { id: integrationId },
-        data: { authConfig: updatedConfig as never }
+        data: { authConfig: updatedConfig as never },
       });
 
       return newToken;

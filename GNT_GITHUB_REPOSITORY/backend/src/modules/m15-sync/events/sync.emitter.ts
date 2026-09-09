@@ -1,6 +1,9 @@
 // M15 Sync Module — Event Emitter
-// GNT Team C | Modular Monolith Architecture
-// Publishes to Redis Event Bus for cross-module communication
+// Local handlers + relay onto the shared in-process eventBus so M15's
+// sync/backup/conflict lifecycle events actually reach cross-module subscribers
+// (M13 automation, M16 notification, M19 audit). पहले यह `console.log` stub था।
+
+import { eventBus as sharedEventBus } from '@/common/events/event-bus';
 
 type EventHandler = (payload: any) => void | Promise<void>;
 
@@ -17,7 +20,10 @@ export class EventEmitter {
   off(event: string, handler: EventHandler): void {
     const handlers = this.handlers.get(event);
     if (handlers) {
-      this.handlers.set(event, handlers.filter(h => h !== handler));
+      this.handlers.set(
+        event,
+        handlers.filter((h) => h !== handler)
+      );
     }
   }
 
@@ -32,14 +38,16 @@ export class EventEmitter {
       }
     }
 
-    // Publish to Redis Event Bus for cross-module communication
-    await this.publishToRedis(event, payload);
+    // साझा in-process bus पर relay — cross-module subscribers तक पहुँचे
+    await this.publishToBus(event, payload);
   }
 
-  private async publishToRedis(event: string, payload: any): Promise<void> {
-    // In production: await redisClient.publish(`m15.${event}`, JSON.stringify(payload));
-    // For now, log the event
-    console.log(`[REDIS PUBLISH] m15.${event}`, JSON.stringify(payload));
+  private async publishToBus(event: string, payload: any): Promise<void> {
+    try {
+      await sharedEventBus.publish(`m15.${event}`, payload);
+    } catch (err) {
+      console.error(`[M15→bus] publish failed for m15.${event}:`, err);
+    }
   }
 }
 

@@ -1,8 +1,8 @@
-// M15 — external connector (FILE source) — unit tests (no network, no API)
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtemp, writeFile, rm } from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { mkdtemp, rm, writeFile } from 'fs/promises';
+// M15 — external connector (FILE source) — unit tests (no network, no API)
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { fetchExternalEntities } from './external.connector';
 
 describe('M15 external connector — FILE source (koi API nahi)', () => {

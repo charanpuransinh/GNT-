@@ -2,8 +2,8 @@
 // GNT Team C | Modular Monolith Architecture
 
 import { Router } from 'express';
-import syncRoutes from './routes/sync.routes';
 import { SyncEventSubscriber } from './events/sync.handlers';
+import syncRoutes from './routes/sync.routes';
 
 const router = Router();
 

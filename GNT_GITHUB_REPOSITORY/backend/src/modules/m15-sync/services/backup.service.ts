@@ -1,23 +1,33 @@
 // M15 Sync Module — Backup & Restore Service
 // GNT Team C | Modular Monolith Architecture
 
-import { PrismaClient } from '@prisma/client';
-import { BackupJob, CreateBackupDTO, RestoreJob } from '../types/sync.types';
-import { AppError } from '../utils/sync.errors';
-import { EventEmitter } from '../events/sync.emitter';
 import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { PrismaClient } from '@prisma/client';
+import { EventEmitter } from '../events/sync.emitter';
+import { BackupJob, CreateBackupDTO, RestoreJob } from '../types/sync.types';
+import { AppError } from '../utils/sync.errors';
 
 // M15 के अपने metadata tables जिनका local backup/restore safe है (कोई financial master नहीं)।
-const BACKUP_TABLES = ['syncConfig', 'syncJob', 'syncEntityLog', 'syncConflict', 'syncState', 'syncQueueItem'] as const;
+const BACKUP_TABLES = [
+  'syncConfig',
+  'syncJob',
+  'syncEntityLog',
+  'syncConflict',
+  'syncState',
+  'syncQueueItem',
+] as const;
 
 function backupDir(): string {
   return process.env.M15_BACKUP_DIR || path.join(process.cwd(), 'storage', 'backups');
 }
 
 export class BackupService {
-  constructor(private prisma: PrismaClient, private eventEmitter: EventEmitter) {}
+  constructor(
+    private prisma: PrismaClient,
+    private eventEmitter: EventEmitter
+  ) {}
 
   async getAllBackups(tenantId: string, opts: { page: number; limit: number }) {
     const { page, limit } = opts;
@@ -28,20 +38,22 @@ export class BackupService {
         where: { tenantId },
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.backupJob.count({ where: { tenantId } })
+      this.prisma.backupJob.count({ where: { tenantId } }),
     ]);
 
     return { backups, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async getBackupById(tenantId: string, id: string): Promise<BackupJob | null> {
-    return this.prisma.backupJob.findFirst({ where: { id, tenantId } }) as Promise<BackupJob | null>;
+    return this.prisma.backupJob.findFirst({
+      where: { id, tenantId },
+    }) as Promise<BackupJob | null>;
   }
 
   async createBackup(tenantId: string, dto: CreateBackupDTO): Promise<BackupJob> {
-    const backup = await this.prisma.backupJob.create({
+    const backup = (await this.prisma.backupJob.create({
       data: {
         tenantId,
         name: dto.name,
@@ -51,9 +63,9 @@ export class BackupService {
         storageType: dto.storageType,
         tablesIncluded: dto.tablesIncluded,
         retentionDays: dto.retentionDays || 30,
-        expiresAt: new Date(Date.now() + (dto.retentionDays || 30) * 24 * 60 * 60 * 1000)
-      }
-    }) as BackupJob;
+        expiresAt: new Date(Date.now() + (dto.retentionDays || 30) * 24 * 60 * 60 * 1000),
+      },
+    })) as BackupJob;
 
     // Trigger async backup execution
     this.executeBackup(tenantId, backup.id).catch(console.error);
@@ -68,7 +80,7 @@ export class BackupService {
 
     await this.prisma.backupJob.update({
       where: { id: backupId },
-      data: { status: 'running', startedAt: new Date() }
+      data: { status: 'running', startedAt: new Date() },
     });
 
     this.eventEmitter.emit('backup.started', { tenantId, backupId });
@@ -77,7 +89,12 @@ export class BackupService {
       // असली local-file backup: tenant की sync metadata tables dump करो, असली checksum + size
       const tables: Record<string, unknown[]> = {};
       for (const table of BACKUP_TABLES) {
-        const accessor = (this.prisma as unknown as Record<string, { findMany?: (a: unknown) => Promise<unknown[]> }>)[table];
+        const accessor = (
+          this.prisma as unknown as Record<
+            string,
+            { findMany?: (a: unknown) => Promise<unknown[]> }
+          >
+        )[table];
         if (accessor?.findMany) {
           tables[table] = await accessor.findMany({ where: { tenantId } });
         }
@@ -105,15 +122,15 @@ export class BackupService {
           fileSize,
           checksum,
           storagePath: filePath,
-          completedAt: new Date()
-        }
+          completedAt: new Date(),
+        },
       });
 
       this.eventEmitter.emit('backup.completed', { tenantId, backupId });
     } catch (error: any) {
       await this.prisma.backupJob.update({
         where: { id: backupId },
-        data: { status: 'failed', errorMessage: error.message, completedAt: new Date() }
+        data: { status: 'failed', errorMessage: error.message, completedAt: new Date() },
       });
 
       this.eventEmitter.emit('backup.failed', { tenantId, backupId, error: error.message });
@@ -135,17 +152,18 @@ export class BackupService {
   async restoreBackup(tenantId: string, backupId: string): Promise<RestoreJob> {
     const backup = await this.getBackupById(tenantId, backupId);
     if (!backup) throw new AppError('BACKUP_NOT_FOUND', 'Backup not found', 404);
-    if (backup.status !== 'completed') throw new AppError('BACKUP_NOT_READY', 'Backup not ready for restore', 400);
+    if (backup.status !== 'completed')
+      throw new AppError('BACKUP_NOT_READY', 'Backup not ready for restore', 400);
 
-    const restoreJob = await this.prisma.restoreJob.create({
+    const restoreJob = (await this.prisma.restoreJob.create({
       data: {
         tenantId,
         backupJobId: backupId,
         status: 'queued',
         tablesRestored: [],
-        recordsRestored: 0
-      }
-    }) as RestoreJob;
+        recordsRestored: 0,
+      },
+    })) as RestoreJob;
 
     // Trigger async restore
     this.executeRestore(tenantId, restoreJob.id).catch(console.error);
@@ -157,7 +175,7 @@ export class BackupService {
   private async executeRestore(tenantId: string, restoreJobId: string): Promise<void> {
     await this.prisma.restoreJob.update({
       where: { id: restoreJobId },
-      data: { status: 'running', startedAt: new Date() }
+      data: { status: 'running', startedAt: new Date() },
     });
 
     this.eventEmitter.emit('restore.started', { tenantId, restoreJobId });
@@ -165,7 +183,7 @@ export class BackupService {
     try {
       const restore = await this.prisma.restoreJob.findFirst({
         where: { id: restoreJobId, tenantId },
-        include: { backupJob: true }
+        include: { backupJob: true },
       });
       if (!restore?.backupJob?.storagePath) {
         throw new Error('Backup file not found for restore');
@@ -178,7 +196,13 @@ export class BackupService {
       const tablesRestored: string[] = [];
 
       await this.prisma.$transaction(async (tx) => {
-        const txModels = tx as unknown as Record<string, { deleteMany: (a: unknown) => Promise<unknown>; createMany: (a: unknown) => Promise<unknown> }>;
+        const txModels = tx as unknown as Record<
+          string,
+          {
+            deleteMany: (a: unknown) => Promise<unknown>;
+            createMany: (a: unknown) => Promise<unknown>;
+          }
+        >;
         for (const table of BACKUP_TABLES) {
           const rows = parsed.tables?.[table];
           if (!Array.isArray(rows) || rows.length === 0) continue;
@@ -197,15 +221,15 @@ export class BackupService {
           status: 'completed',
           tablesRestored,
           recordsRestored,
-          completedAt: new Date()
-        }
+          completedAt: new Date(),
+        },
       });
 
       this.eventEmitter.emit('restore.completed', { tenantId, restoreJobId });
     } catch (error: any) {
       await this.prisma.restoreJob.update({
         where: { id: restoreJobId },
-        data: { status: 'failed', errorMessage: error.message }
+        data: { status: 'failed', errorMessage: error.message },
       });
 
       this.eventEmitter.emit('restore.failed', { tenantId, restoreJobId, error: error.message });
@@ -222,26 +246,30 @@ export class BackupService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { backupJob: { select: { name: true, backupType: true } } }
+        include: { backupJob: { select: { name: true, backupType: true } } },
       }),
-      this.prisma.restoreJob.count({ where: { tenantId } })
+      this.prisma.restoreJob.count({ where: { tenantId } }),
     ]);
 
     return { jobs, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async rollbackRestore(tenantId: string, restoreJobId: string, reason: string): Promise<RestoreJob> {
+  async rollbackRestore(
+    tenantId: string,
+    restoreJobId: string,
+    reason: string
+  ): Promise<RestoreJob> {
     const job = await this.prisma.restoreJob.findFirst({ where: { id: restoreJobId, tenantId } });
     if (!job) throw new AppError('RESTORE_JOB_NOT_FOUND', 'Restore job not found', 404);
 
-    const updated = await this.prisma.restoreJob.update({
+    const updated = (await this.prisma.restoreJob.update({
       where: { id: restoreJobId },
       data: {
         status: 'rolled_back',
         rolledBackAt: new Date(),
-        rollbackReason: reason
-      }
-    }) as RestoreJob;
+        rollbackReason: reason,
+      },
+    })) as RestoreJob;
 
     this.eventEmitter.emit('restore.rolled_back', { tenantId, restoreJobId, reason });
     return updated;

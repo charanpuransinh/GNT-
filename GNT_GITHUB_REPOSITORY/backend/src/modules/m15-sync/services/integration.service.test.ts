@@ -1,6 +1,6 @@
-// M15 — Integration service getAuthToken ki jaanch (DB-gated): API_KEY/BASIC/expired-OAuth2
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '@/common/config/prisma';
+// M15 — Integration service getAuthToken ki jaanch (DB-gated): API_KEY/BASIC/expired-OAuth2
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { IntegrationService } from './integration.service';
 
 const TENANT = '00000000-0000-4000-8000-000000000083';
@@ -14,7 +14,9 @@ async function createIntegration(authType: string, authConfig: Record<string, un
     data: {
       tenantId: TENANT,
       integrationCode: `INT-${Math.random().toString(36).slice(2, 10)}`,
-      name: 'test', provider: 'TALLY', authType,
+      name: 'test',
+      provider: 'TALLY',
+      authType,
       authConfig: authConfig as never,
     },
   });
