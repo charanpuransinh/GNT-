@@ -16,3 +16,12 @@ export const analyzeSheetSchema = z.object({
 });
 
 export type AnalyzeSheetInput = z.infer<typeof analyzeSheetSchema>;
+
+/** on-hold row पर owner का फ़ैसला */
+export const resolveHoldSchema = z.object({
+  action: z.enum(['apply-fifo', 'discard']),
+  customerId: z.string().min(1).max(64).optional(),
+  note: z.string().max(500).optional(),
+});
+
+export type ResolveHoldInput = z.infer<typeof resolveHoldSchema>;

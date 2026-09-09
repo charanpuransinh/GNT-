@@ -13,31 +13,36 @@
 // owner का bank/receivable account mapping चाहिए; तब तक Option B या manual)।
 // ============================================================================
 
-import { createHash, randomBytes } from 'node:crypto';
 import { prisma } from '@/common/config/prisma';
 import { partyService } from '@/modules/m05-party-management';
 import type { CreatePartyDTO } from '@/modules/m05-party-management';
 import { ProductService } from '@/modules/m06-inventory';
 import type { ProductDTO } from '@/modules/m06-inventory';
-import { LedgerRepository } from '@/modules/m11-payment/repositories/ledger.repository';
 import { TradeService } from '@/modules/m20-international-trade';
 import { EventBus } from '@/shared/events/event-bus';
-import { Decimal } from '@prisma/client/runtime/library';
 import type { TransferPlanItem } from '../types/dataSense.types';
 import { parseImportDate } from './date.util';
+import { type HoldReason, createHold } from './paymentHold.service';
+import { applyReceiptFifo, buildReceiptKey, findExactCustomer, round2 } from './receiptSettlement';
 
 export interface TransferRowResult {
   rowNumber: number;
   targetModule: string;
   operation: string;
-  status: 'created' | 'skipped' | 'failed' | 'pending-adapter';
+  status: 'created' | 'skipped' | 'failed' | 'pending-adapter' | 'on-hold';
   id?: string;
   note?: string;
 }
 
 export interface TransferResult {
   companyId: string;
-  summary: { created: number; skipped: number; failed: number; pendingAdapter: number };
+  summary: {
+    created: number;
+    skipped: number;
+    failed: number;
+    pendingAdapter: number;
+    onHold: number;
+  };
   rows: TransferRowResult[];
 }
 
@@ -124,278 +129,99 @@ async function resolveProductId(
   return product.id;
 }
 
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
-
-// बैंक-receipt import के लिए tenant की **BANK_TRANSFER** भुगतान-विधि चाहिए (कोई भी
-// active विधि नहीं — cash/card/wallet बैंक-receipt नहीं होते)। न मिले तो बना देते हैं।
-async function getOrCreateBankTransferMethod(companyId: string, userId: string): Promise<string> {
-  const existing = await prisma.paymentMethod.findFirst({
-    where: { tenantId: companyId, code: 'BANK_TRANSFER' },
-  });
-  if (existing) return existing.id;
-  try {
-    const created = await prisma.paymentMethod.create({
-      data: {
-        code: 'BANK_TRANSFER',
-        name: 'Bank Transfer',
-        tenantId: companyId,
-        createdBy: userId,
-        updatedBy: userId,
-      },
-    });
-    return created.id;
-  } catch {
-    // P2002 race — किसी और request ने बना दी; दोबारा ढूँढो
-    const again = await prisma.paymentMethod.findFirst({
-      where: { tenantId: companyId, code: 'BANK_TRANSFER' },
-    });
-    if (again) return again.id;
-    throw new Error('BANK_TRANSFER payment method नहीं बन सका');
-  }
-}
-
-// नाम से एक ही customer — substring/GST/phone match नहीं, बस tenant-scoped exact नाम।
-// 0 या 1 से ज़्यादा मिले → null (row suspense में जाएगी, गलत party पर पैसा नहीं लगेगा)।
-async function findExactCustomer(
-  companyId: string,
-  name: string
-): Promise<{ id: string; name: string } | null> {
-  const hits = await prisma.party_master.findMany({
-    where: {
-      company_id: companyId,
-      is_active: true,
-      party_type: { in: ['customer', 'both'] },
-      name: { equals: name, mode: 'insensitive' },
-    },
-    select: { id: true, name: true },
-    take: 2,
-  });
-  return hits.length === 1 ? hits[0] : null;
-}
-
 interface FifoResult {
-  status: 'created' | 'skipped' | 'failed';
+  status: 'created' | 'skipped' | 'failed' | 'on-hold';
   id?: string;
   note: string;
 }
 
-// owner फ़ैसला #3 Option B — बैंक में आई रक़म को उसी customer के सबसे पुराने बकाया
-// (approved/posted) invoice से क्रम में (FIFO) चुकता करना।
-//
-// यह एक real, idempotent M11 settlement है:
-//  • customer exact नाम से (auto-create नहीं) — न मिला/एक से ज़्यादा → suspense
-//  • सिर्फ़ approved/posted बिल (draft नहीं)
-//  • पूरा receipt एक PaymentTransaction (IN/COMPLETED) — बचत advance allocation में
-//  • हर invoice update conditional (बीच में कोई और चुका दे तो rollback)
-//  • same receipt दोबारा import → providerRef key से पहचान कर skip
-//  • balanced M11 audit-ledger pair (Dr Bank / Cr Receivable)
-//
-// जान-बूझकर दायरे से बाहर: इस import path से M10 में ताज़ा voucher **नहीं** बनता
-// (migrated opening balances के साथ double-count से बचने के लिए) — यह
-// M11 का settlement record + M11 audit ledger है, M08 invoice balance update करता है।
-async function settleInvoicesFifo(
+// बैंक-receipt पंक्ति process करो — उद्योग-मानक "Apply to Oldest":
+//  • साफ़ payment (customer मिला, बकाया बिल है) → अपने-आप FIFO, चुपचाप
+//  • shak़ी / customer न मिला / एक से ज़्यादा / कोई बकाया बिल नहीं → **on-hold** सूची
+//    (owner फ़ैसला 2026-09-09) — GNT यहाँ से कभी अपने-आप कुछ apply/close नहीं करता।
+async function settleReceiptRow(
   companyId: string,
   rowNumber: number,
   payload: Record<string, unknown>,
-  userId: string
+  userId: string,
+  sheetName: string | undefined
 ): Promise<FifoResult> {
-  const receiptRaw = num(payload.credit) ?? 0;
-  const receipt = round2(receiptRaw);
-  if (receipt <= 0) return { status: 'skipped', note: 'जमा राशि 0 — कुछ नहीं किया' };
+  const amount = round2(num(payload.credit) ?? 0);
+  if (amount <= 0) return { status: 'skipped', note: 'जमा राशि 0 — कुछ नहीं किया' };
 
   const partyName = str(payload.ledgerName);
-  if (!partyName) return { status: 'skipped', note: 'party नाम नहीं — suspense में' };
+  if (!partyName) return { status: 'skipped', note: 'party नाम नहीं — पंक्ति छोड़ी' };
+
+  const valueDate = payload.voucherDate ? parseImportDate(payload.voucherDate) : new Date();
+  const narration = str(payload.narration) ?? 'Data Sense — बैंक receipt';
+
+  const toHold = async (
+    reason: HoldReason,
+    resolvedPartyId: string | null,
+    why: string
+  ): Promise<FifoResult> => {
+    const h = await createHold({
+      companyId,
+      userId,
+      partyNameRaw: partyName,
+      resolvedPartyId,
+      amount,
+      valueDate,
+      narration,
+      reason,
+      sourceSheet: sheetName ?? null,
+      sourceRow: rowNumber,
+    });
+    return { status: 'on-hold', id: h.id, note: `${why} — on-hold सूची में` };
+  };
+
+  // owner/फ़ाइल का shak़ी flag → सीधे on-hold, कभी auto-apply नहीं
+  const flag = (str(payload.flag) ?? '').toLowerCase();
+  if (flag.includes('disput')) return toHold('DISPUTED', null, 'disputed मार्क');
+  if (flag.includes('doubt') || flag.includes('hold'))
+    return toHold('DOUBTFUL', null, 'doubtful मार्क');
 
   const customer = await findExactCustomer(companyId, partyName);
   if (!customer) {
-    return {
-      status: 'skipped',
-      note: `'${partyName}' नाम का एक customer नहीं मिला (0 या एक से ज़्यादा) — suspense में`,
-    };
-  }
-
-  const valueDate = payload.voucherDate ? parseImportDate(payload.voucherDate) : new Date();
-  const narration = str(payload.narration) ?? 'Data Sense — बैंक receipt FIFO settlement';
-
-  // idempotency — वही (company, party, राशि, तारीख़, narration) दोबारा आए तो एक ही बार
-  const receiptKey =
-    'DS-' +
-    createHash('sha256')
-      .update(
-        `${companyId}|${customer.id}|${receipt.toFixed(2)}|${valueDate.toISOString().slice(0, 10)}|${narration}`
-      )
-      .digest('hex')
-      .slice(0, 48);
-  const dup = await prisma.paymentTransaction.findFirst({
-    where: { tenantId: companyId, providerRef: receiptKey },
-    select: { transactionNumber: true },
-  });
-  if (dup) {
-    return {
-      status: 'skipped',
-      note: `यह receipt पहले import हो चुकी (txn ${dup.transactionNumber})`,
-    };
-  }
-
-  const methodId = await getOrCreateBankTransferMethod(companyId, userId);
-  const txnNumber = `TXN-${Date.now()}-${rowNumber}-${randomBytes(3).toString('hex')}`;
-
-  const outcome = await prisma.$transaction(async (tx) => {
-    const open = await tx.salesInvoice.findMany({
+    const n = await prisma.party_master.count({
       where: {
-        companyId,
-        customerId: customer.id,
-        status: { in: ['approved', 'posted'] },
-        paymentStatus: { in: ['unpaid', 'partial'] },
-      },
-      orderBy: [{ invoiceDate: 'asc' }, { invoiceNumber: 'asc' }],
-    });
-
-    let remaining = receipt;
-    const allocations: Array<{
-      targetType: string;
-      targetId: string;
-      targetNumber: string | null;
-      allocatedAmount: number;
-      isFullPayment: boolean;
-    }> = [];
-
-    for (const inv of open) {
-      if (remaining <= 0.00001) break;
-      const grand = Number(inv.grandTotal);
-      const already = Number(inv.amountPaid);
-      const balance = round2(grand - already);
-      if (balance <= 0) continue;
-      const alloc = round2(Math.min(remaining, balance));
-      const newPaid = round2(already + alloc);
-      const full = newPaid >= grand - 0.00001;
-      // conditional — बीच में कोई और payment इसी invoice पर लगा दे तो count 0 → rollback
-      const upd = await tx.salesInvoice.updateMany({
-        where: { id: inv.id, amountPaid: inv.amountPaid },
-        data: { amountPaid: newPaid, paymentStatus: full ? 'paid' : 'partial' },
-      });
-      if (upd.count !== 1) {
-        throw new Error(`invoice ${inv.invoiceNumber} बीच में बदल गई — import दोबारा चलाएँ`);
-      }
-      remaining = round2(remaining - alloc);
-      allocations.push({
-        targetType: 'INVOICE',
-        targetId: inv.id,
-        targetNumber: inv.invoiceNumber,
-        allocatedAmount: alloc,
-        isFullPayment: full,
-      });
-    }
-
-    const settled = round2(receipt - remaining);
-    if (allocations.length === 0) {
-      return { txnId: null as string | null, settled: 0, advance: 0, invoiceCount: 0 };
-    }
-
-    // बची हुई रक़म — पूरा receipt record हो, इसलिए advance allocation
-    if (remaining > 0.00001) {
-      allocations.push({
-        targetType: 'ACCOUNT',
-        targetId: customer.id,
-        targetNumber: null,
-        allocatedAmount: remaining,
-        isFullPayment: false,
-      });
-    }
-
-    const txn = await tx.paymentTransaction.create({
-      data: {
-        transactionNumber: txnNumber,
-        partyType: 'CUSTOMER',
-        partyId: customer.id,
-        partyName: customer.name,
-        amount: receipt,
-        baseAmount: receipt,
-        direction: 'IN',
-        status: 'COMPLETED',
-        paymentMethodId: methodId,
-        referenceType: 'INVOICE',
-        referenceId: allocations[0].targetId,
-        referenceNumber:
-          allocations
-            .filter((a) => a.targetNumber)
-            .map((a) => a.targetNumber)
-            .join(', ') || null,
-        providerRef: receiptKey,
-        narration,
-        transactionDate: valueDate,
-        valueDate,
-        settledAt: new Date(),
-        createdBy: userId,
-        updatedBy: userId,
-        tenantId: companyId,
+        company_id: companyId,
+        is_active: true,
+        party_type: { in: ['customer', 'both'] },
+        name: { equals: partyName, mode: 'insensitive' },
       },
     });
-    for (const a of allocations) {
-      await tx.paymentAllocation.create({
-        data: {
-          transactionId: txn.id,
-          targetType: a.targetType,
-          targetId: a.targetId,
-          targetNumber: a.targetNumber,
-          allocatedAmount: a.allocatedAmount,
-          isFullPayment: a.isFullPayment,
-          tenantId: companyId,
-        },
-      });
-    }
-    // balanced M11 audit ledger (M11 का अपना संक्षिप्त ledger — payment.service जैसा)
-    await new LedgerRepository(tx).create(
-      [
-        {
-          transactionId: txn.id,
-          accountCode: 'CASH_BANK',
-          debitAmount: new Decimal(receipt),
-          creditAmount: new Decimal(0),
-          narration: `Receipt ${txnNumber}`,
-          entryDate: valueDate,
-        },
-        {
-          transactionId: txn.id,
-          accountCode: 'ACCOUNTS_RECEIVABLE',
-          debitAmount: new Decimal(0),
-          creditAmount: new Decimal(receipt),
-          narration: `Receipt ${txnNumber}`,
-          entryDate: valueDate,
-        },
-      ],
-      companyId,
-      userId
-    );
+    return n > 1
+      ? toHold('AMBIGUOUS_PARTY', null, `'${partyName}' नाम के ${n} customer`)
+      : toHold('CUSTOMER_NOT_FOUND', null, `'${partyName}' नाम का customer नहीं मिला`);
+  }
 
-    return {
-      txnId: txn.id as string | null,
-      settled,
-      advance: remaining,
-      invoiceCount: allocations.filter((a) => a.targetType === 'INVOICE').length,
-    };
+  const result = await applyReceiptFifo({
+    companyId,
+    userId,
+    customerId: customer.id,
+    customerName: customer.name,
+    amount,
+    valueDate,
+    narration,
+    receiptKey: buildReceiptKey(companyId, customer.id, amount, valueDate, narration),
+    rowRef: rowNumber,
   });
 
-  if (!outcome.txnId) {
-    return {
-      status: 'skipped',
-      note: `'${partyName}' का कोई बकाया approved बिल नहीं — receipt suspense में`,
-    };
-  }
-  const note =
-    outcome.advance > 0.00001
-      ? `${outcome.invoiceCount} बिल में ₹${outcome.settled.toFixed(2)}; ₹${outcome.advance.toFixed(2)} advance जमा`
-      : `${outcome.invoiceCount} बिल पूरे/आंशिक चुकता`;
-  return { status: 'created', id: outcome.txnId, note };
+  if (result.status === 'duplicate') return { status: 'skipped', note: result.note };
+  if (result.status === 'no-open-invoice')
+    return toHold('NO_OPEN_INVOICE', customer.id, result.note);
+  return { status: 'created', id: result.txnId, note: result.note };
 }
 
 export async function executeTransfer(
   companyId: string,
   plan: TransferPlanItem[],
-  userId?: string
+  userId?: string,
+  sheetName?: string
 ): Promise<TransferResult> {
   const rows: TransferRowResult[] = [];
-  const summary = { created: 0, skipped: 0, failed: 0, pendingAdapter: 0 };
+  const summary = { created: 0, skipped: 0, failed: 0, pendingAdapter: 0, onHold: 0 };
 
   for (const item of plan) {
     const base = {
@@ -410,16 +236,18 @@ export async function executeTransfer(
         continue;
       }
 
-      // owner फ़ैसला #3 Option B — बैंक receipt → M11 में FIFO invoice settlement
+      // owner फ़ैसला #3 Option B — बैंक receipt → साफ़ हो तो FIFO, वरना on-hold सूची
       if (item.operation === 'settle-invoices-fifo') {
-        const res = await settleInvoicesFifo(
+        const res = await settleReceiptRow(
           companyId,
           item.rowNumber,
           item.payload,
-          userId ?? 'data-sense'
+          userId ?? 'data-sense',
+          sheetName
         );
         if (res.status === 'created') summary.created++;
         else if (res.status === 'skipped') summary.skipped++;
+        else if (res.status === 'on-hold') summary.onHold++;
         else summary.failed++;
         rows.push({ ...base, status: res.status, id: res.id, note: res.note });
         continue;

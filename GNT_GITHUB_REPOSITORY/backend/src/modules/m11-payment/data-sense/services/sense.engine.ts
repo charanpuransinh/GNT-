@@ -91,6 +91,8 @@ export const GROUP_SPECS: Readonly<Record<DataGroup, GroupSpec>> = {
       debit: ['debit', 'dr', 'debitamount'],
       credit: ['credit', 'cr', 'creditamount'],
       narration: ['narration', 'remarks', 'note', 'description'],
+      // owner/फ़ाइल का shak़ी निशान — 'doubtful'/'disputed'/'hold' → on-hold सूची, auto-apply नहीं
+      flag: ['flag', 'tag', 'holdflag', 'reviewflag', 'paymentstatus'],
     },
   },
   export: {

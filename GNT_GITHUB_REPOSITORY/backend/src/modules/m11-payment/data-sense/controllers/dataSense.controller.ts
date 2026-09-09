@@ -1,10 +1,11 @@
 /** Data Sense — HTTP परत (M11 sub-module) */
 import type { NextFunction, Request, Response } from 'express';
 import { dataSenseService } from '../services/dataSense.service';
+import { listOpenHolds, resolveHold } from '../services/paymentHold.service';
 import { GROUP_SPECS } from '../services/sense.engine';
 import { DATA_GROUP_OWNER } from '../types/dataGroup';
 import { DEFAULT_OPTIONS } from '../types/dataSense.types';
-import { analyzeSheetSchema } from '../validators/dataSense.schema';
+import { analyzeSheetSchema, resolveHoldSchema } from '../validators/dataSense.schema';
 
 export class DataSenseController {
   /** POST /api/v1/payments/data-sense/analyze */
@@ -35,6 +36,39 @@ export class DataSenseController {
       const { options, ...sheet } = analyzeSheetSchema.parse(req.body);
       const result = await dataSenseService.transfer(companyId, sheet, options, userId);
       res.json({ success: !result.blocked, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /** GET /api/v1/payments/data-sense/on-hold — जो receipt अपने-आप apply नहीं हुईं (aging के साथ) */
+  async onHoldList(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
+      if (!companyId) {
+        res.status(400).json({ success: false, error: 'company_id required' });
+        return;
+      }
+      const data = await listOpenHolds(companyId);
+      res.json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /** POST /api/v1/payments/data-sense/on-hold/:id/resolve — owner का फ़ैसला (apply-fifo | discard) */
+  async onHoldResolve(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const companyId = req.tenant?.companyId ?? (req.user?.companyId as string);
+      if (!companyId) {
+        res.status(400).json({ success: false, error: 'company_id required' });
+        return;
+      }
+      const userId = req.user?.id ?? 'owner';
+      const dto = resolveHoldSchema.parse(req.body);
+      const holdId = String(req.params.id);
+      const row = await resolveHold(companyId, userId, holdId, dto);
+      res.json({ success: true, data: row });
     } catch (err) {
       next(err);
     }

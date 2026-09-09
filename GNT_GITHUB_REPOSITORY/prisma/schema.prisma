@@ -1816,6 +1816,35 @@ model BankAccount {
   @@map("m11_bank_accounts")
 }
 
+// Data Sense — बैंक-receipt import की वो पंक्तियाँ जिन्हें GNT अपने-आप apply नहीं करता:
+//  • customer नाम से नहीं मिला / एक ही नाम के कई   • कोई बकाया (approved/posted) बिल नहीं
+//  • owner ने खुद doubtful/disputed मार्क किया
+// यह एक "on-hold" सूची है — रोज़ के popup में नहीं आती; owner जब चाहे resolve करे।
+// GNT यहाँ से कभी अपने-आप कुछ apply/close नहीं करता (owner फ़ैसला 2026-09-09)।
+model DataSensePaymentHold {
+  id              String   @id @default(cuid())
+  tenantId        String
+  partyNameRaw    String              // फ़ाइल में जो नाम आया था
+  resolvedPartyId String?             // exact मिला हो तो
+  amount          Decimal  @db.Decimal(18, 4)
+  valueDate       DateTime
+  narration       String?
+  reason          String              // CUSTOMER_NOT_FOUND | AMBIGUOUS_PARTY | NO_OPEN_INVOICE | DOUBTFUL | DISPUTED
+  sourceSheet     String?
+  sourceRow       Int?
+  status          String   @default("OPEN")  // OPEN | RESOLVED | DISCARDED
+  resolutionNote  String?
+  resolvedTxnId   String?             // apply करने पर बनी PaymentTransaction
+  createdBy       String
+  resolvedBy      String?
+  createdAt       DateTime @default(now())
+  resolvedAt      DateTime?
+
+  @@index([tenantId, status])
+  @@index([tenantId, reason])
+  @@map("m11_data_sense_payment_holds")
+}
+
 // ────────────────────────────────────────────────────────────
 // GNT M12 — HR MODULE
 // Source: database/schema/M12_HR.prisma (Team C, Session 2)

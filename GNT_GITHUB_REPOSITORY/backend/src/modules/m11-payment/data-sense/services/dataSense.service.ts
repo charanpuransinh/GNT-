@@ -127,7 +127,12 @@ export class DataSenseService {
         transferred: null,
       };
     }
-    const transferred = await executeTransfer(companyId, analysis.transferPlan, userId);
+    const transferred = await executeTransfer(
+      companyId,
+      analysis.transferPlan,
+      userId,
+      analysis.sheetName
+    );
     return { ...analysis, blocked: false, reason: null, transferred };
   }
 }
