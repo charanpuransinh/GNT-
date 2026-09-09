@@ -3,12 +3,12 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { Request, Response } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
+import { Request, Response } from 'express';
 import { quotationService } from '../services/quotation.service';
 import {
-  quotationSchema,
   quotationQuerySchema,
+  quotationSchema,
   salesOrderSchema,
 } from '../validators/sales.schema';
 
@@ -27,9 +27,18 @@ export class QuotationController {
   // ─── GET QUOTATIONS ───
   async getQuotations(req: Request, res: Response): Promise<void> {
     try {
-      const query = quotationQuerySchema.parse({ ...req.query, companyId: requireTenant(req).companyId });
+      const query = quotationQuerySchema.parse({
+        ...req.query,
+        companyId: requireTenant(req).companyId,
+      });
       const result = await quotationService.getQuotations(query);
-      res.status(200).json({ success: true, data: result.data, meta: { total: result.total, page: query.page, limit: query.limit } });
+      res
+        .status(200)
+        .json({
+          success: true,
+          data: result.data,
+          meta: { total: result.total, page: query.page, limit: query.limit },
+        });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
     }

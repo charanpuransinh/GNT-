@@ -3,8 +3,12 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { calculateInvoiceTotals, generateInvoiceNumber, calculateReturnTotals } from '../../services/sales.internal';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  calculateInvoiceTotals,
+  calculateReturnTotals,
+  generateInvoiceNumber,
+} from '../../services/sales.internal';
 import { SalesInvoiceItemDTO } from '../../types/sales.types';
 
 describe('Sales Service Unit Tests', () => {
@@ -39,7 +43,9 @@ describe('Sales Service Unit Tests', () => {
   // ─── TEST: Credit limit check blocks over-limit invoice ───
   it('should block invoice if credit limit exceeded', async () => {
     // This is tested in integration; here we verify the logic path
-    const mockCheckCreditLimit = vi.fn().mockResolvedValue({ allowed: false, limit: 5000, used: 4800 });
+    const mockCheckCreditLimit = vi
+      .fn()
+      .mockResolvedValue({ allowed: false, limit: 5000, used: 4800 });
     const invoiceAmount = 500;
     const check = await mockCheckCreditLimit('cust-1', invoiceAmount);
     expect(check.allowed).toBe(false);

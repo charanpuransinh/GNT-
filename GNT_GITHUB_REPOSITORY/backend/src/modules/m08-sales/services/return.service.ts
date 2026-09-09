@@ -3,55 +3,20 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { SalesReturn } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { StockService } from '@/modules/m06-inventory';
+import { InvoiceLedgerService } from '@/modules/m10-accounting';
+import { SalesReturn } from '@prisma/client';
+import { eventBus } from '../../../core/event-bus';
 import { returnRepository } from '../repositories/return.repository';
 import { salesRepository } from '../repositories/sales.repository';
-import {
-  SalesReturnDTO,
-  ReturnQueryParams,
-  SalesReturnCreatedEvent,
-} from '../types/sales.types';
+import { ReturnQueryParams, SalesReturnCreatedEvent, SalesReturnDTO } from '../types/sales.types';
 import { calculateReturnTotals, generateReturnNumber } from './sales.internal';
-import { eventBus } from '../../../core/event-bus';
 
-
-interface StockService {
-  addBackStock(items: Array<{ productId: string; quantity: number }>, branchId: string): Promise<void>;
-}
-interface GstService {
-  calculateTax(items: Array<{ hsnCode: string; amount: number; taxRate: number }>, customerState: string, companyState: string): Promise<any>;
-}
-interface LedgerService {
-  createEntry(entry: any): Promise<void>;
-}
-interface PartyService {
-  getCustomerById(id: string): Promise<any>;
-}
-// टास्क #007 Step 4 — company M04 की चीज़ है, M05 से नहीं
-interface CompanyService {
-  getProfile(companyId: string): Promise<any>;
-}
-
-let stockService: StockService;
-let gstService: GstService;
-let ledgerService: LedgerService;
-let partyService: PartyService;
-let companyService: CompanyService;
-
-export function injectReturnDependencies(deps: {
-  stockService: StockService;
-  gstService: GstService;
-  ledgerService: LedgerService;
-  partyService: PartyService;
-  companyService: CompanyService;
-}) {
-  stockService = deps.stockService;
-  gstService = deps.gstService;
-  ledgerService = deps.ledgerService;
-  partyService = deps.partyService;
-  companyService = deps.companyService;
-}
+// audit 2026-09-09: injectDependencies() कभी wire नहीं होती थी → postReturn हमेशा
+// 500 देता था (state mutate करने के *बाद*)। अब M06/M10 direct — endpoint असल में चलता है।
+const returnLedger = new InvoiceLedgerService(prisma);
+const returnStock = new StockService();
 
 export class ReturnService {
   // ─── CREATE RETURN ───
@@ -62,13 +27,21 @@ export class ReturnService {
     const invoiceItemsByProduct = new Map(invoice.items.map((item: any) => [item.productId, item]));
     const normalizedItems = dto.items.map((item) => {
       const original = invoiceItemsByProduct.get(item.productId);
-      if (!original) throw new Error(`Product ${item.productId} is not present on the original invoice`);
+      if (!original)
+        throw new Error(`Product ${item.productId} is not present on the original invoice`);
       if (Number(item.quantity) <= 0) throw new Error('Return quantity must be greater than 0');
-      if (Number(item.quantity) > Number(original.quantity)) throw new Error(`Return quantity exceeds invoiced quantity for product ${item.productId}`);
-      return { ...item, rate: Number(original.rate), taxRate: Number(original.taxRate), hsnCode: original.hsnCode || undefined };
+      if (Number(item.quantity) > Number(original.quantity))
+        throw new Error(`Return quantity exceeds invoiced quantity for product ${item.productId}`);
+      return {
+        ...item,
+        rate: Number(original.rate),
+        taxRate: Number(original.taxRate),
+        hsnCode: original.hsnCode || undefined,
+      };
     });
     const totals = calculateReturnTotals(normalizedItems);
-    const returnNumber = dto.returnNumber || await returnRepository.getNextReturnNumber(dto.companyId);
+    const returnNumber =
+      dto.returnNumber || (await returnRepository.getNextReturnNumber(dto.companyId));
 
     const returnData = {
       companyId: dto.companyId,
@@ -100,7 +73,10 @@ export class ReturnService {
   }
 
   // ─── GET RETURN BY ID ───
-  async getReturnById(id: string, companyId: string): Promise<SalesReturn & { items: any[] } | null> {
+  async getReturnById(
+    id: string,
+    companyId: string
+  ): Promise<(SalesReturn & { items: any[] }) | null> {
     return returnRepository.getReturnById(id, companyId);
   }
 
@@ -113,58 +89,43 @@ export class ReturnService {
     return returnRepository.updateReturnStatus(id, companyId, 'approved');
   }
 
-  // ─── POST RETURN (ATOMIC — triggers stock add-back + GST reversal + ledger reversal) ───
-  async postReturn(id: string, companyId: string): Promise<SalesReturn> {
+  // ─── POST RETURN — real M06 stock add-back + M10 credit-note voucher, THEN status ───
+  // (पहले: repository.postReturn() जो status पहले बदलता; फिर handlers जो throw करते —
+  //  route हमेशा 500, DB half-mutated। अब: side-effects पहले, status बाद में — M08
+  //  postInvoice जैसा ही सिद्धांत।)
+  async postReturn(id: string, companyId: string, userId?: string): Promise<SalesReturn> {
     const salesReturn = await returnRepository.getReturnById(id, companyId);
     if (!salesReturn) throw new Error('Return not found');
-    if (salesReturn.status !== 'approved') throw new Error('Return must be approved before posting');
+    if (salesReturn.status !== 'approved')
+      throw new Error('Return must be approved before posting');
 
     const invoice = await salesRepository.getInvoiceById(salesReturn.salesInvoiceId, companyId);
     if (!invoice) throw new Error('Original invoice not found');
 
-    if (!stockService || !gstService || !ledgerService || !partyService || !companyService) throw new Error('M08 return dependencies are not fully wired');
-    const customer = await partyService.getCustomerById(invoice.customerId);
-    const company = await companyService.getProfile(invoice.companyId);
-    if (!customer || !company) throw new Error('Customer or company master data not found');
+    // 1. M10 credit-note voucher (sales-invoice accrual का उल्टा)। fatal error →
+    //    propagate (return 'approved' ही रहे, ईमानदार failure)। "already posted" → आगे बढ़ो।
+    const ledger = await returnLedger.postSalesReturn(companyId, id, userId);
 
-    await prisma.$transaction(async (tx) => {
-      // a. Add back stock (M06)
-      if (stockService) {
-        const stockItems = salesReturn.items.map((i: any) => ({
-          productId: i.productId,
-          quantity: Number(i.quantity),
-        }));
-        await stockService.addBackStock(stockItems, invoice.branchId);
-      }
+    // 2. M06 — हर item का stock वापस (real avg-price update, movement log)
+    for (const item of salesReturn.items as Array<{
+      productId: string;
+      quantity: unknown;
+      rate: unknown;
+    }>) {
+      await returnStock.addStock(
+        item.productId,
+        Number(item.quantity),
+        companyId,
+        invoice.branchId,
+        null,
+        Number(item.rate) || null,
+        'SALES_RETURN',
+        id
+      );
+    }
 
-      // b. GST reversal (M09)
-      if (gstService) {
-        const invoiceItemsByProduct = new Map(invoice.items.map((i: any) => [i.productId, i]));
-        const gstItems = salesReturn.items.map((i: any) => {
-          const original = invoiceItemsByProduct.get(i.productId);
-          if (!original) throw new Error(`Original invoice item not found for product ${i.productId}`);
-          return { hsnCode: original.hsnCode || '', amount: Number(i.amount), taxRate: Number(original.taxRate) };
-        });
-        await gstService.calculateTax(gstItems, customer.state, company.state);
-      }
-
-      // c. Ledger reversal (M10)
-      if (ledgerService) {
-        await ledgerService.createEntry({
-          returnId: salesReturn.id,
-          customerId: salesReturn.customerId,
-          amount: Number(salesReturn.netAmount),
-          type: 'SALES_RETURN',
-          date: new Date(),
-        });
-      }
-
-      // d. Update return status
-      await tx.salesReturn.update({
-        where: { id },
-        data: { status: 'posted' },
-      });
-    });
+    // 3. status → posted
+    await prisma.salesReturn.update({ where: { id }, data: { status: 'posted' } });
 
     // Publish event
     const eventPayload: SalesReturnCreatedEvent = {

@@ -38,7 +38,10 @@ export const quotationSchema = z.object({
   quotationNumber: z.string().max(100).optional(),
   quotationDate: z.union([z.string().datetime(), z.date()]),
   expiryDate: z.union([z.string().datetime(), z.date()]),
-  status: z.enum(['draft', 'sent', 'accepted', 'rejected', 'converted']).optional().default('draft'),
+  status: z
+    .enum(['draft', 'sent', 'accepted', 'rejected', 'converted'])
+    .optional()
+    .default('draft'),
   totalAmount: decimalString.optional(),
   totalTax: decimalString.optional(),
   totalDiscount: decimalString.optional(),
@@ -74,7 +77,10 @@ export const salesOrderSchema = z.object({
   orderNumber: z.string().max(100).optional(),
   orderDate: z.union([z.string().datetime(), z.date()]),
   deliveryDate: z.union([z.string().datetime(), z.date()]),
-  status: z.enum(['draft', 'confirmed', 'partial', 'delivered', 'cancelled']).optional().default('draft'),
+  status: z
+    .enum(['draft', 'confirmed', 'partial', 'delivered', 'cancelled'])
+    .optional()
+    .default('draft'),
   totalAmount: decimalString.optional(),
   totalTax: decimalString.optional(),
   totalDiscount: decimalString.optional(),

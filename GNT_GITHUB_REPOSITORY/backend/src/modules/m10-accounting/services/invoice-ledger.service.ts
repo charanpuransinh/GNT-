@@ -32,7 +32,7 @@
 // यह खाता सिर्फ़ invoice-posting छूता है, payment नहीं)।
 // ============================================================================
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 export type InvoiceLedgerResult =
   | { posted: true; voucherId: string }
@@ -52,9 +52,11 @@ export class InvoiceLedgerService {
     companyId: string,
     code: string,
     name: string,
-    type: 'asset' | 'liability' | 'income' | 'expense',
+    type: 'asset' | 'liability' | 'income' | 'expense'
   ): Promise<ResolvedAccount> {
-    const existing = await this.prisma.account_master.findFirst({ where: { company_id: companyId, code } });
+    const existing = await this.prisma.account_master.findFirst({
+      where: { company_id: companyId, code },
+    });
     if (existing) return { id: existing.id };
     const created = await this.prisma.account_master.create({
       data: { company_id: companyId, name, code, type },
@@ -75,7 +77,12 @@ export class InvoiceLedgerService {
     return this.resolveAccount(companyId, `M10-PURCHASE-${companyId}`, 'Purchases', 'expense');
   }
   private gstOutput(companyId: string) {
-    return this.resolveAccount(companyId, `M10-GST-OUTPUT-${companyId}`, 'GST Output Tax', 'liability');
+    return this.resolveAccount(
+      companyId,
+      `M10-GST-OUTPUT-${companyId}`,
+      'GST Output Tax',
+      'liability'
+    );
   }
   private gstInput(companyId: string) {
     return this.resolveAccount(companyId, `M10-GST-INPUT-${companyId}`, 'GST Input Tax', 'asset');
@@ -86,9 +93,9 @@ export class InvoiceLedgerService {
 
   private async alreadyPosted(
     companyId: string,
-    referenceType: 'SALES_INVOICE' | 'PURCHASE_INVOICE',
+    referenceType: 'SALES_INVOICE' | 'PURCHASE_INVOICE' | 'SALES_RETURN' | 'PURCHASE_RETURN',
     referenceId: string,
-    incomeExpenseAccountId: string,
+    incomeExpenseAccountId: string
   ): Promise<boolean> {
     const row = await this.prisma.ledger.findFirst({
       where: {
@@ -112,19 +119,31 @@ export class InvoiceLedgerService {
     voucherType: 'sales' | 'purchase';
     voucherDate: Date;
     narration: string;
-    referenceType: 'SALES_INVOICE' | 'PURCHASE_INVOICE';
+    referenceType: 'SALES_INVOICE' | 'PURCHASE_INVOICE' | 'SALES_RETURN' | 'PURCHASE_RETURN';
     referenceId: string;
     partyId: string;
     partyAccountId: string;
     createdBy?: string | null;
     lines: Array<{ accountId: string; debit: number; credit: number; isParty?: boolean }>;
   }): Promise<string> {
-    const { companyId, branchId, voucherType, voucherDate, narration, referenceType, referenceId, partyId, createdBy } = params;
+    const {
+      companyId,
+      branchId,
+      voucherType,
+      voucherDate,
+      narration,
+      referenceType,
+      referenceId,
+      partyId,
+      createdBy,
+    } = params;
     const lines = params.lines.filter((l) => r4(l.debit) > 0 || r4(l.credit) > 0);
     const totalDebit = r4(lines.reduce((s, l) => s + l.debit, 0));
     const totalCredit = r4(lines.reduce((s, l) => s + l.credit, 0));
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      throw new Error(`M10 invoice voucher unbalanced: Dr ${totalDebit} != Cr ${totalCredit} (${referenceType} ${referenceId})`);
+      throw new Error(
+        `M10 invoice voucher unbalanced: Dr ${totalDebit} != Cr ${totalCredit} (${referenceType} ${referenceId})`
+      );
     }
 
     const voucherNumber = `${voucherType === 'sales' ? 'SV' : 'PV'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -176,7 +195,11 @@ export class InvoiceLedgerService {
   }
 
   /** M08 → M10: sales invoice posted होते ही accrual entry */
-  async postSalesInvoice(companyId: string, invoiceId: string, userId?: string): Promise<InvoiceLedgerResult> {
+  async postSalesInvoice(
+    companyId: string,
+    invoiceId: string,
+    userId?: string
+  ): Promise<InvoiceLedgerResult> {
     const inv = await this.prisma.salesInvoice.findFirst({ where: { id: invoiceId, companyId } });
     if (!inv) return { posted: false, reason: 'sales invoice not found for this company' };
 
@@ -203,7 +226,8 @@ export class InvoiceLedgerService {
       { accountId: gstOut.id, debit: 0, credit: totalTax },
     ];
     if (roundOff > 0.0001) lines.push({ accountId: roundOffAcct.id, debit: 0, credit: roundOff });
-    else if (roundOff < -0.0001) lines.push({ accountId: roundOffAcct.id, debit: -roundOff, credit: 0 });
+    else if (roundOff < -0.0001)
+      lines.push({ accountId: roundOffAcct.id, debit: -roundOff, credit: 0 });
 
     const voucherId = await this.writeVoucher({
       companyId,
@@ -222,8 +246,14 @@ export class InvoiceLedgerService {
   }
 
   /** M07 → M10: purchase invoice posted होते ही accrual entry */
-  async postPurchaseInvoice(companyId: string, invoiceId: string, userId?: string): Promise<InvoiceLedgerResult> {
-    const inv = await this.prisma.purchase_invoice.findFirst({ where: { id: invoiceId, company_id: companyId } });
+  async postPurchaseInvoice(
+    companyId: string,
+    invoiceId: string,
+    userId?: string
+  ): Promise<InvoiceLedgerResult> {
+    const inv = await this.prisma.purchase_invoice.findFirst({
+      where: { id: invoiceId, company_id: companyId },
+    });
     if (!inv) return { posted: false, reason: 'purchase invoice not found for this company' };
 
     const grandTotal = r4(Number(inv.grand_total ?? 0));
@@ -249,7 +279,8 @@ export class InvoiceLedgerService {
       { accountId: creditors.id, debit: 0, credit: grandTotal, isParty: true },
     ];
     if (roundOff > 0.0001) lines.push({ accountId: roundOffAcct.id, debit: roundOff, credit: 0 });
-    else if (roundOff < -0.0001) lines.push({ accountId: roundOffAcct.id, debit: 0, credit: -roundOff });
+    else if (roundOff < -0.0001)
+      lines.push({ accountId: roundOffAcct.id, debit: 0, credit: -roundOff });
 
     const voucherId = await this.writeVoucher({
       companyId,
@@ -263,6 +294,101 @@ export class InvoiceLedgerService {
       partyAccountId: creditors.id,
       createdBy: userId,
       lines,
+    });
+    return { posted: true, voucherId };
+  }
+
+  /**
+   * M08 → M10: sales return (credit note) posted — sales-invoice accrual का उल्टा।
+   * Dr Sales Revenue (taxable) + Dr GST Output (tax) = Cr Sundry Debtors (gross)।
+   * netAmount = totalAmount + taxAmount (return.service के totals से)।
+   */
+  async postSalesReturn(
+    companyId: string,
+    returnId: string,
+    userId?: string
+  ): Promise<InvoiceLedgerResult> {
+    const ret = await this.prisma.salesReturn.findFirst({ where: { id: returnId, companyId } });
+    if (!ret) return { posted: false, reason: 'sales return not found for this company' };
+
+    const taxable = r4(Number(ret.totalAmount));
+    const tax = r4(Number(ret.taxAmount));
+    const gross = r4(Number(ret.netAmount));
+    if (gross <= 0) return { posted: false, reason: 'return net amount is zero — nothing to post' };
+
+    const [debtors, salesRev, gstOut] = await Promise.all([
+      this.debtors(companyId),
+      this.salesRevenue(companyId),
+      this.gstOutput(companyId),
+    ]);
+    if (await this.alreadyPosted(companyId, 'SALES_RETURN', returnId, salesRev.id)) {
+      return { posted: false, reason: 'already posted to ledger' };
+    }
+
+    const voucherId = await this.writeVoucher({
+      companyId,
+      branchId: null,
+      voucherType: 'sales',
+      voucherDate: ret.returnDate ?? new Date(),
+      narration: `Sales Return ${ret.returnNumber}`,
+      referenceType: 'SALES_RETURN',
+      referenceId: returnId,
+      partyId: ret.customerId,
+      partyAccountId: debtors.id,
+      createdBy: userId,
+      lines: [
+        { accountId: salesRev.id, debit: taxable, credit: 0 },
+        { accountId: gstOut.id, debit: tax, credit: 0 },
+        { accountId: debtors.id, debit: 0, credit: gross, isParty: true },
+      ],
+    });
+    return { posted: true, voucherId };
+  }
+
+  /**
+   * M07 → M10: purchase return (debit note) posted — purchase-invoice accrual का उल्टा।
+   * Dr Sundry Creditors (gross) = Cr Purchases (taxable) + Cr GST Input (tax)।
+   */
+  async postPurchaseReturn(
+    companyId: string,
+    returnId: string,
+    userId?: string
+  ): Promise<InvoiceLedgerResult> {
+    const ret = await this.prisma.purchase_return.findFirst({
+      where: { id: returnId, company_id: companyId },
+    });
+    if (!ret) return { posted: false, reason: 'purchase return not found for this company' };
+
+    const taxable = r4(Number(ret.total_amount ?? 0));
+    const tax = r4(Number(ret.tax_amount ?? 0));
+    const gross = r4(Number(ret.net_amount ?? 0)) || r4(taxable + tax);
+    if (gross <= 0) return { posted: false, reason: 'return net amount is zero — nothing to post' };
+
+    const [creditors, purchasesAcct, gstIn] = await Promise.all([
+      this.creditors(companyId),
+      this.purchases(companyId),
+      this.gstInput(companyId),
+    ]);
+    if (await this.alreadyPosted(companyId, 'PURCHASE_RETURN', returnId, purchasesAcct.id)) {
+      return { posted: false, reason: 'already posted to ledger' };
+    }
+
+    const voucherId = await this.writeVoucher({
+      companyId,
+      branchId: null,
+      voucherType: 'purchase',
+      voucherDate: ret.return_date ?? new Date(),
+      narration: `Purchase Return ${ret.return_number}`,
+      referenceType: 'PURCHASE_RETURN',
+      referenceId: returnId,
+      partyId: ret.supplier_id,
+      partyAccountId: creditors.id,
+      createdBy: userId,
+      lines: [
+        { accountId: creditors.id, debit: gross, credit: 0, isParty: true },
+        { accountId: purchasesAcct.id, debit: 0, credit: taxable },
+        { accountId: gstIn.id, debit: 0, credit: tax },
+      ],
     });
     return { posted: true, voucherId };
   }

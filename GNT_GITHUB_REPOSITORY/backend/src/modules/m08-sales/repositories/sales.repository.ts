@@ -4,14 +4,17 @@
  * RULE: INTERNAL ONLY — No direct access from other modules
  */
 
-import { SalesInvoice, SalesInvoiceItem, PaymentStatus, Prisma } from '@prisma/client';
 import { prisma } from '@/common/config/prisma';
+import { PaymentStatus, Prisma, SalesInvoice, SalesInvoiceItem } from '@prisma/client';
 import { InvoiceQueryParams } from '../types/sales.types';
-
 
 export class SalesRepository {
   // ─── CREATE ───
-  async createInvoice(data: Prisma.SalesInvoiceCreateInput & { items: Prisma.SalesInvoiceItemCreateManySalesInvoiceInput[] }): Promise<SalesInvoice> {
+  async createInvoice(
+    data: Prisma.SalesInvoiceCreateInput & {
+      items: Prisma.SalesInvoiceItemCreateManySalesInvoiceInput[];
+    }
+  ): Promise<SalesInvoice> {
     return prisma.salesInvoice.create({
       data: {
         ...data,
@@ -26,7 +29,10 @@ export class SalesRepository {
   }
 
   // ─── READ ───
-  async getInvoiceById(id: string, companyId: string): Promise<SalesInvoice & { items: SalesInvoiceItem[] } | null> {
+  async getInvoiceById(
+    id: string,
+    companyId: string
+  ): Promise<(SalesInvoice & { items: SalesInvoiceItem[] }) | null> {
     return prisma.salesInvoice.findFirst({
       where: { id, companyId },
       include: { items: true, salesOrder: true, quotation: true },
@@ -34,7 +40,16 @@ export class SalesRepository {
   }
 
   async getInvoices(params: InvoiceQueryParams): Promise<{ data: SalesInvoice[]; total: number }> {
-    const { companyId, customerId, fromDate, toDate, status, paymentStatus, page = 1, limit = 20 } = params;
+    const {
+      companyId,
+      customerId,
+      fromDate,
+      toDate,
+      status,
+      paymentStatus,
+      page = 1,
+      limit = 20,
+    } = params;
     const where: Prisma.SalesInvoiceWhereInput = { companyId };
 
     if (customerId) where.customerId = customerId;
@@ -67,33 +82,58 @@ export class SalesRepository {
   }
 
   // ─── UPDATE ───
-  async updateInvoice(id: string, companyId: string, data: Prisma.SalesInvoiceUpdateInput): Promise<SalesInvoice> {
-    return prisma.salesInvoice.updateMany({
-      where: { id, companyId, status: 'draft' },
-      data,
-    }).then((result) => {
-      if (result.count === 0) throw new Error('Invoice not found or not in draft status');
-      return prisma.salesInvoice.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
-    });
+  async updateInvoice(
+    id: string,
+    companyId: string,
+    data: Prisma.SalesInvoiceUpdateInput
+  ): Promise<SalesInvoice> {
+    return prisma.salesInvoice
+      .updateMany({
+        where: { id, companyId, status: 'draft' },
+        data,
+      })
+      .then((result) => {
+        if (result.count === 0) throw new Error('Invoice not found or not in draft status');
+        return prisma.salesInvoice.findUnique({
+          where: { id },
+          include: { items: true },
+        }) as Promise<any>;
+      });
   }
 
-  async updateInvoiceStatus(id: string, companyId: string, status: string, extra?: Record<string, any>): Promise<SalesInvoice> {
+  async updateInvoiceStatus(
+    id: string,
+    companyId: string,
+    status: string,
+    extra?: Record<string, any>
+  ): Promise<SalesInvoice> {
     const updateData: any = { status, ...extra };
     await prisma.salesInvoice.updateMany({
       where: { id, companyId },
       data: updateData,
     });
-    return prisma.salesInvoice.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
+    return prisma.salesInvoice.findUnique({
+      where: { id },
+      include: { items: true },
+    }) as Promise<any>;
   }
 
   // paymentStatus पैसे से जुड़ा है — यहाँ ग़लत शब्द जाना सबसे महँगा पड़ता।
   // अब enum ही स्वीकार होगा, `as any` हटा।
-  async updatePaymentStatus(id: string, companyId: string, paymentStatus: PaymentStatus, amountPaid: number): Promise<SalesInvoice> {
+  async updatePaymentStatus(
+    id: string,
+    companyId: string,
+    paymentStatus: PaymentStatus,
+    amountPaid: number
+  ): Promise<SalesInvoice> {
     await prisma.salesInvoice.updateMany({
       where: { id, companyId },
       data: { paymentStatus, amountPaid },
     });
-    return prisma.salesInvoice.findUnique({ where: { id }, include: { items: true } }) as Promise<any>;
+    return prisma.salesInvoice.findUnique({
+      where: { id },
+      include: { items: true },
+    }) as Promise<any>;
   }
 
   // ─── DELETE ───

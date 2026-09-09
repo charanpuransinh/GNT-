@@ -4,20 +4,24 @@
  * Generates HTML for thermal (58mm/80mm) and A4 print formats
  */
 
-import { PrintTemplate, PrintRequestDTO } from '../types/sales.types';
+import { PrintRequestDTO, PrintTemplate } from '../types/sales.types';
 import { PrintData, preparePrintData } from './sales.internal';
 
 export class PrintService {
   generateThermal2Inch(data: PrintData): string {
-    const { companyName, invoiceNumber, invoiceDate, customerName, items, totals, paymentMode } = data;
-    const itemRows = items.map((i) =>
-      `<tr>
+    const { companyName, invoiceNumber, invoiceDate, customerName, items, totals, paymentMode } =
+      data;
+    const itemRows = items
+      .map(
+        (i) =>
+          `<tr>
         <td style="text-align:left;font-size:10px;">${i.qty}</td>
         <td style="text-align:left;font-size:10px;max-width:80px;overflow:hidden;">${i.description}</td>
         <td style="text-align:right;font-size:10px;">${i.rate.toFixed(2)}</td>
         <td style="text-align:right;font-size:10px;">${i.netAmount.toFixed(2)}</td>
       </tr>`
-    ).join('');
+      )
+      .join('');
 
     return `<!DOCTYPE html>
 <html>
@@ -68,9 +72,26 @@ export class PrintService {
   }
 
   generateThermal3Inch(data: PrintData): string {
-    const { companyName, companyAddress, companyGstin, invoiceNumber, invoiceDate, dueDate, customerName, customerAddress, customerGstin, items, totals, paymentMode, terms, notes } = data;
-    const itemRows = items.map((i) =>
-      `<tr>
+    const {
+      companyName,
+      companyAddress,
+      companyGstin,
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      customerName,
+      customerAddress,
+      customerGstin,
+      items,
+      totals,
+      paymentMode,
+      terms,
+      notes,
+    } = data;
+    const itemRows = items
+      .map(
+        (i) =>
+          `<tr>
         <td style="text-align:center;font-size:11px;">${i.sno}</td>
         <td style="text-align:left;font-size:11px;">${i.description}</td>
         <td style="text-align:center;font-size:11px;">${i.hsn}</td>
@@ -80,12 +101,16 @@ export class PrintService {
         <td style="text-align:right;font-size:11px;">${i.taxAmount.toFixed(2)}</td>
         <td style="text-align:right;font-size:11px;">${i.netAmount.toFixed(2)}</td>
       </tr>`
-    ).join('');
+      )
+      .join('');
 
-    const taxRows = totals.taxBreakup.map((t) =>
-      `<tr><td>CGST @ ${t.rate/2}%</td><td class="right">${t.cgst.toFixed(2)}</td></tr>
-       <tr><td>SGST @ ${t.rate/2}%</td><td class="right">${t.sgst.toFixed(2)}</td></tr>`
-    ).join('');
+    const taxRows = totals.taxBreakup
+      .map(
+        (t) =>
+          `<tr><td>CGST @ ${t.rate / 2}%</td><td class="right">${t.cgst.toFixed(2)}</td></tr>
+       <tr><td>SGST @ ${t.rate / 2}%</td><td class="right">${t.sgst.toFixed(2)}</td></tr>`
+      )
+      .join('');
 
     return `<!DOCTYPE html>
 <html>
@@ -143,9 +168,26 @@ export class PrintService {
   }
 
   generateA4(data: PrintData): string {
-    const { companyName, companyAddress, companyGstin, invoiceNumber, invoiceDate, dueDate, customerName, customerAddress, customerGstin, items, totals, paymentMode, terms, notes } = data;
-    const itemRows = items.map((i) =>
-      `<tr>
+    const {
+      companyName,
+      companyAddress,
+      companyGstin,
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      customerName,
+      customerAddress,
+      customerGstin,
+      items,
+      totals,
+      paymentMode,
+      terms,
+      notes,
+    } = data;
+    const itemRows = items
+      .map(
+        (i) =>
+          `<tr>
         <td style="border:1px solid #ccc;padding:6px;text-align:center;">${i.sno}</td>
         <td style="border:1px solid #ccc;padding:6px;">${i.description}<br/><small>HSN: ${i.hsn}</small></td>
         <td style="border:1px solid #ccc;padding:6px;text-align:center;">${i.qty}</td>
@@ -156,12 +198,16 @@ export class PrintService {
         <td style="border:1px solid #ccc;padding:6px;text-align:right;">₹${i.taxAmount.toFixed(2)}</td>
         <td style="border:1px solid #ccc;padding:6px;text-align:right;">₹${i.netAmount.toFixed(2)}</td>
       </tr>`
-    ).join('');
+      )
+      .join('');
 
-    const taxRows = totals.taxBreakup.map((t) =>
-      `<tr><td style="padding:4px 8px;">CGST @ ${t.rate/2}%</td><td style="text-align:right;padding:4px 8px;">₹${t.cgst.toFixed(2)}</td></tr>
-       <tr><td style="padding:4px 8px;">SGST @ ${t.rate/2}%</td><td style="text-align:right;padding:4px 8px;">₹${t.sgst.toFixed(2)}</td></tr>`
-    ).join('');
+    const taxRows = totals.taxBreakup
+      .map(
+        (t) =>
+          `<tr><td style="padding:4px 8px;">CGST @ ${t.rate / 2}%</td><td style="text-align:right;padding:4px 8px;">₹${t.cgst.toFixed(2)}</td></tr>
+       <tr><td style="padding:4px 8px;">SGST @ ${t.rate / 2}%</td><td style="text-align:right;padding:4px 8px;">₹${t.sgst.toFixed(2)}</td></tr>`
+      )
+      .join('');
 
     return `<!DOCTYPE html>
 <html>
@@ -277,18 +323,51 @@ export class PrintService {
 
 function numberToWords(num: number): string {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const teens = [
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ];
+  const tens = [
+    '',
+    '',
+    'Twenty',
+    'Thirty',
+    'Forty',
+    'Fifty',
+    'Sixty',
+    'Seventy',
+    'Eighty',
+    'Ninety',
+  ];
 
   function convert(n: number): string {
     if (n === 0) return 'Zero';
     if (n < 10) return ones[n];
     if (n < 20) return teens[n - 10];
     if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
-    if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + convert(n % 100) : '');
-    if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convert(n % 1000) : '');
-    if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + convert(n % 100000) : '');
-    return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + convert(n % 10000000) : '');
+    if (n < 1000)
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + convert(n % 100) : '');
+    if (n < 100000)
+      return (
+        convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convert(n % 1000) : '')
+      );
+    if (n < 10000000)
+      return (
+        convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + convert(n % 100000) : '')
+      );
+    return (
+      convert(Math.floor(n / 10000000)) +
+      ' Crore' +
+      (n % 10000000 ? ' ' + convert(n % 10000000) : '')
+    );
   }
 
   const rupees = Math.floor(num);

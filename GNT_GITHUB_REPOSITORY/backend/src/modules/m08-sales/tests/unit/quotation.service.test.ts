@@ -3,7 +3,7 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { calculateQuotationTotals, generateQuotationNumber } from '../../services/sales.internal';
 import { QuotationItemDTO } from '../../types/sales.types';
 

@@ -5,14 +5,14 @@
  */
 
 import { eventBus } from '../../../core/event-bus';
-import { SALES_EVENTS } from './sales.events';
 import { salesService } from '../services/sales.service';
 import {
+  PaymentReceivedEvent,
   SalesInvoiceCreatedEvent,
   SalesQuotationConvertedEvent,
   SalesReturnCreatedEvent,
-  PaymentReceivedEvent,
 } from '../types/sales.types';
+import { SALES_EVENTS } from './sales.events';
 
 export function registerSalesEventHandlers() {
   // ─── sales.invoice.created ───
@@ -25,9 +25,12 @@ export function registerSalesEventHandlers() {
   });
 
   // ─── sales.quotation.converted ───
-  eventBus.subscribe(SALES_EVENTS.QUOTATION_CONVERTED, async (payload: SalesQuotationConvertedEvent) => {
-    console.log(`[M08] Quotation ${payload.quotationId} converted to Order ${payload.orderId}`);
-  });
+  eventBus.subscribe(
+    SALES_EVENTS.QUOTATION_CONVERTED,
+    async (payload: SalesQuotationConvertedEvent) => {
+      console.log(`[M08] Quotation ${payload.quotationId} converted to Order ${payload.orderId}`);
+    }
+  );
 
   // ─── sales.return.created ───
   eventBus.subscribe(SALES_EVENTS.RETURN_CREATED, async (payload: SalesReturnCreatedEvent) => {

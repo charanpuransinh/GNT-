@@ -3,9 +3,9 @@
  * Module: m08-sales | Team: B4-BRAVO
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import request from 'supertest';
 import express from 'express';
+import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import salesRoutes from '../../routes/sales.routes';
 
 const app = express();
@@ -26,15 +26,10 @@ describe('Sales API Tests', () => {
       customerId: 'cust-test-001',
       invoiceDate: new Date().toISOString(),
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      items: [
-        { productId: 'prod-001', quantity: 2, rate: 100, taxRate: 18 },
-      ],
+      items: [{ productId: 'prod-001', quantity: 2, rate: 100, taxRate: 18 }],
     };
 
-    const res = await request(app)
-      .post('/api/v1/sales/invoices')
-      .set(headers)
-      .send(payload);
+    const res = await request(app).post('/api/v1/sales/invoices').set(headers).send(payload);
 
     // May fail due to DB not connected in test, but validates schema
     expect([201, 400, 500]).toContain(res.status);
@@ -64,9 +59,7 @@ describe('Sales API Tests', () => {
 
   // ─── TEST: Unauthorized access blocked ───
   it('should block requests without company header', async () => {
-    const res = await request(app)
-      .get('/api/v1/sales/invoices')
-      .send();
+    const res = await request(app).get('/api/v1/sales/invoices').send();
 
     // Zod validation will fail for missing companyId
     expect([400, 401, 403]).toContain(res.status);
@@ -74,9 +67,7 @@ describe('Sales API Tests', () => {
 
   // ─── TEST: GET /quotations ───
   it('GET /api/v1/sales/quotations — should list quotations', async () => {
-    const res = await request(app)
-      .get('/api/v1/sales/quotations')
-      .set(headers);
+    const res = await request(app).get('/api/v1/sales/quotations').set(headers);
 
     expect([200, 400]).toContain(res.status);
   });
@@ -98,15 +89,10 @@ describe('Sales API Tests', () => {
       salesInvoiceId: 'inv-test-001',
       customerId: 'cust-test-001',
       returnDate: new Date().toISOString(),
-      items: [
-        { productId: 'prod-001', quantity: 1, rate: 100 },
-      ],
+      items: [{ productId: 'prod-001', quantity: 1, rate: 100 }],
     };
 
-    const res = await request(app)
-      .post('/api/v1/sales/returns')
-      .set(headers)
-      .send(payload);
+    const res = await request(app).post('/api/v1/sales/returns').set(headers).send(payload);
 
     expect([201, 400, 500]).toContain(res.status);
   });
