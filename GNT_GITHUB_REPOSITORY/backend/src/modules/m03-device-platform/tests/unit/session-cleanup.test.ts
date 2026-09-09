@@ -3,14 +3,17 @@
 // pure logic: expired-session filter + zod schemas (DB नहीं चाहिए)
 // ============================================================================
 
-import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
-import { buildExpiredSessionsFilter, SESSION_CLEANUP_INTERVAL_MS } from '../../services/session-cleanup';
+import { describe, it } from 'vitest';
 import {
+  SESSION_CLEANUP_INTERVAL_MS,
+  buildExpiredSessionsFilter,
+} from '../../services/session-cleanup';
+import {
+  checkUpdateQuerySchema,
+  deploymentSettingsSchema,
   registerDeviceSchema,
   updateDeviceSchema,
-  deploymentSettingsSchema,
-  checkUpdateQuerySchema,
 } from '../../validators/device.schema';
 
 describe('buildExpiredSessionsFilter (E1 job का दिल)', () => {
@@ -73,8 +76,14 @@ describe('deploymentSettingsSchema', () => {
 
   it('sessionTimeout 5..120 के बाहर रद्द', () => {
     assert.equal(deploymentSettingsSchema.safeParse({ ...base, sessionTimeout: 4 }).success, false);
-    assert.equal(deploymentSettingsSchema.safeParse({ ...base, sessionTimeout: 121 }).success, false);
-    assert.equal(deploymentSettingsSchema.safeParse({ ...base, sessionTimeout: 120 }).success, true);
+    assert.equal(
+      deploymentSettingsSchema.safeParse({ ...base, sessionTimeout: 121 }).success,
+      false
+    );
+    assert.equal(
+      deploymentSettingsSchema.safeParse({ ...base, sessionTimeout: 120 }).success,
+      true
+    );
   });
 
   it('syncInterval 1..60 के बाहर रद्द', () => {
@@ -85,7 +94,13 @@ describe('deploymentSettingsSchema', () => {
 
 describe('checkUpdateQuerySchema', () => {
   it('platform + version x.y.z', () => {
-    assert.equal(checkUpdateQuerySchema.safeParse({ platform: 'android', version: '1.2.3' }).success, true);
-    assert.equal(checkUpdateQuerySchema.safeParse({ platform: 'android', version: 'abc' }).success, false);
+    assert.equal(
+      checkUpdateQuerySchema.safeParse({ platform: 'android', version: '1.2.3' }).success,
+      true
+    );
+    assert.equal(
+      checkUpdateQuerySchema.safeParse({ platform: 'android', version: 'abc' }).success,
+      false
+    );
   });
 });

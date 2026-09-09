@@ -1,8 +1,6 @@
 // M14 — Job Service
 // Lock: LOCK_08_JOB_SERVICE
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/common/config/prisma';
 
 export class JobService {
   async getDashboard(tenantId: string) {
@@ -24,8 +22,20 @@ export class JobService {
   async cleanupOldJobs(tenantId: string, olderThanDays = 30) {
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
     const [imp, exp] = await Promise.all([
-      prisma.importJob.deleteMany({ where: { tenantId, createdAt: { lt: cutoff }, status: { in: ['COMPLETED', 'FAILED', 'CANCELLED'] } } }),
-      prisma.exportJob.deleteMany({ where: { tenantId, createdAt: { lt: cutoff }, status: { in: ['COMPLETED', 'FAILED', 'CANCELLED'] } } }),
+      prisma.importJob.deleteMany({
+        where: {
+          tenantId,
+          createdAt: { lt: cutoff },
+          status: { in: ['COMPLETED', 'FAILED', 'CANCELLED'] },
+        },
+      }),
+      prisma.exportJob.deleteMany({
+        where: {
+          tenantId,
+          createdAt: { lt: cutoff },
+          status: { in: ['COMPLETED', 'FAILED', 'CANCELLED'] },
+        },
+      }),
     ]);
     return { deletedImports: imp.count, deletedExports: exp.count };
   }

@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { deviceService } from '../../services/device.service';
+import { describe, expect, it } from 'vitest';
 import { deviceInternal } from '../../services/device.internal';
+import { deviceService } from '../../services/device.service';
 
 describe('M03 - Integration Tests', () => {
   describe('Version comparison', () => {

@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
-import { deviceService } from '../services/device.service';
 import { AppError } from '@/common/errors/error-classes';
 import { logger } from '@/common/logging/logger';
+import { requireTenant, requireUser } from '@/common/middleware/require-tenant';
+import { NextFunction, Request, Response } from 'express';
+import { deviceService } from '../services/device.service';
 
 export const deviceController = {
   async getActiveSessions(req: Request, res: Response, next: NextFunction) {
@@ -105,6 +105,42 @@ export const deviceController = {
           requestId: res.locals.requestId,
           timestamp: new Date().toISOString(),
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async listReleases(req: Request, res: Response, next: NextFunction) {
+    try {
+      const platform = typeof req.query.platform === 'string' ? req.query.platform : undefined;
+      const releases = await deviceService.listReleases(platform);
+      res.json({
+        success: true,
+        data: releases,
+        meta: { requestId: res.locals.requestId, timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async publishRelease(req: Request, res: Response, next: NextFunction) {
+    try {
+      const b = req.body ?? {};
+      const release = await deviceService.publishRelease({
+        platform: String(b.platform),
+        version: String(b.version),
+        releaseNotes: Array.isArray(b.releaseNotes) ? b.releaseNotes.map(String) : [],
+        minSupported: b.minSupported ? String(b.minSupported) : null,
+        downloadUrl: b.downloadUrl ? String(b.downloadUrl) : null,
+        isPublished: b.isPublished !== false,
+        createdBy: req.user?.id,
+      });
+      res.status(201).json({
+        success: true,
+        data: release,
+        meta: { requestId: res.locals.requestId, timestamp: new Date().toISOString() },
       });
     } catch (error) {
       next(error);

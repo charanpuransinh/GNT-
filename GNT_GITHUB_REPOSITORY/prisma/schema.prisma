@@ -1034,6 +1034,27 @@ model device_registry {
   // CHECK: platform IN ('ios','android','windows','macos','linux','web') — SQL का CHECK Prisma में नहीं लिख सकते, app layer में validate होगा
 }
 
+// M03 — असली app-release रिकॉर्ड। पहले `device.internal.ts` में हार्डकोडेड
+// LATEST_VERSIONS/RELEASE_NOTES थे जो callers को नक़ली version देते थे।
+// अब /device/update-check यहीं से पढ़ता है; कोई published release न हो तो
+// ईमानदारी से hasUpdate:false लौटता है (नक़ली "2.1.0" नहीं)।
+model app_release {
+  id            String   @id @default(uuid()) @db.Uuid
+  platform      String   @db.VarChar(20) // ios | android | windows | macos | linux | web
+  version       String   @db.VarChar(30) // semver "2.1.0"
+  release_notes String[] @default([])
+  min_supported String?  @db.VarChar(30) // इससे नीचे current version → forceUpdate
+  download_url  String?  @db.VarChar(500)
+  is_published  Boolean  @default(true)
+  released_at   DateTime @default(now())
+  created_by    String?  @db.Uuid
+  created_at    DateTime @default(now())
+
+  @@unique([platform, version])
+  @@index([platform, is_published, released_at])
+  @@map("m03_app_releases")
+}
+
 model active_session {
   id             String    @id @default(uuid()) @db.Uuid
   user_id        String    @db.Uuid

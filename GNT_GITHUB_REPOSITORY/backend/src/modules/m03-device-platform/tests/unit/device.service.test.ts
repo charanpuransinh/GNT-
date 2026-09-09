@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { deviceService } from '../../services/device.service';
+import { AppError } from '@/common/errors/error-classes';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deviceRepository } from '../../repositories/device.repository';
 import { deviceInternal } from '../../services/device.internal';
-import { AppError } from '@/common/errors/error-classes';
+import { deviceService } from '../../services/device.service';
 
 vi.mock('../../repositories/device.repository');
 vi.mock('../../services/device.internal');
@@ -55,33 +55,60 @@ describe('M03 - deviceService', () => {
         user_id: 'other-user',
       } as any);
 
-      await expect(
-        deviceService.terminateSession('user-123', 'session-1')
-      ).rejects.toThrow(AppError);
+      await expect(deviceService.terminateSession('user-123', 'session-1')).rejects.toThrow(
+        AppError
+      );
     });
   });
 
   describe('checkForUpdate', () => {
-    it('should detect available update', async () => {
-      vi.mocked(deviceInternal.getLatestVersion).mockReturnValue('2.1.0');
+    it('detects an update from a real published release (notes from the release row)', async () => {
+      vi.mocked(deviceRepository.getLatestPublishedRelease).mockResolvedValue({
+        platform: 'ios',
+        version: '2.1.0',
+        release_notes: ['New features'],
+        min_supported: null,
+        is_published: true,
+      } as any);
       vi.mocked(deviceInternal.compareVersions).mockReturnValue(-1);
       vi.mocked(deviceInternal.getUpdateSeverity).mockResolvedValue('major');
-      vi.mocked(deviceInternal.getReleaseNotes).mockResolvedValue(['New features']);
 
       const result = await deviceService.checkForUpdate('ios', '2.0.0');
 
       expect(result.hasUpdate).toBe(true);
       expect(result.latestVersion).toBe('2.1.0');
       expect(result.severity).toBe('major');
+      expect(result.releaseNotes).toEqual(['New features']);
     });
 
-    it('should return no update when on latest', async () => {
-      vi.mocked(deviceInternal.getLatestVersion).mockReturnValue('2.0.0');
-      vi.mocked(deviceInternal.compareVersions).mockReturnValue(0);
+    it('no published release => honest empty answer, NOT a fake version', async () => {
+      vi.mocked(deviceRepository.getLatestPublishedRelease).mockResolvedValue(null);
 
       const result = await deviceService.checkForUpdate('ios', '2.0.0');
 
       expect(result.hasUpdate).toBe(false);
+      expect(result.latestVersion).toBe('2.0.0'); // == currentVersion, no "2.1.0"
+      expect(result.releaseNotes).toBeUndefined();
+      expect(result.forceUpdate).toBe(false);
+    });
+
+    it('current below min_supported => forceUpdate', async () => {
+      vi.mocked(deviceRepository.getLatestPublishedRelease).mockResolvedValue({
+        platform: 'android',
+        version: '3.0.0',
+        release_notes: [],
+        min_supported: '2.5.0',
+        is_published: true,
+      } as any);
+      vi.mocked(deviceInternal.compareVersions).mockImplementation((a: string, b: string) =>
+        a === b ? 0 : a < b ? -1 : 1
+      );
+      vi.mocked(deviceInternal.getUpdateSeverity).mockResolvedValue('major');
+
+      const result = await deviceService.checkForUpdate('android', '2.0.0');
+
+      expect(result.hasUpdate).toBe(true);
+      expect(result.forceUpdate).toBe(true);
     });
   });
 

@@ -1,15 +1,15 @@
 // M14 — Export Service (LIVE) — tenant-scoped
 // हर job की query company_id (tenantId) से बंधी है — fail-closed।
 
-import { ExportJob, Prisma } from '@prisma/client';
+import { createWriteStream, mkdirSync, writeFileSync } from 'fs';
+import path from 'path';
 import { prisma } from '@/common/config/prisma';
 import { eventBus } from '@/common/events/event-bus';
+import { ExportJob, Prisma } from '@prisma/client';
 import { createObjectCsvWriter } from 'csv-writer';
-import * as XLSX from 'xlsx';
 import PDFDocument from 'pdfkit';
-import { writeFileSync, mkdirSync, createWriteStream } from 'fs';
+import * as XLSX from 'xlsx';
 import { ExportColumn } from '../types/export.types';
-import path from 'path';
 
 export class ExportService {
   static async createJob(data: {
@@ -43,7 +43,7 @@ export class ExportService {
 
     await prisma.exportJob.updateMany({
       where: { id: jobId, tenantId },
-      data: { status: 'PROCESSING' }
+      data: { status: 'PROCESSING' },
     });
 
     try {
@@ -60,19 +60,25 @@ export class ExportService {
           fileUrl: `/api/exports/download/${jobId}`,
           totalRecords: rows.length,
           completedAt: new Date(),
-          expiresAt
-        }
+          expiresAt,
+        },
       });
 
       // साझा bus पर relay — M13 automation / M17 cache-invalidate (fire-and-forget)
-      void eventBus.publish('export.completed', {
-        tenantId, jobId, entityType: job.sourceEntity, format: job.format,
-        totalRecords: rows.length, status: 'COMPLETED',
-      }).catch((e) => console.error('[M14→bus] export.completed handler failed:', e));
+      void eventBus
+        .publish('export.completed', {
+          tenantId,
+          jobId,
+          entityType: job.sourceEntity,
+          format: job.format,
+          totalRecords: rows.length,
+          status: 'COMPLETED',
+        })
+        .catch((e) => console.error('[M14→bus] export.completed handler failed:', e));
     } catch (error) {
       await prisma.exportJob.updateMany({
         where: { id: jobId, tenantId },
-        data: { status: 'FAILED', completedAt: new Date() }
+        data: { status: 'FAILED', completedAt: new Date() },
       });
       throw error;
     }
@@ -85,31 +91,51 @@ export class ExportService {
 
     switch (job.format.toLowerCase()) {
       case 'csv':
-        return this.generateCSV(data, job.columns as unknown as ExportColumn[], path.join(outputDir, `${baseName}.csv`));
+        return this.generateCSV(
+          data,
+          job.columns as unknown as ExportColumn[],
+          path.join(outputDir, `${baseName}.csv`)
+        );
       case 'xlsx':
-        return this.generateExcel(data, job.columns as unknown as ExportColumn[], path.join(outputDir, `${baseName}.xlsx`));
+        return this.generateExcel(
+          data,
+          job.columns as unknown as ExportColumn[],
+          path.join(outputDir, `${baseName}.xlsx`)
+        );
       case 'json':
         return this.generateJSON(data, path.join(outputDir, `${baseName}.json`));
       case 'pdf':
-        return this.generatePDF(data, job.columns as unknown as ExportColumn[], path.join(outputDir, `${baseName}.pdf`));
+        return this.generatePDF(
+          data,
+          job.columns as unknown as ExportColumn[],
+          path.join(outputDir, `${baseName}.pdf`)
+        );
       default:
         throw new Error(`Unsupported export format: ${job.format}`);
     }
   }
 
-  private static async generateCSV(data: unknown[], columns: ExportColumn[], filePath: string): Promise<string> {
+  private static async generateCSV(
+    data: unknown[],
+    columns: ExportColumn[],
+    filePath: string
+  ): Promise<string> {
     const csvWriter = createObjectCsvWriter({
       path: filePath,
-      header: columns.map(col => ({ id: col.field, title: col.header }))
+      header: columns.map((col) => ({ id: col.field, title: col.header })),
     });
     await csvWriter.writeRecords(data as Record<string, unknown>[]);
     return filePath;
   }
 
-  private static async generateExcel(data: unknown[], columns: ExportColumn[], filePath: string): Promise<string> {
+  private static async generateExcel(
+    data: unknown[],
+    columns: ExportColumn[],
+    filePath: string
+  ): Promise<string> {
     const worksheetData = [
-      columns.map(col => col.header),
-      ...data.map(row => columns.map(col => (row as Record<string, unknown>)[col.field]))
+      columns.map((col) => col.header),
+      ...data.map((row) => columns.map((col) => (row as Record<string, unknown>)[col.field])),
     ];
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
@@ -124,11 +150,17 @@ export class ExportService {
   }
 
   /** असली tabular PDF (pdfkit) — पहले सिर्फ़ JSON को .pdf नाम से लिखता था */
-  private static generatePDF(data: unknown[], columns: ExportColumn[], filePath: string): Promise<string> {
+  private static generatePDF(
+    data: unknown[],
+    columns: ExportColumn[],
+    filePath: string
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const cols: ExportColumn[] = columns?.length
         ? columns
-        : Object.keys((data[0] as Record<string, unknown>) ?? {}).map((k) => ({ field: k, header: k } as ExportColumn));
+        : Object.keys((data[0] as Record<string, unknown>) ?? {}).map(
+            (k) => ({ field: k, header: k }) as ExportColumn
+          );
 
       const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
       const stream = createWriteStream(filePath);
@@ -147,35 +179,121 @@ export class ExportService {
       const drawRow = (values: string[], bold: boolean) => {
         const y = doc.y;
         doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8);
-        values.forEach((v, i) => doc.text(v, left + i * colWidth, y, { width: colWidth - 4, ellipsis: true }));
+        values.forEach((v, i) =>
+          doc.text(v, left + i * colWidth, y, { width: colWidth - 4, ellipsis: true })
+        );
         doc.moveDown(0.4);
         if (doc.y > bottom) doc.addPage();
       };
 
-      drawRow(cols.map((c) => String(c.header)), true);
-      doc.moveTo(left, doc.y).lineTo(left + usableWidth, doc.y).stroke().moveDown(0.2);
+      drawRow(
+        cols.map((c) => String(c.header)),
+        true
+      );
+      doc
+        .moveTo(left, doc.y)
+        .lineTo(left + usableWidth, doc.y)
+        .stroke()
+        .moveDown(0.2);
       for (const row of data as Record<string, unknown>[]) {
-        drawRow(cols.map((c) => (row[c.field] == null ? '' : String(row[c.field]))), false);
+        drawRow(
+          cols.map((c) => (row[c.field] == null ? '' : String(row[c.field]))),
+          false
+        );
       }
       doc.end();
     });
   }
 
-  private static readonly SUPPORTED_ENTITIES = ['customer/party/supplier', 'product/item/inventory', 'invoice'];
+  private static readonly SUPPORTED_ENTITIES = [
+    'customer/party/supplier',
+    'product/item/inventory',
+    'invoice',
+  ];
 
-  private static async fetchEntityData(entityType: string, tenantId: string, _filters: unknown): Promise<Record<string, unknown>[]> {
+  // Export पूरा dataset निकालता है — पहले `take: 500` चुपचाप काट देता था।
+  // अब id-cursor से batches में सब लाते हैं; MAX_EXPORT_ROWS से ऊपर → साफ़ error
+  // (job FAILED, झूठा "COMPLETED with 500 rows" नहीं)।
+  private static readonly PAGE = 1000;
+  private static readonly MAX_EXPORT_ROWS = 100_000;
+
+  private static async fetchAllById<T extends { id: string }>(
+    page: (cursorId: string | undefined) => Promise<T[]>,
+    entityType: string
+  ): Promise<T[]> {
+    const out: T[] = [];
+    let cursorId: string | undefined;
+    for (;;) {
+      const batch = await page(cursorId);
+      out.push(...batch);
+      if (batch.length < ExportService.PAGE) break;
+      if (out.length > ExportService.MAX_EXPORT_ROWS) {
+        throw new Error(
+          `Export of "${entityType}" exceeds ${ExportService.MAX_EXPORT_ROWS} rows — narrow the filter or export in parts.`
+        );
+      }
+      cursorId = batch[batch.length - 1].id;
+    }
+    return out;
+  }
+
+  private static async fetchEntityData(
+    entityType: string,
+    tenantId: string,
+    _filters: unknown
+  ): Promise<Record<string, unknown>[]> {
     const t = (entityType ?? '').toLowerCase();
-    // असली entity table से data (fake items नहीं) — tenant-scoped
+    const P = ExportService.PAGE;
+    // असली entity table से data (fake items नहीं) — tenant-scoped, पूरा dataset
     if (t === 'customer' || t === 'party' || t === 'supplier') {
-      const rows = await prisma.party_master.findMany({ where: { company_id: tenantId }, take: 500 });
-      return rows.map((r) => ({ id: r.id, name: r.name, email: r.email, phone: r.phone, gstin: r.gstin }));
+      const rows = await ExportService.fetchAllById(
+        (cursor) =>
+          prisma.party_master.findMany({
+            where: { company_id: tenantId },
+            take: P,
+            orderBy: { id: 'asc' },
+            ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+          }),
+        entityType
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        phone: r.phone,
+        gstin: r.gstin,
+      }));
     }
     if (t === 'product' || t === 'item' || t === 'inventory') {
-      const rows = await prisma.product_master.findMany({ where: { company_id: tenantId }, take: 500 });
-      return rows.map((r) => ({ id: r.id, name: r.name, sku: r.code, hsn: r.hsn_code, price: Number(r.sale_price ?? 0) }));
+      const rows = await ExportService.fetchAllById(
+        (cursor) =>
+          prisma.product_master.findMany({
+            where: { company_id: tenantId },
+            take: P,
+            orderBy: { id: 'asc' },
+            ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+          }),
+        entityType
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        sku: r.code,
+        hsn: r.hsn_code,
+        price: Number(r.sale_price ?? 0),
+      }));
     }
     if (t === 'invoice' || t === 'sales_invoice' || t === 'salesinvoice') {
-      const rows = await prisma.salesInvoice.findMany({ where: { companyId: tenantId }, take: 500, orderBy: { invoiceDate: 'desc' } });
+      const rows = await ExportService.fetchAllById(
+        (cursor) =>
+          prisma.salesInvoice.findMany({
+            where: { companyId: tenantId },
+            take: P,
+            orderBy: { id: 'asc' },
+            ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+          }),
+        entityType
+      );
       return rows.map((r) => ({
         id: r.id,
         invoiceNumber: r.invoiceNumber,
@@ -201,14 +319,14 @@ export class ExportService {
     return prisma.exportJob.findMany({
       where: { tenantId, ...(entityType && { sourceEntity: entityType }) },
       orderBy: { createdAt: 'desc' },
-      take: 50
+      take: 50,
     });
   }
 
   static async cancelJob(jobId: string, tenantId: string): Promise<ExportJob> {
     const result = await prisma.exportJob.updateMany({
       where: { id: jobId, tenantId },
-      data: { status: 'CANCELLED' }
+      data: { status: 'CANCELLED' },
     });
     if (result.count === 0) throw new Error('Export job not found');
     const job = await prisma.exportJob.findFirst({ where: { id: jobId, tenantId } });
@@ -231,7 +349,8 @@ export class ExportService {
     };
     const job = await ExportService.createJob({
       tenantId: d.tenantId,
-      name: d.name ?? `${d.entityType ?? d.module ?? 'export'}-${(d.format ?? 'csv').toLowerCase()}`,
+      name:
+        d.name ?? `${d.entityType ?? d.module ?? 'export'}-${(d.format ?? 'csv').toLowerCase()}`,
       format: d.format ?? 'csv',
       sourceModule: d.module ?? 'M14',
       sourceEntity: d.entityType ?? 'EXPORT',
