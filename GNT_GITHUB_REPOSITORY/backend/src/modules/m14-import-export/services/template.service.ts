@@ -1,9 +1,7 @@
 // M14 — Template Service
 // Lock: LOCK_05_TEMPLATE
-import { PrismaClient } from '@prisma/client';
 import { ColumnMapping } from '../types';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/common/config/prisma';
 
 export class TemplateService {
   async createTemplate(data: {

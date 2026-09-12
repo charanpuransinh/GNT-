@@ -14,10 +14,25 @@ export const DueTrackerPage: React.FC = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // M11 के पास कभी invoice routes नहीं थे (owner फ़ैसला — invoice M07/M08 की चीज़
+    // है) — यह पेज /payments/invoices/overdue बुलाता था, जो कहीं मौजूद ही नहीं
+    // (हमेशा 404)। असली बकाया M08 sales invoices से — unpaid + partial दोनों।
     setLoading(true);
-    apiClient
-      .get<ListResponse<DueInvoice>>('/payments/invoices/overdue')
-      .then((r) => setDue(r.data.data ?? []))
+    Promise.all([
+      apiClient.get<ListResponse<DueInvoice>>('/sales/invoices', { params: { paymentStatus: 'unpaid' } }),
+      apiClient.get<ListResponse<DueInvoice>>('/sales/invoices', { params: { paymentStatus: 'partial' } }),
+    ])
+      .then(([unpaid, partial]) => {
+        // M08 का असली invoice आकार camelCase है (invoiceNumber/dueDate/grandTotal/
+        // amountPaid) — DueInvoice के snake_case फ़ील्ड से मेल नहीं खाता, इसलिए मैप किया।
+        const map = (rows: any[]): DueInvoice[] => rows.map((r) => ({
+          id: r.id,
+          invoice_number: r.invoiceNumber,
+          due_date: r.dueDate,
+          outstanding: Number(r.grandTotal ?? 0) - Number(r.amountPaid ?? 0),
+        }));
+        setDue([...map(unpaid.data.data ?? []), ...map(partial.data.data ?? [])]);
+      })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'सूची लाने में गलती'))
       .finally(() => setLoading(false));
   }, []);

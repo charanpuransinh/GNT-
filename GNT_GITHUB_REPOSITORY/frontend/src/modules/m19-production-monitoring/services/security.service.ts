@@ -2,7 +2,9 @@ import { apiClient } from '@/lib/api-client';
 import { AuditLogDTO, LoginHistoryDTO, SecurityEventDTO, SystemHealthDTO, PaginatedResponse } from './security.types';
 
 export class SecurityService {
-  private readonly basePath = '/api/v1';
+  // backend M19 `/api/v1/monitoring` पर mounted है (module-registry.ts) — यहाँ
+  // "/monitoring" segment ग़ायब था, इसलिए हर call (audit/security/health, सब) 404 देती।
+  private readonly basePath = '/api/v1/monitoring';
 
   async getAuditLogs(params: {
     companyId: string; module?: string; userId?: string;

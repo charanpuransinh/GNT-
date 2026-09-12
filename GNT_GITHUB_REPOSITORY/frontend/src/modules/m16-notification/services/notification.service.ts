@@ -44,7 +44,9 @@ export const notificationService = {
    * Mark notification(s) as read
    */
   async markAsRead(payload: MarkReadPayload): Promise<{ markedCount: number }> {
-    const response = await apiClient.patch<{ markedCount: number }>(`${BASE_URL}/batch/read`, payload);
+    // backend असल में POST पर है (router.post('/batch/read', ...)) — PATCH पर
+    // 404/405 देता, bulk mark-as-read कभी काम नहीं करता।
+    const response = await apiClient.post<{ markedCount: number }>(`${BASE_URL}/batch/read`, payload);
     return response.data;
   },
 

@@ -300,7 +300,9 @@ export class ReportGenerator {
     const fileName = `${reportType}-report-${id}.xlsx`;
     const filePath = join(this.exportDir, fileName);
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet(this.getReportTitle(reportType));
+    // Excel worksheet नाम की हार्ड सीमा 31 अक्षर है — लंबे report title से बड़ी
+    // (जैसे "Sales Register & Margin Analysis") चुपचाप truncate/warn होते थे।
+    const worksheet = workbook.addWorksheet(this.getReportTitle(reportType).slice(0, 31));
 
     // Apply template styles if available
     if (template?.layoutJson) {

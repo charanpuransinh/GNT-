@@ -191,7 +191,10 @@ export const printRequestSchema = z.object({
 });
 
 export const shareRequestSchema = z.object({
-  invoiceId: uuid,
+  // invoiceId URL param से आता है (controller req.params.id इस्तेमाल करता है,
+  // parsed body का invoiceId कहीं पढ़ा ही नहीं जाता) — पहले body में भी ज़रूरी
+  // था, यानी हर सही caller भी बिना ज़रूरत duplicate id भेजे बिना 400 पाता।
+  invoiceId: uuid.optional(),
   method: z.enum(['whatsapp', 'email']),
   recipient: z.string().min(1),
   message: z.string().optional(),

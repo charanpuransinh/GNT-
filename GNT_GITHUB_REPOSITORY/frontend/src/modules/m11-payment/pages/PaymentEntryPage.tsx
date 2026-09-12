@@ -9,10 +9,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { type Payment, type ListResponse } from '../types/payment.types';
+import { type Payment, type ListResponse, type PaymentMethod } from '../types/payment.types';
 
 export const PaymentEntryPage: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [amount, setAmount] = useState('');
   const [payerName, setPayerName] = useState('');
   const [payerType, setPayerType] = useState<'customer' | 'supplier'>('customer');
@@ -24,6 +25,10 @@ export const PaymentEntryPage: React.FC = () => {
 
   useEffect(() => {
     apiClient.get<ListResponse<Payment>>('/payments').then((r) => setPayments(r.data.data ?? [])).catch(() => undefined);
+    // पहले यह free-text था ("जैसे UPI/NEFT/नकद") — backend paymentMethodId को असली
+    // payment_method row की id मानकर ढूँढता है, टाइप किया हुआ text नहीं। हर submit
+    // "Invalid payment method" पर फेल होता। अब असली methods list से dropdown।
+    apiClient.get<ListResponse<PaymentMethod>>('/payments/methods').then((r) => setMethods(r.data.data ?? [])).catch(() => undefined);
   }, []);
 
   const submit = async () => {
@@ -63,7 +68,13 @@ export const PaymentEntryPage: React.FC = () => {
             <option value="supplier">सप्लायर</option>
           </select>
         </label>
-        <Input label="तरीक़ा (जैसे UPI/NEFT/नकद)" value={methodId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMethodId(e.target.value)} />
+        <label className="block text-sm font-medium text-slate-700">
+          तरीक़ा
+          <select className="mt-1 block w-full rounded border border-slate-300 p-2 text-sm" value={methodId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMethodId(e.target.value)}>
+            <option value="">चुनें…</option>
+            {methods.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
+          </select>
+        </label>
         <Input label="विवरण" value={description} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)} />
         <Button variant="primary" loading={saving} onClick={() => void submit()}>भुगतान दर्ज करें</Button>
       </Card>

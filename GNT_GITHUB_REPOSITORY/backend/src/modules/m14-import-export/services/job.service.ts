@@ -1,8 +1,6 @@
 // M14 — Job Service
 // Lock: LOCK_08_JOB_SERVICE
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/common/config/prisma';
 
 export class JobService {
   async getDashboard(tenantId: string) {

@@ -30,3 +30,9 @@ export interface ListResponse<T> {
   data: T[];
   meta?: { total?: number };
 }
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  isActive?: boolean;
+}
