@@ -1,17 +1,28 @@
 /**
  * M24 — adapters/real-cache-client.ts
- * WIRED (2026-09-12) — VERIFIED, not guessed: `backend/package.json` has no
- * `redis`/`ioredis`/`bullmq` dependency, and project memory records the
- * owner's decision (2026-09-06) that cross-module transport is in-process
- * only, "NO Redis/BullMQ (single-server scale)". There is no real Redis
- * client to wire this into.
+ * WIRED (2026-09-12) — CORRECTED 2026-09-12: an earlier version of this
+ * comment said "no redis/ioredis/bullmq dependency exists", which was
+ * wrong — it only checked backend/package.json. `redis`, `ioredis` and
+ * `bullmq` ARE real dependencies, declared at the repo-root package.json
+ * and resolvable from backend/src (Node's node_modules walk-up).
  *
- * Given that, the honest choice is to make the process-local cache the
- * REAL implementation (not a "fallback placeholder") — same in-memory
- * logic the blueprint shipped, renamed to reflect that it is genuinely
- * what runs. Flagged limitation: this cache is per-process, not shared
- * across multiple server instances. If GNT is ever scaled horizontally,
- * this must be revisited (owner decision, not a guess to make here).
+ * Actual verified usage, re-checked directly against source:
+ *   - ioredis: ONE call site (m01-foundation/repositories/app.repository.ts
+ *     `checkCacheConnection()`) — a one-off health-check ping against
+ *     `cacheConfig.url`, not a cache read/write client anywhere.
+ *   - bullmq: ONE call site (m15-sync/events/sync.events.ts) — the exact
+ *     legacy Redis-queue event bus project memory already flags as
+ *     pending conversion to the in-process eventBus (owner decision,
+ *     2026-09-06: cross-module transport is in-process only).
+ * So: no ACTIVE Redis-backed cache client exists anywhere in this repo
+ * for get/set caching — the conclusion (process-local cache) is unchanged,
+ * only the stated reasoning was wrong and is fixed here.
+ *
+ * The honest choice remains: process-local cache as the REAL implementation
+ * (not a "fallback placeholder"). Flagged limitation: per-process only, not
+ * shared across multiple server instances. If GNT scales horizontally, or
+ * the owner wants `checkCacheConnection()`'s optional Redis promoted into
+ * an actual cache backend, that's an owner decision, not guessed here.
  */
 
 import type { RedisClientLike } from '../cache/redis-cache.service';

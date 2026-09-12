@@ -2,11 +2,11 @@
  * M24 — cache/redis-cache.service.ts
  * OWN: get/set/delete cache values.
  *
- * WIRED (2026-09-12): verified `backend/package.json` has no redis/ioredis/
- * bullmq dependency, and the owner's 2026-09-06 decision was in-process-only
- * transport at single-server scale. Default client is
- * `realCacheClient` (adapters/real-cache-client.ts) — a documented
- * process-local implementation, not a guessed Redis connection.
+ * WIRED (2026-09-12): redis/ioredis/bullmq ARE real dependencies (repo-root
+ * package.json), but no active Redis cache client exists anywhere in this
+ * repo — see adapters/real-cache-client.ts for the full, corrected finding.
+ * Default client is `realCacheClient`, a documented process-local
+ * implementation, not a guessed Redis connection.
  */
 
 import { realCacheClient } from '../adapters/real-cache-client';
