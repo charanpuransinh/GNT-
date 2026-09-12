@@ -4,11 +4,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '@/common/config/prisma';
 import { HSNService } from '../services/hsn.service';
-import { EventBus } from '../../../shared/events/event-bus';
+import { eventBus } from '../../../shared/events/event-bus';
 import { SearchHSNQuerySchema, HSNValidationSchema } from '../validators/trade.schema';
 import { AppError } from '../../../shared/errors/app-error';
-
-const eventBus = new EventBus();
 
 export class HSNController {
   private service: HSNService;

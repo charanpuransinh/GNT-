@@ -34,9 +34,17 @@ export function registerSalesEventHandlers() {
     console.log(`[M08] Return created: ${payload.returnId} for Invoice ${payload.invoiceId}`);
   });
 
-  // ─── payment.received (from M11) ───
-  eventBus.subscribe('payment.received', async (payload: PaymentReceivedEvent) => {
+  // ─── invoice.payment_received (M11 असल में यही publish करता है — 'payment.received'
+  // नाम से यहाँ कभी match ही नहीं हुआ, invoice हमेशा 'unpaid' रहता चाहे payment हो चुका
+  // हो; payload में companyId नहीं tenantId आता है, amount string है number नहीं) ───
+  eventBus.subscribe('invoice.payment_received', async (payload: { invoiceId: string; tenantId: string; amount: string; transactionId: string }) => {
     console.log(`[M08] Payment received for Invoice ${payload.invoiceId}: ${payload.amount}`);
-    await salesService.handlePaymentReceived(payload);
+    if (!payload.invoiceId) return;
+    await salesService.handlePaymentReceived({
+      invoiceId: payload.invoiceId,
+      companyId: payload.tenantId,
+      amount: Number(payload.amount),
+      paymentMode: 'unknown',
+    });
   });
 }

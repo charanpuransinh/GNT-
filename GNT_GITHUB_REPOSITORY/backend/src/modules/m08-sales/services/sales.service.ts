@@ -24,6 +24,7 @@ import {
 import { printService } from './print.service';
 import { eventBus } from '../../../core/event-bus';
 import { InvoiceLedgerService } from '@/modules/m10-accounting';
+import { gstService as m09GstService } from '@/modules/m09-gst';
 
 // M10 accrual entry — invoice post होते ही double-entry ledger (मालिक P0, 2026-09-06).
 // DI (injectDependencies) कभी wire नहीं होती थी; यह direct है, हमेशा चलती है।
@@ -264,6 +265,26 @@ export class SalesService {
     }
 
     await prisma.salesInvoice.update({ where: { id }, data: { status: 'posted', postedBy } });
+
+    // M09 GSTR-1/3B/2B अब तक ख़ाली gst_transaction table पर चलते थे — कोई writer
+    // था ही नहीं। ledger की तरह block नहीं करते (M07 वाले pattern जैसा — GST
+    // recording फेल होने पर पूरा invoice post रुकना ग़लत होगा), बस error log।
+    try {
+      await m09GstService.recordInvoiceTax({
+        companyId: invoice.companyId,
+        branchId: invoice.branchId,
+        partyId: invoice.customerId,
+        referenceType: 'sales_invoice',
+        referenceId: invoice.id,
+        transactionDate: invoice.invoiceDate,
+        hsnCode: invoice.items.length === 1 ? invoice.items[0].hsnCode ?? null : null,
+        taxableAmount: Number(invoice.totalAmount) - Number(invoice.totalDiscount),
+        totalTaxAmount: Number(invoice.totalTax),
+        taxType: 'output',
+      });
+    } catch (e) {
+      console.error(`[M08→M09] gst_transaction record failed for invoice ${invoice.id}:`, e);
+    }
 
     // 4. Publish event (M16, M17)
     const eventPayload: SalesInvoiceCreatedEvent = {

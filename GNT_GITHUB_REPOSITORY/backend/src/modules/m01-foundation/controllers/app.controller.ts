@@ -2,10 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import { appService } from '../services/app.service';
 import { AppError } from '@/common/errors/error-classes';
 import { logger } from '@/common/logging/logger';
+import { getConfigQuerySchema } from '../validators/app.schema';
 
 export const appController = {
   async getConfig(req: Request, res: Response, next: NextFunction) {
     try {
+      // बनाया गया था पर कहीं इस्तेमाल नहीं होता था — कोई भी अनजान query param
+      // चुपचाप स्वीकार हो जाता था, `.strict()` का कोई असर नहीं था।
+      const parsed = getConfigQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        throw new AppError('VALIDATION_ERROR', 'Unexpected query parameters', 400);
+      }
       const config = await appService.getAppConfig();
       res.json({
         success: true,

@@ -3,6 +3,8 @@ import { appRepository } from '../repositories/app.repository';
 import { appInternal } from './app.internal';
 import { AppConfig, HealthStatus, SystemInfo } from '../types/app.types';
 import { logger } from '@/common/logging/logger';
+import { eventBus } from '@/common/events/event-bus';
+import { APP_EVENTS } from '../events/app.events';
 
 export const appService = {
   async getAppConfig(): Promise<AppConfig> {
@@ -27,9 +29,18 @@ export const appService = {
     // आता ही नहीं था — तीनों मर जाने पर भी 'degraded' ही मिलता। यानी निगरानी
     // सिस्टम पूरी ख़राबी कभी बता ही नहीं सकता था।
     const allHealthy = dbHealth && cacheHealth && storageHealth;
+    const status: HealthStatus['status'] = allHealthy ? 'healthy' : dbHealth ? 'degraded' : 'down';
+
+    // APP_EVENTS.HEALTH_DEGRADED था, publish कहीं नहीं होता था — M19 का audit-log
+    // subscriber (app.handlers.ts) कभी कुछ सुन ही नहीं पाता था।
+    if (status !== 'healthy') {
+      const failedCheck = !dbHealth ? 'database' : !cacheHealth ? 'cache' : 'storage';
+      void eventBus.publish(APP_EVENTS.HEALTH_DEGRADED, { check: failedCheck, status }).catch((e) =>
+        logger.error('Failed to publish health degraded event', { error: e }));
+    }
 
     return {
-      status: allHealthy ? 'healthy' : dbHealth ? 'degraded' : 'down',
+      status,
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       version: process.env.APP_VERSION || '1.0.0',

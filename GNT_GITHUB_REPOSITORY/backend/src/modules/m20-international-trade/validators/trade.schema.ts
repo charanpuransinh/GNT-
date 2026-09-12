@@ -62,6 +62,7 @@ export const CustomsCalculateSchema = z.object({
   assessable_value: z.number().min(0),
   currency: z.string().default('USD'),
   fx_rate: z.number().min(0).optional(),
+  trade_job_id: z.string().min(1).optional(),
 });
 
 export const GenerateDocumentSchema = z.object({

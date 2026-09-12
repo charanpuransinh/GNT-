@@ -11,7 +11,7 @@ import { requestTracer } from "../../../common/middleware/request-tracer";
 import { validationMiddleware } from "../../../common/middleware/validation-middleware";
 import { companyProfileSchema, branchCreateSchema, financialYearSchema, rolePermissionsSchema, userCreateSchema } from "../validators/company.schema";
 import { prisma } from "../../../common/config/prisma";
-import { EventBus } from "../../../common/events/event-bus";
+import { eventBus } from "../../../common/events/event-bus";
 import { AuditLogger } from "../../../common/logging/audit-logger";
 import { apiRateLimiter } from '../../../common/middleware/rate-limit';
 
@@ -19,7 +19,6 @@ const router = Router();
 const companyRepo = new CompanyRepository(prisma);
 const branchRepo = new BranchRepository(prisma);
 const internal = new CompanyInternal();
-const eventBus = new EventBus();
 const audit = new AuditLogger();
 const companyService = new CompanyService(companyRepo, branchRepo, internal, eventBus, audit);
 const branchService = new BranchService(branchRepo, eventBus, audit);

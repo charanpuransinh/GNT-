@@ -49,7 +49,8 @@ export class InventoryEventHandlers {
         timestamp: new Date(),
       };
       console.log(`[BATCH EXPIRING] ${event.product_name} | Batch: ${batch.batch_number} | Expires in ${daysRemaining} days`);
-      // Publish to message bus
+      // पहले सिर्फ़ log होता था ("Publish to message bus" कमेंट में लिखा, कभी हुआ नहीं) — STOCK_LOW जैसा ही असली bus पर।
+      void eventBus.publish(EVENT_NAMES.BATCH_EXPIRING, event);
     }
   }
 }

@@ -1,7 +1,49 @@
 import { PrismaClient } from '@prisma/client';
 
+export interface GstTransactionInput {
+  company_id: string;
+  branch_id?: string | null;
+  reference_type: string;
+  reference_id?: string | null;
+  transaction_date: Date;
+  hsn_code?: string | null;
+  taxable_amount: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  cess_amount: number;
+  total_tax_amount: number;
+  tax_type: 'output' | 'input';
+  gstin?: string | null;
+}
+
 export class GSTRepository {
   constructor(private prisma: PrismaClient) {}
+
+  // company_master में structured state_code column नहीं है (सिर्फ़ free-text
+  // address) — GSTIN के पहले 2 अंक ही राज्य कोड होते हैं (CBIC standard), वहीं से।
+  async getCompanyGstStateCode(companyId: string): Promise<string | null> {
+    const c = await this.prisma.company_master.findUnique({
+      where: { id: companyId },
+      select: { gstin: true },
+    });
+    return c?.gstin ? c.gstin.slice(0, 2) : null;
+  }
+
+  async getPartyGstInfo(partyId: string): Promise<{ stateCode: string | null; gstin: string | null }> {
+    const p = await this.prisma.party_master.findUnique({
+      where: { id: partyId },
+      select: { state_code: true, gstin: true },
+    });
+    return {
+      stateCode: p?.state_code ?? (p?.gstin ? p.gstin.slice(0, 2) : null),
+      gstin: p?.gstin ?? null,
+    };
+  }
+
+  async createTransaction(data: GstTransactionInput): Promise<{ id: string }> {
+    return this.prisma.gst_transaction.create({ data, select: { id: true } });
+  }
 
   async getTaxSlabsAsMap(companyId: string, transactionDate?: Date): Promise<Record<string, any>> {
     const date = transactionDate ?? new Date();

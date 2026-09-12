@@ -8,6 +8,8 @@ import {
   DeploymentSettings,
 } from '../types/device.types';
 import { AppError } from '@/common/errors/error-classes';
+import { eventBus } from '@/common/events/event-bus';
+import { DEVICE_EVENTS } from '../events/device.events';
 
 // Prisma DB rows (snake_case) → API DTOs (camelCase) mapping
 type SessionRow = Prisma.active_sessionGetPayload<{}>;
@@ -70,6 +72,7 @@ export const deviceService = {
       throw new AppError('GNT-ERR-3001', 'Session not found or unauthorized', 404);
     }
     await deviceRepository.deleteSession(sessionId);
+    void eventBus.publish(DEVICE_EVENTS.SESSION_TERMINATED, { sessionId, userId });
   },
 
   async terminateAllSessions(userId: string, exceptSessionId?: string): Promise<void> {
@@ -104,6 +107,7 @@ export const deviceService = {
         last_seen_at: new Date(),
       });
     }
+    void eventBus.publish(DEVICE_EVENTS.DEVICE_REGISTERED, { deviceId: row.id, userId });
     return toDeviceInfo(row);
   },
 

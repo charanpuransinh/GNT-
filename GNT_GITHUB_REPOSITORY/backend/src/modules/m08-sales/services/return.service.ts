@@ -1,6 +1,12 @@
 /**
  * M08 SALES & BILLING — Sales Return Service
  * Module: m08-sales | Team: B4-BRAVO
+ *
+ * 2026-09-12 — पहले `injectReturnDependencies()` कभी किसी भी module load path से
+ * नहीं बुलाई जाती थी (grep-verified), इसलिए `postReturn` production में हमेशा
+ * "M08 return dependencies are not fully wired" पर throw करता — कोई sales-return
+ * कभी post हो ही नहीं सकता था (ठीक वही P0 जो 2026-09-06 को postInvoice में मिला
+ * था, यहीं दोहराया रह गया)। अब असली M06/M09/M10 services सीधे — कोई DI गेट नहीं।
  */
 
 import { SalesReturn } from '@prisma/client';
@@ -12,46 +18,14 @@ import {
   ReturnQueryParams,
   SalesReturnCreatedEvent,
 } from '../types/sales.types';
-import { calculateReturnTotals, generateReturnNumber } from './sales.internal';
+import { calculateReturnTotals } from './sales.internal';
 import { eventBus } from '../../../core/event-bus';
+import { StockService } from '@/modules/m06-inventory';
+import { InvoiceLedgerService } from '@/modules/m10-accounting';
+import { gstService as m09GstService } from '@/modules/m09-gst';
 
-
-interface StockService {
-  addBackStock(items: Array<{ productId: string; quantity: number }>, branchId: string): Promise<void>;
-}
-interface GstService {
-  calculateTax(items: Array<{ hsnCode: string; amount: number; taxRate: number }>, customerState: string, companyState: string): Promise<any>;
-}
-interface LedgerService {
-  createEntry(entry: any): Promise<void>;
-}
-interface PartyService {
-  getCustomerById(id: string): Promise<any>;
-}
-// टास्क #007 Step 4 — company M04 की चीज़ है, M05 से नहीं
-interface CompanyService {
-  getProfile(companyId: string): Promise<any>;
-}
-
-let stockService: StockService;
-let gstService: GstService;
-let ledgerService: LedgerService;
-let partyService: PartyService;
-let companyService: CompanyService;
-
-export function injectReturnDependencies(deps: {
-  stockService: StockService;
-  gstService: GstService;
-  ledgerService: LedgerService;
-  partyService: PartyService;
-  companyService: CompanyService;
-}) {
-  stockService = deps.stockService;
-  gstService = deps.gstService;
-  ledgerService = deps.ledgerService;
-  partyService = deps.partyService;
-  companyService = deps.companyService;
-}
+const stockService = new StockService();
+const invoiceLedgerService = new InvoiceLedgerService(prisma);
 
 export class ReturnService {
   // ─── CREATE RETURN ───
@@ -113,7 +87,7 @@ export class ReturnService {
     return returnRepository.updateReturnStatus(id, companyId, 'approved');
   }
 
-  // ─── POST RETURN (ATOMIC — triggers stock add-back + GST reversal + ledger reversal) ───
+  // ─── POST RETURN — stock add-back + GST reversal + M10 ledger reversal, फिर status ───
   async postReturn(id: string, companyId: string): Promise<SalesReturn> {
     const salesReturn = await returnRepository.getReturnById(id, companyId);
     if (!salesReturn) throw new Error('Return not found');
@@ -122,51 +96,35 @@ export class ReturnService {
     const invoice = await salesRepository.getInvoiceById(salesReturn.salesInvoiceId, companyId);
     if (!invoice) throw new Error('Original invoice not found');
 
-    if (!stockService || !gstService || !ledgerService || !partyService || !companyService) throw new Error('M08 return dependencies are not fully wired');
-    const customer = await partyService.getCustomerById(invoice.customerId);
-    const company = await companyService.getProfile(invoice.companyId);
-    if (!customer || !company) throw new Error('Customer or company master data not found');
+    // a. Stock add-back (M06) — असली, हर item real productId से
+    for (const item of salesReturn.items as any[]) {
+      await stockService.addStock(item.productId, Number(item.quantity), companyId, invoice.branchId, null, null, 'sales_return', id);
+    }
 
-    await prisma.$transaction(async (tx) => {
-      // a. Add back stock (M06)
-      if (stockService) {
-        const stockItems = salesReturn.items.map((i: any) => ({
-          productId: i.productId,
-          quantity: Number(i.quantity),
-        }));
-        await stockService.addBackStock(stockItems, invoice.branchId);
-      }
+    // b. M10 ledger reversal — फेल हो तो return 'approved' ही रहे, चुपचाप 'posted' न दिखे
+    const ledgerResult = await invoiceLedgerService.postSalesReturn(companyId, id, undefined);
+    if (!ledgerResult.posted && ledgerResult.reason !== 'already posted to ledger') {
+      throw new Error(`M08→M10 sales-return ledger reversal failed: ${ledgerResult.reason}`);
+    }
 
-      // b. GST reversal (M09)
-      if (gstService) {
-        const invoiceItemsByProduct = new Map(invoice.items.map((i: any) => [i.productId, i]));
-        const gstItems = salesReturn.items.map((i: any) => {
-          const original = invoiceItemsByProduct.get(i.productId);
-          if (!original) throw new Error(`Original invoice item not found for product ${i.productId}`);
-          return { hsnCode: original.hsnCode || '', amount: Number(i.amount), taxRate: Number(original.taxRate) };
-        });
-        await gstService.calculateTax(gstItems, customer.state, company.state);
-      }
-
-      // c. Ledger reversal (M10)
-      if (ledgerService) {
-        await ledgerService.createEntry({
-          returnId: salesReturn.id,
-          customerId: salesReturn.customerId,
-          amount: Number(salesReturn.netAmount),
-          type: 'SALES_RETURN',
-          date: new Date(),
-        });
-      }
-
-      // d. Update return status
-      await tx.salesReturn.update({
-        where: { id },
-        data: { status: 'posted' },
+    // c. M09 GST reversal — negative gst_transaction row (GSTR sum में असली कटौती)
+    try {
+      await m09GstService.recordInvoiceTax({
+        companyId,
+        partyId: salesReturn.customerId,
+        referenceType: 'sales_return',
+        referenceId: id,
+        transactionDate: salesReturn.returnDate,
+        taxableAmount: -Number(salesReturn.totalAmount),
+        totalTaxAmount: -Number(salesReturn.taxAmount),
+        taxType: 'output',
       });
-    });
+    } catch (e) {
+      console.error(`[M08→M09] gst_transaction reversal failed for return ${id}:`, e);
+    }
 
-    // Publish event
+    await returnRepository.updateReturnStatus(id, companyId, 'posted');
+
     const eventPayload: SalesReturnCreatedEvent = {
       returnId: salesReturn.id,
       invoiceId: salesReturn.salesInvoiceId,

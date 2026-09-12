@@ -1,5 +1,5 @@
 import { apiClient } from "@/core/api-client";
-import { Company, Branch, FinancialYear, Role, User } from "./company.types";
+import { Company, Branch, FinancialYear, Role, User, CreateUserPayload } from "./company.types";
 import { ApiEnvelope } from "./company.types";
 const BASE = "/api/v1/company";
 export const CompanyService = {
@@ -14,6 +14,6 @@ export const CompanyService = {
   async getRoles(): Promise<Role[]> { const r = await apiClient.get<ApiEnvelope<Role[]>>(`${BASE}/roles`); return r.data.data; },
   async updateRolePermissions(roleId: string, permissions: string[]): Promise<void> { await apiClient.put(`${BASE}/roles/${roleId}/permissions`, { permissions }); },
   async getUsers(): Promise<User[]> { const r = await apiClient.get<ApiEnvelope<User[]>>(`${BASE}/users`); return r.data.data; },
-  async createUser(data: Partial<User>): Promise<User> { const r = await apiClient.post<ApiEnvelope<User>>(`${BASE}/users`, data); return r.data.data; },
+  async createUser(data: CreateUserPayload): Promise<User> { const r = await apiClient.post<ApiEnvelope<User>>(`${BASE}/users`, data); return r.data.data; },
   async toggleUserStatus(id: string): Promise<void> { await apiClient.post(`${BASE}/users/${id}/toggle`); },
 };

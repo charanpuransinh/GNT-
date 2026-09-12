@@ -14,6 +14,7 @@ export type NotificationEntityType =
   | 'gst_return'
   | 'employee_salary'
   | 'automation' // M13 के NOTIFY actions के लिए
+  | 'trade_shipment' // M20 export/import shipment events के लिए
   | 'general';
 
 export interface NotificationMaster {

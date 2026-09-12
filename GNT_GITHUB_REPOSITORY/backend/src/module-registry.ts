@@ -32,7 +32,21 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   // न backend tests (वे router को सीधे बुलाते हैं, mount पते से नहीं जाते)।
   // फ़ैसला contract से: api-contracts/v1/M01-foundation.contract.yaml —
   // servers: /api/v1 + paths: /foundation/... — यानी frontend सही था, mount ग़लत।
-  { load: async () => (await import('./modules/m01-foundation/routes/app.routes')).default, code: 'M01', path: '/api/v1/foundation',    mounted: true },
+  {
+    load: async () => {
+      const [{ default: appRoutes }, { AppEventHandlers }, { eventBus }, { auditLogger }] = await Promise.all([
+        import('./modules/m01-foundation/routes/app.routes'),
+        import('./modules/m01-foundation/events/app.handlers'),
+        import('./common/events/event-bus'),
+        import('./common/logging/audit-logger'),
+      ]);
+      // AppEventHandlers कभी register ही नहीं होता था — HEALTH_DEGRADED/MAINTENANCE_TOGGLED
+      // publish होते तो भी कोई सुनने वाला नहीं था (audit_log कभी नहीं बनता)।
+      new AppEventHandlers(eventBus, auditLogger).register();
+      return appRoutes;
+    },
+    code: 'M01', path: '/api/v1/foundation', mounted: true,
+  },
   { load: async () => (await import('./modules/m02-core-architecture/routes/auth.routes')).default, code: 'M02', path: '/api/v1/auth',          mounted: true },
   {
     load: async () => {
@@ -40,6 +54,12 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
       // टास्क #024 — E1: expired sessions की सफाई का job (unref — process नहीं रोकता)
       const { startSessionCleanupJob } = await import('./modules/m03-device-platform/services/session-cleanup');
       startSessionCleanupJob();
+      // DeviceEventHandlers कभी register नहीं होता था — DEVICE_REGISTERED/SESSION_TERMINATED
+      // कहीं audit_log में नहीं जाते थे।
+      const { DeviceEventHandlers } = await import('./modules/m03-device-platform/events/device.handlers');
+      const { eventBus } = await import('./common/events/event-bus');
+      const { auditLogger } = await import('./common/logging/audit-logger');
+      new DeviceEventHandlers(eventBus, auditLogger).register();
       return deviceRoutes;
     },
     code: 'M03', path: '/api/v1/device',        mounted: true,
@@ -69,6 +89,7 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         { createPurchaseRouter },
         { StockService },
         { InvoiceLedgerService },
+        { gstService },
       ] = await Promise.all([
         import('./modules/m07-purchase/controllers/purchase.controller'),
         import('./modules/m07-purchase/controllers/purchase-order.controller'),
@@ -80,6 +101,7 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         import('./modules/m07-purchase/routes/purchase.routes'),
         import('./modules/m06-inventory/services/stock.service'),
         import('./modules/m10-accounting'),
+        import('./modules/m09-gst'),
       ]);
 
       const stockSvc = new StockService();
@@ -93,14 +115,54 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
         },
       };
       const gstServiceForHandlers = {
-        async calculateInputTax(data: { invoice_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }> }): Promise<void> {
+        async calculateInputTax(data: {
+          invoice_id: string;
+          company_id: string;
+          supplier_id: string;
+          invoice_date: Date;
+          taxable_amount: number;
+          total_tax_amount: number;
+          items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }>;
+        }): Promise<void> {
           // ITC का ledger हिस्सा InvoiceLedgerService.postPurchaseInvoice की GST-Input
-          // पंक्ति में हो जाता है। M09 gst_transaction (GSTR-2) update अभी बाक़ी — owner
-          // ने अगले sprint में रखा। यहाँ throw नहीं (वरना पूरा post रुक जाता है)।
-          console.log(`[M07→M09] input tax credit noted for invoice ${data.invoice_id} (GSTR-2 table update pending)`);
+          // पंक्ति में हो जाता है; gst_transaction row (GSTR-2/3B के लिए) अब यहाँ से।
+          // असली post block नहीं करना — इसलिए throw नहीं, बस error log (M08 वाला pattern)।
+          try {
+            await gstService.recordInvoiceTax({
+              companyId: data.company_id,
+              partyId: data.supplier_id,
+              referenceType: 'purchase_invoice',
+              referenceId: data.invoice_id,
+              transactionDate: data.invoice_date,
+              hsnCode: data.items.length === 1 ? data.items[0].hsn_code ?? null : null,
+              taxableAmount: data.taxable_amount,
+              totalTaxAmount: data.total_tax_amount,
+              taxType: 'input',
+            });
+          } catch (e) {
+            console.error(`[M07→M09] gst_transaction record failed for invoice ${data.invoice_id}:`, e);
+          }
         },
-        async reverseInputTax(data: { return_id: string; company_id: string; items: Array<{ product_id: string; tax_amount: number }> }): Promise<void> {
-          console.log(`[M07→M09] input tax reversal noted for return ${data.return_id} (GSTR-2 table update pending)`);
+        async reverseInputTax(data: {
+          return_id: string; company_id: string; supplier_id: string; return_date: Date;
+          taxable_amount: number; total_tax_amount: number;
+          items: Array<{ product_id: string; tax_amount: number }>;
+        }): Promise<void> {
+          try {
+            // negative amounts — GSTR-1/3B के sum में असली invoice के ख़िलाफ़ काट देता है
+            await gstService.recordInvoiceTax({
+              companyId: data.company_id,
+              partyId: data.supplier_id,
+              referenceType: 'purchase_return',
+              referenceId: data.return_id,
+              transactionDate: data.return_date,
+              taxableAmount: -data.taxable_amount,
+              totalTaxAmount: -data.total_tax_amount,
+              taxType: 'input',
+            });
+          } catch (e) {
+            console.error(`[M07→M09] gst_transaction reversal failed for return ${data.return_id}:`, e);
+          }
         },
       };
       const ledgerServiceForHandlers = {
@@ -111,9 +173,10 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
           }
         },
         async createPurchaseReturnEntry(data: { return_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
-          // purchase-return का reversal voucher अभी बाक़ी (owner ने अगले sprint में रखा —
-          // returns का flow अलग)। चुपचाप ग़लत नहीं — साफ़ बताता है।
-          throw new Error(`M07→M10 purchase-return ledger reversal not implemented yet (return ${data.return_id})`);
+          const res = await invoiceLedgerSvc.postPurchaseReturn(data.company_id, data.return_id, 'system');
+          if (!res.posted && res.reason !== 'already posted to ledger') {
+            throw new Error(`M07→M10 purchase-return ledger reversal failed: ${res.reason}`);
+          }
         },
       };
 
@@ -122,7 +185,21 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
       const poService = new PurchaseOrderService(prisma, handlers, eventBus);
       return createPurchaseRouter(new PurchaseController(purchaseService), new PurchaseOrderController(poService));
     } },
-  { load: async () => (await import('./modules/m08-sales/routes/sales.routes')).default, code: 'M08', path: '/api/v1/sales',         mounted: true },
+  {
+    load: async () => {
+      // registerSalesEventHandlers कभी बुलाया ही नहीं जाता था — M11 का असली
+      // payment.received event कभी M08 तक पहुँचता ही नहीं था, invoice हमेशा
+      // 'unpaid' दिखता रहता चाहे payment असल में हो चुका हो (M11 खुद invoice
+      // mutate नहीं करता — payment.service.ts का अपना नियम, यही handler चाहिए था)।
+      const [{ default: salesRoutes }, { registerSalesEventHandlers }] = await Promise.all([
+        import('./modules/m08-sales/routes/sales.routes'),
+        import('./modules/m08-sales/events/sales.handlers'),
+      ]);
+      registerSalesEventHandlers();
+      return salesRoutes;
+    },
+    code: 'M08', path: '/api/v1/sales', mounted: true,
+  },
   // 2026-09-04: M09 चालू किया गया। जिस वजह से यह बंद था — "tax_rate_master में
   // cess_rate गायब" — वो commit 4fb2bb6 में ठीक हो चुकी थी (schema में
   // `cess_rate Decimal? @default(0)` मौजूद है, जाँच लिया), पर mount वापस चालू

@@ -6,6 +6,7 @@ import { requireTenant } from '@/common/middleware/require-tenant';
 import { prisma } from '@/common/config/prisma';
 import { CustomsService } from '../services/customs.service';
 import { FXService } from '../services/fx.service';
+import { eventBus } from '../../../shared/events/event-bus';
 import { CustomsCalculateSchema } from '../validators/trade.schema';
 import { AppError } from '../../../shared/errors/app-error';
 
@@ -13,8 +14,8 @@ export class CustomsController {
   private service: CustomsService;
 
   constructor() {
-    const fxService = new FXService(prisma);
-    this.service = new CustomsService(prisma, undefined, fxService);
+    const fxService = new FXService(prisma, eventBus);
+    this.service = new CustomsService(prisma, eventBus, fxService);
   }
 
   // POST /api/v1/customs/calculate
@@ -29,7 +30,9 @@ export class CustomsController {
         parsed.hsn_code,
         parsed.assessable_value,
         parsed.currency,
-        parsed.fx_rate
+        parsed.fx_rate,
+        undefined,
+        parsed.trade_job_id
       );
       res.status(200).json(result);
     } catch (err) {

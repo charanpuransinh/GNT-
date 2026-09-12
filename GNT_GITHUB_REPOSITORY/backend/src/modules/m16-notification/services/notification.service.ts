@@ -189,6 +189,8 @@ class NotificationService {
       'stock.low': 'Low Stock Alert',
       'gst.return.due': 'GST Return Due',
       'employee.salary.processed': 'Salary Processed',
+      'trade.export.created': 'Export Shipment Created',
+      'trade.import.created': 'Import Shipment Created',
     };
     return titles[eventName] ?? 'New Notification';
   }
@@ -201,6 +203,8 @@ class NotificationService {
       'stock.low': `Stock levels are running low.`,
       'gst.return.due': `GST return is due soon.`,
       'employee.salary.processed': `Your salary has been processed.`,
+      'trade.export.created': `A new export shipment has been created.`,
+      'trade.import.created': `A new import shipment has been created.`,
     };
     return messages[eventName] ?? 'You have a new notification.';
   }
@@ -213,6 +217,8 @@ class NotificationService {
       'stock.low': 'stock',
       'gst.return.due': 'gst_return',
       'employee.salary.processed': 'employee_salary',
+      'trade.export.created': 'trade_shipment',
+      'trade.import.created': 'trade_shipment',
     };
     return mapping[eventName] ?? 'general';
   }

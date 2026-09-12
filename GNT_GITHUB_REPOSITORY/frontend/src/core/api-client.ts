@@ -41,15 +41,24 @@ function withQuery(url: string, params?: object): string {
   return url + (url.includes('?') ? '&' : '?') + query;
 }
 
+// असली login (M02 auth.store.ts) token को plain 'auth_token'/'tenant_id' key में
+// कभी नहीं लिखता — zustand `persist` से 'gnt-auth-store' के नीचे JSON blob में
+// रखता है। यह फ़ंक्शन पहले हमेशा खाली headers लौटाता था (ग़लत key पढ़ता था) —
+// यानी login के बाद भी हर API call बिना token के जाती, हर जगह 401. अब असली
+// जगह से पढ़ता है (वही एक ही जगह जहाँ auth state असल में रहता है)।
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
   try {
-    const token = localStorage.getItem('auth_token');
-    const tenantId = localStorage.getItem('tenant_id');
-    if (token) headers.Authorization = `Bearer ${token}`;
-    if (tenantId) headers['X-Tenant-ID'] = tenantId;
+    const raw = localStorage.getItem('gnt-auth-store');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const token = parsed?.state?.accessToken as string | undefined;
+      const companyId = parsed?.state?.user?.companyId as string | undefined;
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (companyId) headers['X-Tenant-ID'] = companyId;
+    }
   } catch {
-    // localStorage उपलब्ध न हो (SSR/private mode) — बिना header आगे बढ़ो
+    // localStorage उपलब्ध न हो, या blob corrupt (SSR/private mode) — बिना header आगे बढ़ो
   }
   return headers;
 }

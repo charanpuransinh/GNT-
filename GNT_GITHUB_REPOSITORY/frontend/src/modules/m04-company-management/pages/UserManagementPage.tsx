@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/Badge";
 
 export const UserManagementPage: React.FC = () => {
   const { users, roles, loading, fetchUsers, createUser, toggleUserStatus } = useCompanyStore();
-  const [form, setForm] = React.useState({ name: "", email: "", roleId: "" });
+  // backend `username`/`password` NOT NULL माँगता है, role_ids array (roleId नहीं) —
+  // पहले फ़ॉर्म में ये फ़ील्ड ही नहीं थे, हर "Add User" backend पर फेल होता।
+  const [form, setForm] = React.useState({ name: "", email: "", username: "", password: "", roleId: "" });
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -18,11 +20,16 @@ export const UserManagementPage: React.FC = () => {
       <Card className="space-y-3 max-w-xl">
         <Input label="Name" value={form.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({...form, name: e.target.value})} />
         <Input label="Email" value={form.email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({...form, email: e.target.value})} />
+        <Input label="Username" value={form.username} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({...form, username: e.target.value})} />
+        <Input label="Password" type="password" value={form.password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({...form, password: e.target.value})} />
         <select className="w-full border rounded px-3 py-2" value={form.roleId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({...form, roleId: e.target.value})}>
           <option value="">Select Role</option>
           {roles.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
-        <Button variant="primary" onClick={() => createUser(form)} disabled={loading}>Add User</Button>
+        <Button variant="primary" onClick={() => createUser({
+          name: form.name, email: form.email, username: form.username, password: form.password,
+          role_ids: form.roleId ? [form.roleId] : undefined,
+        })} disabled={loading}>Add User</Button>
       </Card>
       <Table
         columns={[

@@ -5,15 +5,13 @@ import { Request, Response, NextFunction } from 'express';
 import { requireTenant } from '@/common/middleware/require-tenant';
 import { prisma } from '@/common/config/prisma';
 import { TradeService } from '../services/trade.service';
-import { EventBus } from '../../../shared/events/event-bus';
+import { eventBus } from '../../../shared/events/event-bus';
 import { AppError } from '../../../shared/errors/app-error';
 import {
   CreateTradeShipmentSchema,
   ListTradeJobsQuerySchema,
   UpdateTradeShipmentSchema,
 } from '../validators/trade.schema';
-
-const eventBus = new EventBus(); // assumed singleton from shared infra
 
 export class TradeController {
   private service: TradeService;

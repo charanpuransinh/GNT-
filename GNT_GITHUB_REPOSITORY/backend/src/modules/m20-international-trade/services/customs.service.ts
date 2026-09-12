@@ -28,7 +28,8 @@ export class CustomsService {
     assessableValue: number,
     currency: string = 'USD',
     fxRate?: number,
-    asOf?: Date
+    asOf?: Date,
+    tradeJobId?: string
   ): Promise<CustomsDutyBreakdown> {
     const rule = await this.repo.findLatestRule(companyId, hsnCode, asOf ?? new Date());
     if (!rule) {
@@ -114,9 +115,13 @@ export class CustomsService {
       ],
     };
 
-    if (this.eventBus) {
+    // सिर्फ़ किसी असली trade job से जुड़ी duty calculation पर event publish करें —
+    // ad-hoc preview (/customs/calculate बिना trade_job_id) पर publish नहीं, वरना
+    // M11 का payment-trigger handler हर preview पर चल जाता (झूठा payment side-effect)।
+    if (this.eventBus && tradeJobId) {
       await this.eventBus.publish('customs.duty.calculated', {
-        trade_job_id: '', // caller should fill
+        trade_job_id: tradeJobId,
+        company_id: companyId,
         hsn_code: hsnCode,
         total_duty: totalDuty,
         timestamp: new Date().toISOString(),

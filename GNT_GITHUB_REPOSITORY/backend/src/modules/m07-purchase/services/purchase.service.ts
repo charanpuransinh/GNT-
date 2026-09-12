@@ -122,6 +122,7 @@ export class PurchaseService {
       invoice_id: id,
       supplier_id: existing.supplier_id,
       company_id,
+      invoice_date: existing.invoice_date,
       total_amount: Number(existing.total_amount) || 0,
       tax_amount: Number(existing.total_tax) || 0,
       grand_total: Number(existing.grand_total) || 0,
@@ -161,6 +162,7 @@ export class PurchaseService {
       invoice_id: id,
       supplier_id: existing.supplier_id,
       company_id,
+      invoice_date: existing.invoice_date,
       total_amount: Number(existing.total_amount) || 0,
       tax_amount: Number(existing.total_tax) || 0,
       grand_total: Number(existing.grand_total) || 0,
@@ -276,9 +278,9 @@ export class PurchaseService {
     if (!existing) throw new Error('Purchase return not found');
     if (existing.status !== 'approved') throw new Error('Purchase return must be approved before posting');
 
-    const result = await this.repository.postReturn(id, company_id);
-    if (result.count === 0) throw new Error('Failed to post purchase return');
-
+    // पहले stock/GST/ledger side-effects, स्टेटस 'posted' बाद में — postPurchaseInvoice
+    // जैसा ही pattern (owner P0, 2026-09-06): कहीं फेल हो तो return 'approved' ही रहे,
+    // वरना ledger के बिना भी "posted" दिख सकता था (पहले यहीं उल्टा था)।
     const eventPayload = {
       return_id: id,
       company_id,
@@ -301,6 +303,10 @@ export class PurchaseService {
       source: 'm07-purchase',
       trace_id: `trace-${Date.now()}`,
     });
+
+    const result = await this.repository.postReturn(id, company_id);
+    if (result.count === 0) throw new Error('Failed to post purchase return after side effects completed');
+
     await this.eventBus.publish(PURCHASE_EVENTS.RETURN_POSTED, eventPayload);
     return this.repository.getReturnById(id, company_id);
   }

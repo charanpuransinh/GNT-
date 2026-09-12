@@ -33,12 +33,20 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Add auth headers
+// Add auth headers — असली login (M02 auth.store.ts) token 'auth_token'/'company_id'
+// plain key में कभी नहीं लिखता, zustand persist से 'gnt-auth-store' blob में रखता
+// है — पहले यहाँ हमेशा ग़लत key पढ़ी जाती, हर request बिना token के जाती (401)।
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  const companyId = localStorage.getItem('company_id');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  if (companyId) config.headers['x-company-id'] = companyId;
+  try {
+    const raw = localStorage.getItem('gnt-auth-store');
+    const parsed = raw ? JSON.parse(raw) : undefined;
+    const token = parsed?.state?.accessToken as string | undefined;
+    const companyId = parsed?.state?.user?.companyId as string | undefined;
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (companyId) config.headers['x-company-id'] = companyId;
+  } catch {
+    // corrupt blob / localStorage unavailable — बिना header आगे बढ़ो
+  }
   return config;
 });
 

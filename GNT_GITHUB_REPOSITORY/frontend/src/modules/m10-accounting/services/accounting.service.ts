@@ -1,70 +1,48 @@
+import { apiClient } from '@/core/api-client';
 import { AccountDTO, VoucherDTO, LedgerEntryDTO, TrialBalanceDTO, ProfitLossDTO, BalanceSheetDTO, BRSDTO } from './accounting.types';
 
+// पहले raw fetch() था — कोई Authorization header नहीं जाता था (apiClient जोड़ता
+// है), हर call 401. backend यहाँ raw JSON लौटाता है ({success,data} envelope
+// में नहीं) — इसलिए `r.data` ही असली body है (backend कोड में जाँचा)।
 const API_BASE = '/api/v1/accounting';
 
 export const AccountingService = {
   async createAccount(data: Partial<AccountDTO>): Promise<AccountDTO> {
-    const res = await fetch(`${API_BASE}/accounts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create account');
-    return res.json();
+    const r = await apiClient.post<AccountDTO>(`${API_BASE}/accounts`, data);
+    return r.data;
   },
 
   async getAccounts(companyId: string, type?: string): Promise<AccountDTO[]> {
-    const url = new URL(`${API_BASE}/accounts`, window.location.origin);
-    url.searchParams.set('company_id', companyId);
-    if (type) url.searchParams.set('type', type);
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error('Failed to fetch accounts');
-    return res.json();
+    const r = await apiClient.get<AccountDTO[]>(`${API_BASE}/accounts`, { params: { company_id: companyId, type } });
+    return r.data;
   },
 
   async getLedger(accountId: string, fromDate?: string, toDate?: string): Promise<LedgerEntryDTO[]> {
-    const url = new URL(`${API_BASE}/ledger`, window.location.origin);
-    url.searchParams.set('account_id', accountId);
-    if (fromDate) url.searchParams.set('from_date', fromDate);
-    if (toDate) url.searchParams.set('to_date', toDate);
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error('Failed to fetch ledger');
-    return res.json();
+    const r = await apiClient.get<LedgerEntryDTO[]>(`${API_BASE}/ledger`, { params: { account_id: accountId, from_date: fromDate, to_date: toDate } });
+    return r.data;
   },
 
   async createVoucher(data: Partial<VoucherDTO>): Promise<VoucherDTO> {
-    const res = await fetch(`${API_BASE}/vouchers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create voucher');
-    return res.json();
+    const r = await apiClient.post<VoucherDTO>(`${API_BASE}/vouchers`, data);
+    return r.data;
   },
 
   async postVoucher(voucherId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/vouchers/${voucherId}/post`, { method: 'POST' });
-    if (!res.ok) throw new Error('Failed to post voucher');
+    await apiClient.post(`${API_BASE}/vouchers/${voucherId}/post`);
   },
 
   async getTrialBalance(companyId: string, asOfDate?: string): Promise<TrialBalanceDTO[]> {
-    const url = new URL(`${API_BASE}/trial-balance`, window.location.origin);
-    url.searchParams.set('company_id', companyId);
-    if (asOfDate) url.searchParams.set('as_of_date', asOfDate);
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error('Failed to fetch trial balance');
-    return res.json();
+    const r = await apiClient.get<TrialBalanceDTO[]>(`${API_BASE}/trial-balance`, { params: { company_id: companyId, as_of_date: asOfDate } });
+    return r.data;
   },
 
   async getProfitLoss(companyId: string, fromDate: string, toDate: string): Promise<ProfitLossDTO> {
-    const res = await fetch(`${API_BASE}/profit-loss?company_id=${companyId}&from_date=${fromDate}&to_date=${toDate}`);
-    if (!res.ok) throw new Error('Failed to fetch P&L');
-    return res.json();
+    const r = await apiClient.get<ProfitLossDTO>(`${API_BASE}/profit-loss`, { params: { company_id: companyId, from_date: fromDate, to_date: toDate } });
+    return r.data;
   },
 
   async getBalanceSheet(companyId: string, asOfDate: string): Promise<BalanceSheetDTO> {
-    const res = await fetch(`${API_BASE}/balance-sheet?company_id=${companyId}&as_of_date=${asOfDate}`);
-    if (!res.ok) throw new Error('Failed to fetch balance sheet');
-    return res.json();
+    const r = await apiClient.get<BalanceSheetDTO>(`${API_BASE}/balance-sheet`, { params: { company_id: companyId, as_of_date: asOfDate } });
+    return r.data;
   },
 };

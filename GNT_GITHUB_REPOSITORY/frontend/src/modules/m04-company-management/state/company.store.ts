@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { CompanyService } from "../services/company.service";
-import { Company, Branch, FinancialYear, Role, User, Permission } from "../services/company.types";
+import { Company, Branch, FinancialYear, Role, User, Permission, CreateUserPayload } from "../services/company.types";
 
 interface CompanyState {
   company: Company | null; branches: Branch[]; financialYears: FinancialYear[];
@@ -10,7 +10,7 @@ interface CompanyState {
   fetchBranches: () => Promise<void>; createBranch: (d: Partial<Branch>) => Promise<void>; deleteBranch: (id: string) => Promise<void>;
   fetchFinancialYears: () => Promise<void>; createFY: (d: Partial<FinancialYear>) => Promise<void>; switchFY: (id: string) => Promise<void>;
   fetchRoles: () => Promise<void>; updateRolePermissions: (rid: string, pid: string, v: boolean) => Promise<void>;
-  fetchUsers: () => Promise<void>; createUser: (d: Partial<User>) => Promise<void>; toggleUserStatus: (id: string) => Promise<void>;
+  fetchUsers: () => Promise<void>; createUser: (d: CreateUserPayload) => Promise<void>; toggleUserStatus: (id: string) => Promise<void>;
 }
 
 export const useCompanyStore = create<CompanyState>((set, get) => ({

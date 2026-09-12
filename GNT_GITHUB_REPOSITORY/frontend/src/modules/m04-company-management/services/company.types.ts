@@ -17,6 +17,11 @@ export interface User {
   id: string; companyId: string; name: string; email: string; roleId: string;
   role?: Role; isActive: boolean; lastLoginAt?: string; createdAt: string;
 }
+// backend `POST /company/users` (createUser) की असली ज़रूरत — username/password
+// चाहिए ही (NOT NULL columns), role_ids snake_case array (roleId नहीं)
+export interface CreateUserPayload {
+  name: string; email: string; username: string; password: string; role_ids?: string[];
+}
 export interface Permission {
   id: string; module: string; resource: string; action: string; name: string;
 }

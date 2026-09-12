@@ -18,12 +18,98 @@ import { partyService } from '@/modules/m05-party-management';
 import type { CreatePartyDTO } from '@/modules/m05-party-management';
 import { ProductService } from '@/modules/m06-inventory';
 import type { ProductDTO } from '@/modules/m06-inventory';
+import { StockService } from '@/modules/m06-inventory/services/stock.service';
 import { TradeService } from '@/modules/m20-international-trade';
-import { EventBus } from '@/shared/events/event-bus';
+import { eventBus } from '@/common/events/event-bus';
+import { SalesService } from '@/modules/m08-sales';
+import { PurchaseService } from '@/modules/m07-purchase/services/purchase.service';
+import { PurchaseEventHandlers } from '@/modules/m07-purchase/events/purchase.handlers';
+import { InvoiceLedgerService } from '@/modules/m10-accounting';
+import { gstService } from '@/modules/m09-gst';
 import type { TransferPlanItem } from '../types/dataSense.types';
 import { parseImportDate } from './date.util';
 import { type HoldReason, createHold } from './paymentHold.service';
 import { applyReceiptFifo, buildReceiptKey, findExactCustomer, round2 } from './receiptSettlement';
+
+// module-registry.ts के M07 mount जैसी ही असली DI (stock/GST/ledger side-effects
+// के लिए) — copy नहीं, वही असली PurchaseService जो production route पर चलता है,
+// बस यहाँ भी वही तार जोड़े गए हैं ताकि raw prisma.purchase_invoice.create की जगह
+// पूरी pipeline (numbering + GST calc + stock-in + M10 ledger post + events) चले।
+function buildPurchaseService(): PurchaseService {
+  const stockSvc = new StockService();
+  const invoiceLedgerSvc = new InvoiceLedgerService(prisma);
+  const stockServiceForHandlers = {
+    async addStock(data: { product_id: string; quantity: number; rate: number; batch_id?: string; reference: string; company_id: string }): Promise<void> {
+      await stockSvc.addStock(data.product_id, data.quantity, data.company_id, null, data.batch_id ?? null, data.rate ?? null, 'purchase', data.reference);
+    },
+    async deductStock(data: { product_id: string; quantity: number; reference: string; company_id: string }): Promise<void> {
+      await stockSvc.deductStock(data.product_id, data.quantity, data.company_id, null, null, 'purchase_return', data.reference);
+    },
+  };
+  const gstServiceForHandlers = {
+    async calculateInputTax(data: {
+      invoice_id: string;
+      company_id: string;
+      supplier_id: string;
+      invoice_date: Date;
+      taxable_amount: number;
+      total_tax_amount: number;
+      items: Array<{ product_id: string; tax_amount: number; hsn_code?: string }>;
+    }): Promise<void> {
+      try {
+        await gstService.recordInvoiceTax({
+          companyId: data.company_id,
+          partyId: data.supplier_id,
+          referenceType: 'purchase_invoice',
+          referenceId: data.invoice_id,
+          transactionDate: data.invoice_date,
+          hsnCode: data.items.length === 1 ? data.items[0].hsn_code ?? null : null,
+          taxableAmount: data.taxable_amount,
+          totalTaxAmount: data.total_tax_amount,
+          taxType: 'input',
+        });
+      } catch (e) {
+        console.error(`[M07→M09] gst_transaction record failed for invoice ${data.invoice_id}:`, e);
+      }
+    },
+    async reverseInputTax(data: {
+      return_id: string; company_id: string; supplier_id: string; return_date: Date;
+      taxable_amount: number; total_tax_amount: number;
+      items: Array<{ product_id: string; tax_amount: number }>;
+    }): Promise<void> {
+      try {
+        await gstService.recordInvoiceTax({
+          companyId: data.company_id,
+          partyId: data.supplier_id,
+          referenceType: 'purchase_return',
+          referenceId: data.return_id,
+          transactionDate: data.return_date,
+          taxableAmount: -data.taxable_amount,
+          totalTaxAmount: -data.total_tax_amount,
+          taxType: 'input',
+        });
+      } catch (e) {
+        console.error(`[M07→M09] gst_transaction reversal failed for return ${data.return_id}:`, e);
+      }
+    },
+  };
+  const ledgerServiceForHandlers = {
+    async createPurchaseEntry(data: { invoice_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
+      const res = await invoiceLedgerSvc.postPurchaseInvoice(data.company_id, data.invoice_id, 'system');
+      if (!res.posted && res.reason !== 'already posted to ledger') {
+        throw new Error(`M07→M10 purchase ledger posting failed: ${res.reason}`);
+      }
+    },
+    async createPurchaseReturnEntry(data: { return_id: string; company_id: string; supplier_id: string; amount: number; tax_amount: number; reference: string }): Promise<void> {
+      const res = await invoiceLedgerSvc.postPurchaseReturn(data.company_id, data.return_id, 'system');
+      if (!res.posted && res.reason !== 'already posted to ledger') {
+        throw new Error(`M07→M10 purchase-return ledger reversal failed: ${res.reason}`);
+      }
+    },
+  };
+  const handlers = new PurchaseEventHandlers(stockServiceForHandlers, gstServiceForHandlers, ledgerServiceForHandlers, eventBus);
+  return new PurchaseService(prisma, handlers, eventBus);
+}
 
 export interface TransferRowResult {
   rowNumber: number;
@@ -288,7 +374,7 @@ export async function executeTransfer(
             str(item.payload.productName),
             str(item.payload.hsn)
           );
-          const tradeService = new TradeService(prisma, new EventBus());
+          const tradeService = new TradeService(prisma, eventBus);
           const shipment = await tradeService.createExportShipment({
             company_id: companyId,
             reference_no: str(item.payload.invoiceNo) ?? `EXP-${Date.now()}`,
@@ -304,99 +390,94 @@ export async function executeTransfer(
           break;
         }
         case 'm08-sales': {
-          // असली M08 sales_invoice बनाओ (single line item from summary) — pending-adapter नहीं
+          // असली M08 SalesService pipeline — पहले raw prisma.salesInvoice.create था,
+          // जो invoice numbering, GST-calc engine, M10 ledger auto-post, और
+          // sales.invoice.created event (M16/M17/M19 इसी पर निर्भर) — सब छोड़ देता
+          // था, और productId की जगह HSN कोड string डाल देता था (ग़लत FK)।
+          const actingUser = userId ?? 'data-sense';
           const partyId = await resolvePartyId(
             companyId,
             str(item.payload.partyName ?? item.payload.buyerName),
             userId
           );
+          const productId = await resolveProductId(
+            companyId,
+            str(item.payload.productName),
+            str(item.payload.hsn)
+          );
           const taxable = num(item.payload.taxableValue) ?? 0;
           const tax = num(item.payload.gstAmount) ?? 0;
-          const total = num(item.payload.invoiceTotal) ?? taxable + tax;
           const date = item.payload.invoiceDate
             ? parseImportDate(item.payload.invoiceDate)
             : new Date();
-          const invoice = await prisma.salesInvoice.create({
-            data: {
-              companyId,
-              branchId: companyId,
-              customerId: partyId,
-              invoiceNumber: str(item.payload.invoiceNo) ?? `INV-${Date.now()}`,
-              invoiceDate: date,
-              dueDate: date,
-              totalAmount: taxable,
-              totalTax: tax,
-              totalDiscount: 0,
-              netAmount: taxable,
-              roundOff: 0,
-              grandTotal: total,
-              items: {
-                create: [
-                  {
-                    productId: str(item.payload.hsn) ?? 'generic',
-                    quantity: 1,
-                    rate: taxable,
-                    discountPercent: 0,
-                    discountAmount: 0,
-                    amount: taxable,
-                    taxRate: taxable > 0 ? (tax / taxable) * 100 : 0,
-                    taxAmount: tax,
-                    netAmount: taxable,
-                    hsnCode: str(item.payload.hsn) ?? null,
-                  },
-                ],
+          const salesService = new SalesService();
+          const draft = await salesService.createInvoice({
+            companyId,
+            branchId: companyId,
+            customerId: partyId,
+            invoiceNumber: str(item.payload.invoiceNo),
+            invoiceDate: date,
+            dueDate: date,
+            items: [
+              {
+                productId,
+                quantity: 1,
+                rate: taxable,
+                taxRate: taxable > 0 ? (tax / taxable) * 100 : 0,
+                hsnCode: str(item.payload.hsn),
               },
-            },
+            ],
+            createdBy: actingUser,
           });
+          await salesService.approveInvoice(draft.id, companyId, actingUser);
+          const invoice = await salesService.postInvoice(draft.id, companyId, actingUser);
           summary.created++;
           rows.push({ ...base, status: 'created', id: invoice.id });
           break;
         }
         case 'm07-purchase': {
-          // असली M07 purchase_invoice बनाओ (supplier resolve + item)
+          // असली M07 PurchaseService pipeline — पहले raw prisma.purchase_invoice.create
+          // था, जो numbering, GST-calc, stock-in on receipt, M10 ledger auto-post, और
+          // purchase.invoice.approved/posted events — सब छोड़ देता था।
+          const actingUser = userId ?? 'data-sense';
           const supplierId = await resolvePartyId(
             companyId,
             str(item.payload.supplierName),
             userId,
             'supplier'
           );
+          const productId = await resolveProductId(
+            companyId,
+            str(item.payload.productName),
+            str(item.payload.hsn)
+          );
           const taxable = num(item.payload.taxableValue) ?? 0;
           const tax = num(item.payload.gstAmount) ?? 0;
-          const total = num(item.payload.invoiceTotal) ?? taxable + tax;
           const date = item.payload.invoiceDate
             ? parseImportDate(item.payload.invoiceDate)
             : new Date();
-          const invoice = await prisma.purchase_invoice.create({
-            data: {
-              company_id: companyId,
-              branch_id: companyId,
-              supplier_id: supplierId,
-              invoice_number: str(item.payload.invoiceNo) ?? `PINV-${Date.now()}`,
-              invoice_date: date,
-              total_amount: taxable,
-              total_tax: tax,
-              total_discount: 0,
-              net_amount: taxable,
-              round_off: 0,
-              grand_total: total,
-              items: {
-                create: [
-                  {
-                    product_id: str(item.payload.hsn) ?? 'generic',
-                    quantity: 1,
-                    rate: taxable,
-                    discount_amount: 0,
-                    amount: taxable,
-                    tax_rate: taxable > 0 ? (tax / taxable) * 100 : 0,
-                    tax_amount: tax,
-                    net_amount: taxable,
-                  },
-                ],
+          const purchaseService = buildPurchaseService();
+          const draft = await purchaseService.createPurchaseInvoice({
+            company_id: companyId,
+            branch_id: companyId,
+            supplier_id: supplierId,
+            invoice_number: str(item.payload.invoiceNo) ?? `PINV-${Date.now()}`,
+            invoice_date: date,
+            items: [
+              {
+                product_id: productId,
+                quantity: 1,
+                rate: taxable,
+                tax_rate: taxable > 0 ? (tax / taxable) * 100 : 0,
+                hsn_code: str(item.payload.hsn),
               },
-            },
+            ],
+            created_by: actingUser,
           });
+          await purchaseService.approvePurchaseInvoice(draft.id, companyId, actingUser);
+          await purchaseService.postPurchaseInvoice(draft.id, companyId, actingUser);
           summary.created++;
-          rows.push({ ...base, status: 'created', id: invoice.id });
+          rows.push({ ...base, status: 'created', id: draft.id });
           break;
         }
         case 'm10-accounting': {

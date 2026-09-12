@@ -38,6 +38,8 @@ export type InvoiceLedgerResult =
   | { posted: true; voucherId: string }
   | { posted: false; reason: string };
 
+type ReferenceType = 'SALES_INVOICE' | 'PURCHASE_INVOICE' | 'PURCHASE_RETURN' | 'SALES_RETURN';
+
 interface ResolvedAccount {
   id: string;
 }
@@ -86,7 +88,7 @@ export class InvoiceLedgerService {
 
   private async alreadyPosted(
     companyId: string,
-    referenceType: 'SALES_INVOICE' | 'PURCHASE_INVOICE',
+    referenceType: ReferenceType,
     referenceId: string,
     incomeExpenseAccountId: string,
   ): Promise<boolean> {
@@ -109,10 +111,10 @@ export class InvoiceLedgerService {
   private async writeVoucher(params: {
     companyId: string;
     branchId?: string | null;
-    voucherType: 'sales' | 'purchase';
+    voucherType: 'sales' | 'purchase' | 'purchase_return' | 'sales_return';
     voucherDate: Date;
     narration: string;
-    referenceType: 'SALES_INVOICE' | 'PURCHASE_INVOICE';
+    referenceType: ReferenceType;
     referenceId: string;
     partyId: string;
     partyAccountId: string;
@@ -127,7 +129,8 @@ export class InvoiceLedgerService {
       throw new Error(`M10 invoice voucher unbalanced: Dr ${totalDebit} != Cr ${totalCredit} (${referenceType} ${referenceId})`);
     }
 
-    const voucherNumber = `${voucherType === 'sales' ? 'SV' : 'PV'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const voucherPrefix = { sales: 'SV', purchase: 'PV', purchase_return: 'PRV', sales_return: 'SRV' }[voucherType];
+    const voucherNumber = `${voucherPrefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     return this.prisma.$transaction(async (tx) => {
       const voucher = await tx.voucher.create({
@@ -261,6 +264,88 @@ export class InvoiceLedgerService {
       referenceId: invoiceId,
       partyId: inv.supplier_id,
       partyAccountId: creditors.id,
+      createdBy: userId,
+      lines,
+    });
+    return { posted: true, voucherId };
+  }
+
+  /** M07 → M10: purchase-return posted होते ही reversal entry (postPurchaseInvoice का उल्टा) */
+  async postPurchaseReturn(companyId: string, returnId: string, userId?: string): Promise<InvoiceLedgerResult> {
+    const ret = await this.prisma.purchase_return.findFirst({ where: { id: returnId, company_id: companyId } });
+    if (!ret) return { posted: false, reason: 'purchase return not found for this company' };
+
+    const taxable = r4(Number(ret.total_amount ?? 0));
+    const tax = r4(Number(ret.tax_amount ?? 0));
+    const netAmount = r4(Number(ret.net_amount ?? taxable + tax));
+    if (netAmount <= 0) return { posted: false, reason: 'net amount is zero — nothing to post' };
+
+    const [creditors, purchasesAcct, gstIn] = await Promise.all([
+      this.creditors(companyId),
+      this.purchases(companyId),
+      this.gstInput(companyId),
+    ]);
+
+    if (await this.alreadyPosted(companyId, 'PURCHASE_RETURN', returnId, purchasesAcct.id)) {
+      return { posted: false, reason: 'already posted to ledger' };
+    }
+
+    const lines = [
+      { accountId: creditors.id, debit: netAmount, credit: 0, isParty: true },
+      { accountId: purchasesAcct.id, debit: 0, credit: taxable },
+      { accountId: gstIn.id, debit: 0, credit: tax },
+    ];
+
+    const voucherId = await this.writeVoucher({
+      companyId,
+      voucherType: 'purchase_return',
+      voucherDate: ret.return_date ?? new Date(),
+      narration: `Purchase Return ${ret.return_number}`,
+      referenceType: 'PURCHASE_RETURN',
+      referenceId: returnId,
+      partyId: ret.supplier_id,
+      partyAccountId: creditors.id,
+      createdBy: userId,
+      lines,
+    });
+    return { posted: true, voucherId };
+  }
+
+  /** M08 → M10: sales-return posted होते ही reversal entry (postSalesInvoice का उल्टा) */
+  async postSalesReturn(companyId: string, returnId: string, userId?: string): Promise<InvoiceLedgerResult> {
+    const ret = await this.prisma.salesReturn.findFirst({ where: { id: returnId, companyId } });
+    if (!ret) return { posted: false, reason: 'sales return not found for this company' };
+
+    const taxable = r4(Number(ret.totalAmount ?? 0));
+    const tax = r4(Number(ret.taxAmount ?? 0));
+    const netAmount = r4(Number(ret.netAmount ?? taxable + tax));
+    if (netAmount <= 0) return { posted: false, reason: 'net amount is zero — nothing to post' };
+
+    const [debtors, salesRev, gstOut] = await Promise.all([
+      this.debtors(companyId),
+      this.salesRevenue(companyId),
+      this.gstOutput(companyId),
+    ]);
+
+    if (await this.alreadyPosted(companyId, 'SALES_RETURN', returnId, salesRev.id)) {
+      return { posted: false, reason: 'already posted to ledger' };
+    }
+
+    const lines = [
+      { accountId: salesRev.id, debit: taxable, credit: 0 },
+      { accountId: gstOut.id, debit: tax, credit: 0 },
+      { accountId: debtors.id, debit: 0, credit: netAmount, isParty: true },
+    ];
+
+    const voucherId = await this.writeVoucher({
+      companyId,
+      voucherType: 'sales_return',
+      voucherDate: ret.returnDate ?? new Date(),
+      narration: `Sales Return ${ret.returnNumber}`,
+      referenceType: 'SALES_RETURN',
+      referenceId: returnId,
+      partyId: ret.customerId,
+      partyAccountId: debtors.id,
       createdBy: userId,
       lines,
     });

@@ -9,16 +9,20 @@ import { CustomsController } from '../controllers/customs.controller';
 import { TradeDocumentService } from '../services/trade-document.service';
 import { FXService } from '../services/fx.service';
 import { prisma } from '@/common/config/prisma';
+import { eventBus } from '../../../shared/events/event-bus';
 import { AppError } from '../../../shared/errors/app-error';
 import { GenerateDocumentSchema } from '../validators/trade.schema';
 import { M20LandedCostController } from '../controllers/m20-landed-cost.controller';
 import { M20PackingListController } from '../controllers/m20-packing-list.controller';
+import { registerTradeEventHandlers } from '../events/trade.handlers';
+
+registerTradeEventHandlers(eventBus);
 
 const router = Router();
 const tradeCtrl = new TradeController();
 const hsnCtrl = new HSNController();
 const customsCtrl = new CustomsController();
-const fxService = new FXService(prisma);
+const fxService = new FXService(prisma, eventBus);
 const docService = new TradeDocumentService(prisma);
 
 // ── Trade Shipments ──

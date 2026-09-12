@@ -181,6 +181,7 @@ export interface FXRateUpdatedPayload {
 
 export interface CustomsDutyCalculatedPayload {
   trade_job_id: string;
+  company_id: string;
   hsn_code: string;
   total_duty: number;
   timestamp: string;

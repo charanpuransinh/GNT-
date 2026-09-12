@@ -282,6 +282,7 @@ export interface PurchaseInvoiceApprovedEvent {
   invoice_id: string;
   supplier_id: string;
   company_id: string;
+  invoice_date: Date;
   total_amount: number;
   tax_amount: number;
   grand_total: number;
