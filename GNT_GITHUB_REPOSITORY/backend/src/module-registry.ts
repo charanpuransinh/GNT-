@@ -284,6 +284,13 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   // M24 (Performance, Cache & Database Optimization) — added 2026-09-13, M23-M31 mounting pass.
   { code: 'M24', path: '/api/v1/performance',   mounted: true,
     load: async () => (await import('./modules/m24-performance-cache')).performanceRoutes },
+  // M28 (Reports & Export) — added 2026-09-13, M23-M31 mounting pass.
+  // NOT /api/v1/reports — M17 already owns that path for real. Scheduling
+  // (ExportScheduler) is not mounted: no real SchedulerPort exists yet
+  // (M13's job-creation isn't public, and M13's scheduled_job model is
+  // rule-bound — see reports/../scheduler/export-scheduler.ts header).
+  { code: 'M28', path: '/api/v1/reports-export', mounted: true,
+    load: async () => (await import('./modules/m28-reports-export')).reportsExportRoutes },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        mounted: true,
     load: async () => (await import('./modules/m26-global-search')).searchRoutes },

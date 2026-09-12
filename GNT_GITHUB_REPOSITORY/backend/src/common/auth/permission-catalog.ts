@@ -60,6 +60,8 @@ export const MODULES: readonly ModuleDef[] = [
   { code: 'M23', path: '/api/v1/security',      resource: 'security',      department: 'admin',           label: 'सुरक्षा एवं गवर्नेंस' },
   // M24 (Performance, Cache & Database Optimization) — added 2026-09-13, M23-M31 mounting pass.
   { code: 'M24', path: '/api/v1/performance',   resource: 'performance',   department: 'admin',           label: 'परफ़ॉर्मेंस एवं cache' },
+  // M28 (Reports & Export) — added 2026-09-13, M23-M31 mounting pass. Path /reports-export, NOT /reports (M17 already owns that).
+  { code: 'M28', path: '/api/v1/reports-export', resource: 'report_export', department: 'admin',          label: 'रिपोर्ट एक्सपोर्ट' },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        resource: 'search',        department: 'admin',           label: 'खोज' },
   // M27 (Analytics, KPI & Dashboard) — added 2026-09-12, M23-M34 wiring pass.
@@ -201,6 +203,8 @@ const ACTION_OVERRIDES: readonly ActionOverride[] = [
   { method: 'POST', test: /\/execute$/, action: 'edit' },
   // M27: KPI evaluate / dashboard widget load = पढ़ना ही है, POST सिर्फ़ body के लिए = view
   { method: 'POST', test: /\/(evaluate|widget)$/, action: 'view' },
+  // M28: report build = मौजूदा M27 metrics से पढ़ना/जोड़ना, कोई नया persisted resource नहीं = view
+  { method: 'POST', test: /\/build$/, action: 'view' },
 ] as const;
 
 /**
