@@ -1279,6 +1279,38 @@ enum Severity {
   critical
 }
 
+// ── M23 Security & Governance (added 2026-09-12) ──
+// Tenant-owned config tables — genuinely new, no overlap with M19's
+// audit/security tables (those are reused as-is by M23's adapters).
+model SecurityPolicy {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  name       String
+  resource   String
+  action     String
+  effect     String
+  conditions Json?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, resource, action])
+  @@map("security_policy")
+}
+
+model DataRetentionPolicy {
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  entityType    String   @map("entity_type")
+  retentionDays Int      @map("retention_days")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, entityType])
+  @@map("data_retention_policy")
+}
+
 model SystemHealth {
   id              String   @id @default(cuid())
   companyId       String   @map("company_id")

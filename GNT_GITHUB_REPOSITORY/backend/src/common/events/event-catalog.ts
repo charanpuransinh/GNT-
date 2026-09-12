@@ -60,6 +60,13 @@ export const GNT_EVENTS = {
 
   // ── M18 External ──
   INTEGRATION_WEBHOOK_FAILED: 'integration.webhook.failed',
+
+  // ── M23 Security & Governance (added 2026-09-12) ──
+  SECURITY_ACCESS_DENIED: 'security.access_denied',
+  SECURITY_CROSS_TENANT_ATTEMPT: 'security.cross_tenant_attempt',
+  SECURITY_POLICY_CHANGED: 'security.policy_changed',
+  SECURITY_SENSITIVE_DATA_ACCESSED: 'security.sensitive_data_accessed',
+  SECURITY_RETENTION_EXECUTED: 'security.retention_executed',
 } as const;
 
 export type GntEventName = (typeof GNT_EVENTS)[keyof typeof GNT_EVENTS];
