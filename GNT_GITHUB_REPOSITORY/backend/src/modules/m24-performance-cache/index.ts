@@ -62,3 +62,7 @@ export {
   type CacheMetricEvent,
   type CacheMetricsSnapshot,
 } from './monitoring/cache-metrics.service';
+
+// --- HTTP API (2026-09-13 mounting pass) ---
+export { PerformanceController, performanceController, PerformancePermissionDeniedError, type PerformanceAuthContext } from './controllers/performance.controller';
+export { performanceRoutes } from './routes/performance.routes';

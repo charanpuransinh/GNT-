@@ -58,6 +58,8 @@ export const MODULES: readonly ModuleDef[] = [
   { code: 'M22', path: '/api/v1/subscriptions', resource: 'subscription',  department: 'admin',           label: 'सदस्यता' },
   // M23 (Security, Governance & Data Protection) — added 2026-09-12/13, M23-M31 mounting pass.
   { code: 'M23', path: '/api/v1/security',      resource: 'security',      department: 'admin',           label: 'सुरक्षा एवं गवर्नेंस' },
+  // M24 (Performance, Cache & Database Optimization) — added 2026-09-13, M23-M31 mounting pass.
+  { code: 'M24', path: '/api/v1/performance',   resource: 'performance',   department: 'admin',           label: 'परफ़ॉर्मेंस एवं cache' },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        resource: 'search',        department: 'admin',           label: 'खोज' },
   // M27 (Analytics, KPI & Dashboard) — added 2026-09-12, M23-M34 wiring pass.

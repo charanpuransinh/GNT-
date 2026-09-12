@@ -281,6 +281,9 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   // (M23's own INTEGRATION_NOTES.md), not HTTP endpoints.
   { code: 'M23', path: '/api/v1/security',      mounted: true,
     load: async () => (await import('./modules/m23-security-governance')).securityRoutes },
+  // M24 (Performance, Cache & Database Optimization) — added 2026-09-13, M23-M31 mounting pass.
+  { code: 'M24', path: '/api/v1/performance',   mounted: true,
+    load: async () => (await import('./modules/m24-performance-cache')).performanceRoutes },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        mounted: true,
     load: async () => (await import('./modules/m26-global-search')).searchRoutes },
