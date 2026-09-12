@@ -38,7 +38,7 @@ export type InvoiceLedgerResult =
   | { posted: true; voucherId: string }
   | { posted: false; reason: string };
 
-type ReferenceType = 'SALES_INVOICE' | 'PURCHASE_INVOICE' | 'PURCHASE_RETURN' | 'SALES_RETURN';
+type ReferenceType = 'SALES_INVOICE' | 'PURCHASE_INVOICE' | 'PURCHASE_RETURN' | 'SALES_RETURN' | 'MANUAL_JOURNAL';
 
 interface ResolvedAccount {
   id: string;
@@ -111,25 +111,28 @@ export class InvoiceLedgerService {
   private async writeVoucher(params: {
     companyId: string;
     branchId?: string | null;
-    voucherType: 'sales' | 'purchase' | 'purchase_return' | 'sales_return';
+    voucherType: 'sales' | 'purchase' | 'purchase_return' | 'sales_return' | 'journal';
     voucherDate: Date;
     narration: string;
     referenceType: ReferenceType;
     referenceId: string;
-    partyId: string;
-    partyAccountId: string;
+    partyId?: string;
+    partyAccountId?: string;
     createdBy?: string | null;
     lines: Array<{ accountId: string; debit: number; credit: number; isParty?: boolean }>;
   }): Promise<string> {
     const { companyId, branchId, voucherType, voucherDate, narration, referenceType, referenceId, partyId, createdBy } = params;
     const lines = params.lines.filter((l) => r4(l.debit) > 0 || r4(l.credit) > 0);
+    if (lines.length < 2) {
+      throw new Error(`M10 voucher needs at least 2 non-zero lines (double-entry): got ${lines.length} (${referenceType} ${referenceId})`);
+    }
     const totalDebit = r4(lines.reduce((s, l) => s + l.debit, 0));
     const totalCredit = r4(lines.reduce((s, l) => s + l.credit, 0));
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
       throw new Error(`M10 invoice voucher unbalanced: Dr ${totalDebit} != Cr ${totalCredit} (${referenceType} ${referenceId})`);
     }
 
-    const voucherPrefix = { sales: 'SV', purchase: 'PV', purchase_return: 'PRV', sales_return: 'SRV' }[voucherType];
+    const voucherPrefix = { sales: 'SV', purchase: 'PV', purchase_return: 'PRV', sales_return: 'SRV', journal: 'JV' }[voucherType];
     const voucherNumber = `${voucherPrefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     return this.prisma.$transaction(async (tx) => {
@@ -176,6 +179,35 @@ export class InvoiceLedgerService {
 
       return voucher.id;
     });
+  }
+
+  /**
+   * सामान्य balanced journal voucher — किसी invoice/party से बंधा नहीं (M21 data-sense
+   * जैसे raw import के लिए, या भविष्य में कोई भी module जिसे मुक्त 2-पंक्ति journal
+   * चाहिए)। `writeVoucher` की वही double-entry जाँच (कम-से-कम 2 lines, debit==credit)
+   * यहाँ भी अनिवार्य है — सिर्फ़ invoice-specific party/referenceType फ़ील्ड हटाए गए हैं।
+   */
+  async postManualJournal(params: {
+    companyId: string;
+    branchId?: string | null;
+    voucherDate: Date;
+    narration: string;
+    referenceId: string;
+    createdBy?: string | null;
+    lines: Array<{ accountId: string; debit: number; credit: number }>;
+  }): Promise<InvoiceLedgerResult> {
+    const voucherId = await this.writeVoucher({
+      companyId: params.companyId,
+      branchId: params.branchId,
+      voucherType: 'journal',
+      voucherDate: params.voucherDate,
+      narration: params.narration,
+      referenceType: 'MANUAL_JOURNAL',
+      referenceId: params.referenceId,
+      createdBy: params.createdBy,
+      lines: params.lines.map((l) => ({ accountId: l.accountId, debit: l.debit, credit: l.credit, isParty: false })),
+    });
+    return { posted: true, voucherId };
   }
 
   /** M08 → M10: sales invoice posted होते ही accrual entry */

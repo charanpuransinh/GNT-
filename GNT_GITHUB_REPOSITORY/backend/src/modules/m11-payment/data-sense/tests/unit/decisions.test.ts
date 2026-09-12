@@ -109,13 +109,26 @@ test('Faisla 3: debit wali panti (bank credit nahi) par asar nahi — wahi M10 a
   const r = svc.analyze(
     'c1',
     {
-      headers: ['Ledger Name', 'Date', 'Debit'],
-      rows: [{ 'Ledger Name': 'Rent', Date: '01/04/2026', Debit: '5000' }],
+      // owner फ़ैसला (2026-09-12): हर accounting पंक्ति (जो bank-receipt न हो) का
+      // against खाता (offsetLedgerName) ज़रूरी — बिना इसके अब यह RED होगी।
+      headers: ['Ledger Name', 'Date', 'Debit', 'Offset Account'],
+      rows: [{ 'Ledger Name': 'Rent', Date: '01/04/2026', Debit: '5000', 'Offset Account': 'HDFC Bank' }],
     },
     { bankReconciliation: 'fifo-invoice-settlement' }
   );
+  assert.equal(r.verdicts[0].status, 'GREEN');
   assert.equal(r.transferPlan[0].operation, 'create');
   assert.equal(r.transferPlan[0].targetModule, 'm10-accounting');
+});
+
+test('Faisla 3: debit wali panti offsetLedgerName ke bina — RED, kabhi purani single-line ledger.create() par nahi girti', () => {
+  const r = svc.analyze('c1', {
+    headers: ['Ledger Name', 'Date', 'Debit'],
+    rows: [{ 'Ledger Name': 'Rent', Date: '01/04/2026', Debit: '5000' }],
+  });
+  assert.equal(r.verdicts[0].status, 'RED');
+  assert.match(r.verdicts[0].reasons.join(' '), /offsetLedgerName/);
+  assert.equal(r.transferPlan[0].operation, 'hold-for-review');
 });
 
 test('Faisla 3: RED panti kabhi transfer nahi hoti, chahe koi bhi toggle ho', () => {

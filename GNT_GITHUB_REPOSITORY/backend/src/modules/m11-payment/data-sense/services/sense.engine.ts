@@ -83,9 +83,23 @@ export const GROUP_SPECS: Readonly<Record<DataGroup, GroupSpec>> = {
     },
   },
   accounting: {
+    // owner फ़ैसला (2026-09-12): कोई भी voucher-रहित, एक-तरफ़ा ledger पंक्ति नहीं —
+    // हर journal import को उसका against खाता (Bank/Cash/Control Ledger) साथ लाना ही होगा।
+    // ⚠️ offsetLedgerName को यहाँ GROUP_SPECS.required में नहीं डाला — required[]
+    // group-पहचान के score में भी गिनता है (scoreGroup), और इसे required करने से
+    // accounting sheet का requiredScore आधा हो जाता, जिससे कमज़ोर 'party'-जैसे
+    // partial-match वाले groups कभी-कभी जीत जाते (सिर्फ़ Ledger/Debit/Credit वाली
+    // सीधी sheet 'party' पहचानी जाने लगी — असली regression, टेस्ट से पकड़ा गया)।
+    // इसलिए ज़रूरी होना validate.engine.ts में row-level जाँच से लागू है (§7),
+    // group-detection से अलग — पर उतना ही सख़्त: ग़ायब होने पर RED, कुछ नहीं चढ़ता।
     required: ['ledgerName'],
     fields: {
       ledgerName: ['ledger', 'ledgername', 'accountname', 'account', 'particulars'],
+      offsetLedgerName: [
+        'contraaccount', 'contra', 'offsetledger', 'offsetaccount', 'offsetledgername',
+        'againstaccount', 'against', 'paidthrough', 'paidfrom', 'bankcashledger',
+        'bankledger', 'cashledger', 'bankaccount', 'cashaccount',
+      ],
       voucherType: ['vouchertype', 'type', 'entrytype'],
       voucherDate: ['date', 'voucherdate', 'entrydate'],
       debit: ['debit', 'dr', 'debitamount'],

@@ -5,8 +5,10 @@
 // यह किसी master का मालिक नहीं बनता — यह सिर्फ़ सही module को सौंपता है।
 //
 // जुड़े adapters (सब REAL): party→M05, item→M06, export→M20, sales→M08,
-// purchase→M07, accounting→M10 (journal 'create'), बैंक-receipt → M11
-// (settle-invoices-fifo — owner फ़ैसला #3 Option B: पुराने बकाया बिल क्रम से चुकता)।
+// purchase→M07, accounting→M10 (2026-09-12 से: InvoiceLedgerService.postManualJournal
+// — असली balanced double-entry voucher, हर पंक्ति का against खाता Bank/Cash/Control
+// Ledger में से एक; अकेली voucher-रहित ledger.create() अब यहाँ कहीं नहीं है), बैंक-receipt
+// → M11 (settle-invoices-fifo — owner फ़ैसला #3 Option B: पुराने बकाया बिल क्रम से चुकता)।
 //
 // pending-adapter (अभी auto-post नहीं): 'scheme' (trade rate), और
 // 'credit-ledger' (फ़ैसला #3 default — M10 में सीधे party-ledger credit के लिए
@@ -481,30 +483,73 @@ export async function executeTransfer(
           break;
         }
         case 'm10-accounting': {
-          // असली M10 ledger entry बनाओ (ledgerName → account resolve + debit/credit)
+          // सख़्त double-entry (owner फ़ैसला 2026-09-12) — कोई भी अकेली, voucher-रहित
+          // ledger पंक्ति नहीं। हर पंक्ति असली M10 InvoiceLedgerService के ज़रिए एक
+          // balanced voucher (2 lines, debit==credit) बनकर चढ़ती है — ठीक उसी तरह जैसे
+          // M08/M07 का invoice-post पहले से करता है — और हर एंट्री का एक स्पष्ट "against"
+          // खाता होना ज़रूरी है: Bank, Cash, या Control Ledger (Sundry Debtors/Creditors) —
+          // कोई मनमाना P&L ledger against-account नहीं बन सकता (Tally/Vyapar की तरह हर
+          // journal का एक असली settlement-side account)।
           const ledgerName = str(item.payload.ledgerName);
           if (!ledgerName) throw new Error('ledgerName required');
-          const account = await prisma.account_master.findFirst({
-            where: { company_id: companyId, name: ledgerName },
-          });
-          if (!account) throw new Error(`Account '${ledgerName}' not found`);
+          const offsetLedgerName = str(item.payload.offsetLedgerName);
+          if (!offsetLedgerName) {
+            throw new Error(
+              'offsetLedgerName required — हर journal entry का एक स्पष्ट against खाता (Bank/Cash/Control Ledger) चाहिए'
+            );
+          }
+          if (ledgerName.trim().toLowerCase() === offsetLedgerName.trim().toLowerCase()) {
+            throw new Error('ledgerName और offsetLedgerName एक ही खाता नहीं हो सकते');
+          }
+
           const debit = num(item.payload.debit) ?? 0;
           const credit = num(item.payload.credit) ?? 0;
+          if (debit > 0 && credit > 0) throw new Error('एक ही पंक्ति में debit और credit दोनों नहीं हो सकते');
+          if (debit <= 0 && credit <= 0) throw new Error('debit या credit में से एक रकम ज़रूरी है');
+
+          const [account, offsetAccount] = await Promise.all([
+            prisma.account_master.findFirst({ where: { company_id: companyId, name: ledgerName } }),
+            prisma.account_master.findFirst({ where: { company_id: companyId, name: offsetLedgerName } }),
+          ]);
+          if (!account) throw new Error(`Account '${ledgerName}' not found`);
+          if (!offsetAccount) throw new Error(`Offset account '${offsetLedgerName}' not found`);
+
+          // owner की तीन मंज़ूर श्रेणियाँ — कोई guess नहीं, real schema/चार्ट-ऑफ़-अकाउंट्स से जाँच:
+          //  • Bank      → account_master.is_bank_account
+          //  • Cash      → नाम "Cash" / "Cash in Hand" (schema में कोई अलग cash-flag नहीं है)
+          //  • Control Ledger → M10/InvoiceLedgerService के वही control-account codes
+          //                     (Sundry Debtors/Creditors) जो M08/M07 invoice-posting पहले से बनाती है
+          const isBank = offsetAccount.is_bank_account === true;
+          const isCash = /^cash(\s+in\s+hand)?$/i.test(offsetAccount.name.trim());
+          const isControlLedger =
+            offsetAccount.code === `M11-AR-${companyId}` || offsetAccount.code === `M11-AP-${companyId}`;
+          if (!isBank && !isCash && !isControlLedger) {
+            throw new Error(
+              `Offset account '${offsetLedgerName}' Bank, Cash, या Control Ledger (Sundry Debtors/Creditors) नहीं है — असली against-खाता चाहिए`
+            );
+          }
+
           const date = item.payload.voucherDate
             ? parseImportDate(item.payload.voucherDate)
             : new Date();
-          const entry = await prisma.ledger.create({
-            data: {
-              company_id: companyId,
-              account_id: account.id,
-              transaction_date: date,
-              debit_amount: debit,
-              credit_amount: credit,
-              narration: str(item.payload.narration) ?? null,
-            },
+
+          const invoiceLedgerSvc = new InvoiceLedgerService(prisma);
+          const result = await invoiceLedgerSvc.postManualJournal({
+            companyId,
+            voucherDate: date,
+            narration: str(item.payload.narration) ?? `Data Sense import — ${ledgerName}`,
+            referenceId: `data-sense-${sheetName ?? 'import'}-row${item.rowNumber}`,
+            createdBy: userId,
+            // primary line जैसा payload में आया वैसा ही; offset line असली दर्पण-पंक्ति
+            // (debit/credit उलटे) — यही double-entry balance अपने-आप गारंटी करता है।
+            lines: [
+              { accountId: account.id, debit, credit },
+              { accountId: offsetAccount.id, debit: credit, credit: debit },
+            ],
           });
+          if (!result.posted) throw new Error(result.reason);
           summary.created++;
-          rows.push({ ...base, status: 'created', id: entry.id });
+          rows.push({ ...base, status: 'created', id: result.voucherId });
           break;
         }
         default: {

@@ -117,11 +117,33 @@ export function validateRow(
     orange(`ईमेल का ढाँचा ठीक नहीं: "${String(mapped.email)}"`);
   }
 
-  // 7) बही-खाता का नियम: debit और credit दोनों एक साथ नहीं
-  if (group === 'accounting' && !isBlank(mapped.debit) && !isBlank(mapped.credit)) {
-    const d = Number(String(mapped.debit).replace(/[,\s₹]/g, ''));
-    const c = Number(String(mapped.credit).replace(/[,\s₹]/g, ''));
+  // 7) बही-खाता का नियम — सख़्त double-entry (owner फ़ैसला 2026-09-12):
+  //    a) debit और credit दोनों एक साथ नहीं
+  //    b) कम-से-कम एक (debit या credit) ज़रूर हो — ख़ाली/शून्य पंक्ति नहीं चढ़ेगी
+  //    c) against खाता (offsetLedgerName) उसी ledgerName से अलग हो — ख़ुद से ख़ुद नहीं
+  if (group === 'accounting') {
+    const dRaw = mapped.debit;
+    const cRaw = mapped.credit;
+    const d = isBlank(dRaw) ? 0 : Number(String(dRaw).replace(/[,\s₹]/g, ''));
+    const c = isBlank(cRaw) ? 0 : Number(String(cRaw).replace(/[,\s₹]/g, ''));
     if (d > 0 && c > 0) red('एक ही पंक्ति में debit और credit दोनों हैं');
+    else if (d <= 0 && c <= 0) red('debit या credit में से एक रकम ज़रूरी है');
+
+    // credit>0 वाली पंक्ति planner (transfer.planner.ts, isBankReceiptRow) में
+    // पहले से बैंक-receipt मानी जाती है — वह फ़ैसला 3 के अलग, पहले से pending रास्ते
+    // (credit-ledger / settle-invoices-fifo) पर जाती है, इस बदलाव के दायरे से बाहर।
+    // offsetLedgerName की सख़्ती सिर्फ़ उसी पंक्ति पर जो असल में M10 manual-journal
+    // adapter (operation 'create') तक पहुँचेगी — यानी credit>0 न हो।
+    const isBankReceiptShaped = c > 0;
+    if (!isBankReceiptShaped && isBlank(mapped.offsetLedgerName)) {
+      red('ज़रूरी field "offsetLedgerName" ख़ाली है — हर entry का against खाता (Bank/Cash/Control Ledger) चाहिए');
+    }
+
+    if (!isBlank(mapped.ledgerName) && !isBlank(mapped.offsetLedgerName)) {
+      const a = String(mapped.ledgerName).trim().toLowerCase();
+      const b = String(mapped.offsetLedgerName).trim().toLowerCase();
+      if (a === b) red('ledgerName और offsetLedgerName एक ही खाता नहीं हो सकते');
+    }
   }
 
   // 8) बिक्री/ख़रीद का जोड़ मिलान (सहनशीलता ₹1 — rounding के लिए)
