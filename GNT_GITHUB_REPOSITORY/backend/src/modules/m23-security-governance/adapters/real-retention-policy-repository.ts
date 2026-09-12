@@ -11,18 +11,41 @@
 import { prisma } from '@/common/config/prisma';
 import type { DataRetentionPolicy, RetentionPolicyRepository } from '../privacy/data-retention.service';
 
+function toDomain(r: { id: string; companyId: string; entityType: string; retentionDays: number; active: boolean }): DataRetentionPolicy {
+  return {
+    id: r.id,
+    tenantId: r.companyId,
+    entityType: r.entityType,
+    retentionDays: r.retentionDays,
+    active: r.active,
+  };
+}
+
 export class RealRetentionPolicyRepository implements RetentionPolicyRepository {
   async findActivePolicies(tenantId: string): Promise<DataRetentionPolicy[]> {
     const rows = await prisma.dataRetentionPolicy.findMany({
       where: { companyId: tenantId, active: true },
     });
-    return rows.map((r) => ({
-      id: r.id,
-      tenantId: r.companyId,
-      entityType: r.entityType,
-      retentionDays: r.retentionDays,
-      active: r.active,
-    }));
+    return rows.map(toDomain);
+  }
+
+  async createPolicy(input: Omit<DataRetentionPolicy, 'id'>): Promise<DataRetentionPolicy> {
+    const row = await prisma.dataRetentionPolicy.upsert({
+      where: { companyId_entityType: { companyId: input.tenantId, entityType: input.entityType } },
+      update: { retentionDays: input.retentionDays, active: input.active },
+      create: {
+        companyId: input.tenantId,
+        entityType: input.entityType,
+        retentionDays: input.retentionDays,
+        active: input.active,
+      },
+    });
+    return toDomain(row);
+  }
+
+  async listPolicies(tenantId: string): Promise<DataRetentionPolicy[]> {
+    const rows = await prisma.dataRetentionPolicy.findMany({ where: { companyId: tenantId } });
+    return rows.map(toDomain);
   }
 }
 

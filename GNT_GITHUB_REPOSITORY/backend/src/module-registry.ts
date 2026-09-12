@@ -272,6 +272,15 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     load: async () => (await import('./modules/m20-international-trade')).tradeRoutes },
   { code: 'M22', path: '/api/v1/subscriptions', mounted: true,
     load: async () => (await import('./modules/m22-subscription')).subscriptionRoutes },
+  // M23 (Security, Governance & Data Protection) — added 2026-09-12/13,
+  // M23-M31 mounting pass. Real code + DB tests existed since the earlier
+  // 2026-09-12 wiring pass, but was never mounted here — 100% unreachable
+  // until now (see CERTIFICATION_LOG.md). Policy-evaluate/CRUD +
+  // retention-policy CRUD/execute only; TenantIsolationGuard/
+  // AuthorizationService remain a library other modules call directly
+  // (M23's own INTEGRATION_NOTES.md), not HTTP endpoints.
+  { code: 'M23', path: '/api/v1/security',      mounted: true,
+    load: async () => (await import('./modules/m23-security-governance')).securityRoutes },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        mounted: true,
     load: async () => (await import('./modules/m26-global-search')).searchRoutes },

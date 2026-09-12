@@ -24,6 +24,8 @@ export interface RetentionExecutor {
 
 export interface RetentionPolicyRepository {
   findActivePolicies(tenantId: string): Promise<DataRetentionPolicy[]>;
+  createPolicy(input: Omit<DataRetentionPolicy, 'id'>): Promise<DataRetentionPolicy>;
+  listPolicies(tenantId: string): Promise<DataRetentionPolicy[]>;
 }
 
 export class DataRetentionService {
@@ -52,6 +54,15 @@ export class DataRetentionService {
     }
 
     return results;
+  }
+
+  /** M23 API surface (2026-09-12) — tenantId from trusted context only, same rule as createPolicy. */
+  async createPolicy(input: Omit<DataRetentionPolicy, 'id'>): Promise<DataRetentionPolicy> {
+    return this.policyRepository.createPolicy(input);
+  }
+
+  async listPolicies(tenantId: string): Promise<DataRetentionPolicy[]> {
+    return this.policyRepository.listPolicies(tenantId);
   }
 }
 

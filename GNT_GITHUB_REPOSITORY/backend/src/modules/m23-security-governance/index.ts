@@ -90,3 +90,7 @@ export * from './audit';
 
 // --- Request-context adapter (build a trusted AuthContext from a real Express req) ---
 export { buildTrustedRequestSource } from './adapters/real-request-context.adapter';
+
+// --- HTTP API (2026-09-12 wiring pass) ---
+export { SecurityController, securityController, SecurityPermissionDeniedError, type SecurityAuthContext } from './controllers/security.controller';
+export { securityRoutes } from './routes/security.routes';

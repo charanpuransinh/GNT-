@@ -22,6 +22,8 @@ export interface SecurityPolicy {
 
 export interface PolicyRepository {
   findActivePolicies(tenantId: string, resource: string, action: string): Promise<SecurityPolicy[]>;
+  createPolicy(input: Omit<SecurityPolicy, 'id'>): Promise<SecurityPolicy>;
+  listPolicies(tenantId: string): Promise<SecurityPolicy[]>;
 }
 
 export interface PolicyEvaluationContext {
@@ -70,6 +72,15 @@ export class PolicyEngineService {
 
     // Default-deny: absence of policy is not an ALLOW.
     return { effect: 'DENY', matchedPolicyId: null, evaluatedAt };
+  }
+
+  /** M23 API surface (2026-09-12) — tenant creates its own policy; no cross-tenant write possible (tenantId comes from trusted context, never body). */
+  async createPolicy(input: Omit<SecurityPolicy, 'id'>): Promise<SecurityPolicy> {
+    return this.repository.createPolicy(input);
+  }
+
+  async listPolicies(tenantId: string): Promise<SecurityPolicy[]> {
+    return this.repository.listPolicies(tenantId);
   }
 
   private matchesConditions(policy: SecurityPolicy, context: PolicyEvaluationContext): boolean {
