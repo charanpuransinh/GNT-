@@ -195,6 +195,12 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
     load: async () => (await import('./modules/m20-international-trade')).tradeRoutes },
   { code: 'M22', path: '/api/v1/subscriptions', mounted: true,
     load: async () => (await import('./modules/m22-subscription')).subscriptionRoutes },
+  // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
+  { code: 'M26', path: '/api/v1/search',        mounted: true,
+    load: async () => (await import('./modules/m26-global-search')).searchRoutes },
+  // M27 (Analytics, KPI & Dashboard) — added 2026-09-12, M23-M34 wiring pass.
+  { code: 'M27', path: '/api/v1/analytics',     mounted: true,
+    load: async () => (await import('./modules/m27-analytics-kpi')).analyticsRoutes },
 ];
 
 export const pendingMounts = (): ReadonlyArray<ModuleMount> => MODULE_MOUNTS.filter((m) => !m.mounted);

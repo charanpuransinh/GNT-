@@ -1311,6 +1311,40 @@ model DataRetentionPolicy {
   @@map("data_retention_policy")
 }
 
+// ── M26 Global Search (added 2026-09-12) ──
+// No Elasticsearch in this repo (verified: no @elastic/* dependency).
+// Real search is Postgres-backed (case-insensitive substring match on
+// `content`), tenant-scoped, genuinely new table.
+model SearchDocument {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  content    String
+  fields     Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, entityType, entityId])
+  @@index([companyId, entityType])
+  @@map("search_document")
+}
+
+// ── M27 Analytics, KPI & Dashboard (added 2026-09-12) ──
+// Genuinely new: dashboard layout/config storage, tenant-owned.
+model AnalyticsDashboard {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  ownerId   String   @map("owner_id")
+  name      String
+  widgets   Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, ownerId])
+  @@map("analytics_dashboard")
+}
+
 model SystemHealth {
   id              String   @id @default(cuid())
   companyId       String   @map("company_id")

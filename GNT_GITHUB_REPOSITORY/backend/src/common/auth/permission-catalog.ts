@@ -56,6 +56,10 @@ export const MODULES: readonly ModuleDef[] = [
   // M21 (Data Sense) हटा — owner फ़ैसला 2026-09-08। अब M11 का sub-module है:
   // `/api/v1/payments/data-sense` M11 (payment) की permission से ही सुरक्षित।
   { code: 'M22', path: '/api/v1/subscriptions', resource: 'subscription',  department: 'admin',           label: 'सदस्यता' },
+  // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
+  { code: 'M26', path: '/api/v1/search',        resource: 'search',        department: 'admin',           label: 'खोज' },
+  // M27 (Analytics, KPI & Dashboard) — added 2026-09-12, M23-M34 wiring pass.
+  { code: 'M27', path: '/api/v1/analytics',     resource: 'analytics',     department: 'admin',           label: 'analytics' },
 ] as const;
 
 /** `module:action` — यही string भूमिका के पास होती है और यही जाँची जाती है */
@@ -187,6 +191,10 @@ const ACTION_OVERRIDES: readonly ActionOverride[] = [
   // बदलकर नया दस्तावेज़ बनाना = create
   { method: 'POST', test: /\/convert$/, action: 'create' },
   { method: 'POST', test: /\/(bulk-import|import)$/, action: 'create' },
+  // M26: पूरे index का rebuild = भारी maintenance action = edit (न कि create)
+  { method: 'POST', test: /\/rebuild$/, action: 'edit' },
+  // M27: KPI evaluate / dashboard widget load = पढ़ना ही है, POST सिर्फ़ body के लिए = view
+  { method: 'POST', test: /\/(evaluate|widget)$/, action: 'view' },
 ] as const;
 
 /**
