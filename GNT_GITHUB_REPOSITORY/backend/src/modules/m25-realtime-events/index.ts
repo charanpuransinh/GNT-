@@ -25,3 +25,4 @@ export {
   type TokenVerifier,
 } from './websocket/websocket-auth.guard';
 export { WebSocketRouter, webSocketRouter } from './websocket/websocket-router';
+export { attachRealtimeServer } from './websocket/socketio-adapter';

@@ -8,6 +8,7 @@
  */
 
 import { app, registerModules } from './app';
+import { attachRealtimeServer } from './modules/m25-realtime-events/websocket/socketio-adapter';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -26,6 +27,9 @@ const server = app.listen(PORT, HOST, () => {
   // eslint-disable-next-line no-console
   console.info(`[GNT] backend listening on http://${HOST}:${PORT} (env=${process.env.NODE_ENV ?? 'development'})`);
 });
+
+// M25 — real-time WebSocket transport (socket.io), same http.Server, no second server.
+attachRealtimeServer(server);
 
 /** बिना अधूरी request गिराए बंद होना — deploy/restart के वक़्त ज़रूरी */
 function shutdown(signal: string): void {
