@@ -291,6 +291,10 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   // rule-bound — see reports/../scheduler/export-scheduler.ts header).
   { code: 'M28', path: '/api/v1/reports-export', mounted: true,
     load: async () => (await import('./modules/m28-reports-export')).reportsExportRoutes },
+  // M29 (Mobile Auth & Push) — added 2026-09-13, M23-M31 mounting pass.
+  // auth/login + auth/refresh are pre-auth — see app.ts PUBLIC_PREFIXES.
+  { code: 'M29', path: '/api/v1/mobile',        mounted: true,
+    load: async () => (await import('./modules/m29-mobile')).mobileRoutes },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        mounted: true,
     load: async () => (await import('./modules/m26-global-search')).searchRoutes },

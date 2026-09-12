@@ -62,6 +62,8 @@ export const MODULES: readonly ModuleDef[] = [
   { code: 'M24', path: '/api/v1/performance',   resource: 'performance',   department: 'admin',           label: 'परफ़ॉर्मेंस एवं cache' },
   // M28 (Reports & Export) — added 2026-09-13, M23-M31 mounting pass. Path /reports-export, NOT /reports (M17 already owns that).
   { code: 'M28', path: '/api/v1/reports-export', resource: 'report_export', department: 'admin',          label: 'रिपोर्ट एक्सपोर्ट' },
+  // M29 (Mobile Auth & Push) — added 2026-09-13, M23-M31 mounting pass.
+  { code: 'M29', path: '/api/v1/mobile',        resource: 'mobile',         department: 'admin',          label: 'मोबाइल ऐप' },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        resource: 'search',        department: 'admin',           label: 'खोज' },
   // M27 (Analytics, KPI & Dashboard) — added 2026-09-12, M23-M34 wiring pass.

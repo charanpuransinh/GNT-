@@ -61,6 +61,10 @@ const PUBLIC_PREFIXES = [
   // buyer का secure order-link बिना login खुलना चाहिए — link ही उसकी पहचान है
   // (HMAC-signed + expiry, M16 campaign.service)। सिर्फ़ यही GET रास्ता public है।
   '/api/v1/notifications/order-link',
+  // ── M29 (2026-09-13) ── mobile login/refresh भी pre-auth हैं, ठीक
+  // /api/v1/auth/login जैसे — token मिलने से पहले कोई token नहीं हो सकता।
+  '/api/v1/mobile/auth/login',
+  '/api/v1/mobile/auth/refresh',
 ];
 const isPublicPath = (p: string): boolean =>
   PUBLIC_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`) || p.startsWith(`${pre}?`));
