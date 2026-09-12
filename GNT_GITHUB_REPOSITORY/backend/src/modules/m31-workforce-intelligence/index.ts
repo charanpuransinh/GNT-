@@ -31,3 +31,7 @@ export { InternalTalentService, internalTalentService } from './career/internal-
 
 export { HiringFunnelService, hiringFunnelService, type FunnelStage, type FunnelEvent, type FunnelSnapshot } from './analytics/hiring-funnel.service';
 export { WorkforceKpiService, type WorkforceKpiSnapshot, type WorkforceKpiDataSource } from './analytics/workforce-kpi.service';
+
+// --- HTTP API (2026-09-13 mounting pass) ---
+export { WorkforceController, workforceController, WorkforcePermissionDeniedError, WorkforceNotFoundError, type WorkforceAuthContext } from './controllers/workforce.controller';
+export { workforceRoutes } from './routes/workforce.routes';

@@ -295,6 +295,15 @@ export const MODULE_MOUNTS: ReadonlyArray<ModuleMount> = [
   // auth/login + auth/refresh are pre-auth — see app.ts PUBLIC_PREFIXES.
   { code: 'M29', path: '/api/v1/mobile',        mounted: true,
     load: async () => (await import('./modules/m29-mobile')).mobileRoutes },
+  // M31 (Workforce & HR Intelligence) — added 2026-09-13, M23-M31 mounting pass.
+  // M30 (AI/ML Guards & Reliability) intentionally NOT mounted — its only
+  // real singletons (retry/timeout/idempotency/ai-data-guard) are code-level
+  // utilities other backend code should import directly, not HTTP resources
+  // (see CERTIFICATION_LOG.md); wiring retry/idempotency into e.g. M18's
+  // payment-gateway calls is real integration work that needs careful,
+  // reviewed changes to those call sites, not a rushed overnight route.
+  { code: 'M31', path: '/api/v1/workforce',     mounted: true,
+    load: async () => (await import('./modules/m31-workforce-intelligence')).workforceRoutes },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        mounted: true,
     load: async () => (await import('./modules/m26-global-search')).searchRoutes },

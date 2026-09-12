@@ -64,6 +64,8 @@ export const MODULES: readonly ModuleDef[] = [
   { code: 'M28', path: '/api/v1/reports-export', resource: 'report_export', department: 'admin',          label: 'रिपोर्ट एक्सपोर्ट' },
   // M29 (Mobile Auth & Push) — added 2026-09-13, M23-M31 mounting pass.
   { code: 'M29', path: '/api/v1/mobile',        resource: 'mobile',         department: 'admin',          label: 'मोबाइल ऐप' },
+  // M31 (Workforce & HR Intelligence) — added 2026-09-13, M23-M31 mounting pass. M30 not mounted (library-only, see module-registry.ts).
+  { code: 'M31', path: '/api/v1/workforce',     resource: 'workforce_intel', department: 'admin',         label: 'कार्यबल बुद्धिमत्ता' },
   // M26 (Global Search) — added 2026-09-12, M23-M34 wiring pass.
   { code: 'M26', path: '/api/v1/search',        resource: 'search',        department: 'admin',           label: 'खोज' },
   // M27 (Analytics, KPI & Dashboard) — added 2026-09-12, M23-M34 wiring pass.
@@ -207,6 +209,9 @@ const ACTION_OVERRIDES: readonly ActionOverride[] = [
   { method: 'POST', test: /\/(evaluate|widget)$/, action: 'view' },
   // M28: report build = मौजूदा M27 metrics से पढ़ना/जोड़ना, कोई नया persisted resource नहीं = view
   { method: 'POST', test: /\/build$/, action: 'view' },
+  // M31: skill-match/skill-gap/role-fit/capacity-plan सब pure analysis हैं — कोई नया
+  // persisted resource नहीं बनता (talent-profile अलग से PUT है, edit)
+  { method: 'POST', test: /\/(skill-match|skill-gap|role-fit|capacity-plan)$/, action: 'view' },
 ] as const;
 
 /**
