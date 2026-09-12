@@ -1362,6 +1362,37 @@ model IdempotencyRecord {
   @@map("idempotency_record")
 }
 
+// ── M31 Workforce Intelligence (added 2026-09-12) ──
+// Genuinely new: skill/profile intelligence + candidate feedback. Both
+// reference real m12_employees.id (Employee model) via employeeId, but as
+// a plain string, not a Prisma relation — M31 must never write M12's own
+// tables directly (Calling Rule), only read via EmployeeDirectoryAdapter.
+model TalentProfile {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  employeeId String   @map("employee_id")
+  skills     Json
+  summary    String?
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, employeeId])
+  @@map("talent_profile")
+}
+
+model CandidateFeedback {
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  candidateId   String   @map("candidate_id")
+  requirementId String   @map("requirement_id")
+  managerId     String   @map("manager_id")
+  decision      String
+  reason        String?
+  recordedAt    DateTime @default(now()) @map("recorded_at")
+
+  @@index([companyId, requirementId])
+  @@map("candidate_feedback")
+}
+
 model SystemHealth {
   id              String   @id @default(cuid())
   companyId       String   @map("company_id")
