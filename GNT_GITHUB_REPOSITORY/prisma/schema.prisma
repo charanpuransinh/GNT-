@@ -1345,6 +1345,23 @@ model AnalyticsDashboard {
   @@map("analytics_dashboard")
 }
 
+// ── M30 Reliability (added 2026-09-12) ──
+// Generic, reusable idempotency store. Genuinely new: existing ad hoc
+// idempotency handling in M08/M22 (unique-constraint based) is untouched;
+// this is a new shared mechanism for future/new code paths to opt into.
+model IdempotencyRecord {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  key       String
+  status    String
+  result    Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, key])
+  @@map("idempotency_record")
+}
+
 model SystemHealth {
   id              String   @id @default(cuid())
   companyId       String   @map("company_id")
